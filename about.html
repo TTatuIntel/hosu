@@ -1,0 +1,1189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="About HOSU - Hematology & Oncology Society of Uganda">
+    <title>About Us - HOSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="navbar.css?v=2026040404">
+    <link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --primary-light: #f8d7da;
+            --primary-dark: #c81d2a;
+            --secondary-color: #0d4593;
+            --secondary-light: #e6f0ff;
+            --secondary-dark: #072a5e;
+            --text-color: #001848;
+            --text-light: #4a5568;
+            --background-light: #f1faee;
+            --white: #ffffff;
+            --accent-color: #a8dadc;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --transition: all 0.3s ease;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --navbar-height: 90px;
+            --section-width: 92%;
+            --section-max-width: 1280px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; line-height: 1.5; color: var(--text-color); background: var(--white); }
+        a { text-decoration: none; color: inherit; }
+        img { max-width: 100%; height: auto; }
+
+        /* Hero */
+        .page-hero {
+            padding-top: var(--navbar-height);
+            position: relative;
+            min-height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .hero-inner {
+            display: flex;
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            gap: 3%;
+            align-items: center;
+            min-height: 320px;
+            position: relative;
+            z-index: 5;
+        }
+        .hero-content {
+            width: 50%;
+            margin-left: auto;
+            z-index: 10;
+            position: relative;
+            min-height: 200px;
+            background: rgba(255,255,255,0.55);
+            -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 18px;
+            padding: 1.4rem 1.6rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        }
+        .hero-slide { display: none; flex-direction: column; animation: heroFadeIn 0.6s ease; }
+        .hero-slide.active { display: flex; }
+        @keyframes heroFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .hero-image-container {
+            position: absolute;
+            inset: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            z-index: 0;
+        }
+        .hero-image-container::after {
+            content: '';
+            position: absolute;
+            inset: 0;
+            z-index: 2;
+            pointer-events: none;
+            background:
+                linear-gradient(to right, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.25) 40%, rgba(255,255,255,0.45) 70%, rgba(255,255,255,0.6) 100%),
+                linear-gradient(to bottom, transparent 80%, var(--white) 100%);
+        }
+        @keyframes fadeIn { to { opacity: 1; } }
+        .hero-background {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            transition: opacity 1s ease, transform 8s ease;
+            opacity: 0; transform: scale(1.05);
+        }
+        .hero-background.active { opacity: 1; transform: scale(1); }
+        .hero-background.bg-1 { background-image: url('img/IMG_7787.jpg'); }
+        .hero-background.bg-2 { background-image: url('img/IMG_7770.jpg'); }
+        .hero-background.bg-3 { background-image: url('img/IMG_7776.jpg'); }
+        .hero-background.bg-4 { background-image: url('img/IMG_7789.jpg'); }
+        .hero-background.bg-5 { background-image: url('img/IMG_7798.jpg'); }
+
+        .hero-pills { display: flex; gap: 0.3rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+        .hero-pill { background: rgba(255,255,255,0.85); color: var(--secondary-color); font-size: 0.68rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 12px; border: 1px solid rgba(13,69,147,0.1); display: inline-flex; align-items: center; gap: 0.2rem; }
+        .hero-pill i { font-size: 0.6rem; }
+        .hero-content h1 { font-size: 1.3rem; color: var(--secondary-color); font-weight: 700; margin-bottom: 0.3rem; position: relative; display: inline-block; }
+        .hero-content h1::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 50px; height: 2.5px; background: var(--primary-color); }
+        .hero-content p { font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem; line-height: 1.55; }
+
+        .hero-readmore { display: inline-flex; align-items: center; color: var(--primary-color); font-weight: 600; font-size: 0.82rem; transition: all 0.3s ease; margin-top: 0.25rem; position: relative; cursor: pointer; }
+        .hero-readmore:hover { color: #c81d2a; transform: translateX(4px); }
+
+        /* Scroll target offset for navbar */
+        .mv-card[id], .objectives-section[id] { scroll-margin-top: calc(var(--navbar-height) + 1rem); }
+        /* Brief highlight when scrolled to */
+        @keyframes scrollHighlight {
+            0% { box-shadow: 0 0 0 0 rgba(230,57,70,0.35); }
+            50% { box-shadow: 0 0 0 8px rgba(230,57,70,0.12); }
+            100% { box-shadow: 0 0 0 0 rgba(230,57,70,0); }
+        }
+        .scroll-highlight { animation: scrollHighlight 1.2s ease; }
+
+        .hero-stats { display: flex; gap: 1.25rem; margin-top: 0.65rem; background: rgba(255,255,255,0.45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1.5px solid rgba(13,69,147,0.12); border-radius: 30px; padding: 0.4rem 1.25rem; width: fit-content; animation: statsSlideUp 0.7s ease 0.2s both; }
+        @keyframes statsSlideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .hero-stat { text-align: center; }
+        .hero-stat-number { font-size: 1.1rem; font-weight: 700; color: var(--secondary-color); display: block; }
+        .hero-stat-label { font-size: 0.65rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
+        .hero-indicators { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+        .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(18,41,74,0.2); cursor: pointer; transition: all 0.3s ease; }
+        .hero-dot.active { background: var(--primary-color); width: 22px; border-radius: 4px; }
+
+        /* Section Title */
+        .section-title { text-align: center; font-size: 1.15rem; color: var(--secondary-color); font-weight: 700; margin-bottom: 0.5rem; overflow: visible; position: relative; z-index: 1; }
+        .section-title::after { content: ''; display: block; width: 40px; height: 2.5px; background: var(--primary-color); margin: 0.3rem auto 0; border-radius: 2px; }
+
+        /* Mission, Vision & Values */
+        .mission-vision { padding: 1.5rem 0 0.75rem; background: var(--white); display: flex; justify-content: center; position: relative; z-index: 10; }
+        .mission-vision-container { width: var(--section-width); max-width: var(--section-max-width); }
+        .mv-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.6rem; margin-top: 0.5rem; }
+        .mv-card { background: var(--white); border: 1px solid rgba(13,69,147,0.08); border-radius: 12px; padding: 0.75rem 0.9rem; position: relative; overflow: hidden; transition: var(--transition); }
+        .mv-card::before { content: ''; position: absolute; top: 0; left: 0; width: 100%; height: 3px; background: linear-gradient(90deg, var(--primary-color), var(--secondary-color)); }
+        .mv-card:hover { transform: translateY(-3px); box-shadow: var(--shadow-md); }
+        .mv-icon-circle { width: 32px; height: 32px; border-radius: 50%; display: flex; align-items: center; justify-content: center; margin-bottom: 0.35rem; font-size: 0.8rem; color: var(--white); }
+        .mv-icon-mission { background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); }
+        .mv-icon-vision { background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)); }
+        .mv-icon-values { background: linear-gradient(135deg, #a8dadc, #457b9d); }
+        .mv-card h3 { color: var(--secondary-color); font-size: 0.82rem; font-weight: 700; margin-bottom: 0.2rem; }
+        .mv-card p { color: var(--text-color); font-size: 0.75rem; line-height: 1.45; }
+        .mv-card ul { list-style: none; padding: 0; margin: 0.15rem 0 0; }
+        .mv-card li { font-size: 0.72rem; color: var(--text-color); line-height: 1.4; padding: 0.1rem 0; padding-left: 0.85rem; position: relative; }
+        .mv-card li::before { content: ''; position: absolute; left: 0; top: 0.45rem; width: 5px; height: 5px; border-radius: 50%; background: var(--primary-color); }
+
+        /* Objectives */
+        .objectives-section { padding: 0.75rem 0 0.5rem; background: var(--gray-100); display: flex; justify-content: center; }
+        .objectives-container { width: var(--section-width); max-width: var(--section-max-width); }
+        .objectives-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 0.75rem; margin-top: 0.5rem; justify-items: center; }
+        .obj-card { background: var(--white); border: 1px solid rgba(13,69,147,0.08); border-radius: 10px; padding: 0.7rem; transition: var(--transition); text-align: center; }
+        .obj-card:hover { transform: translateY(-2px); box-shadow: var(--shadow-sm); }
+        .obj-icon { width: 30px; height: 30px; border-radius: 8px; background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); display: flex; align-items: center; justify-content: center; color: var(--white); font-size: 0.8rem; margin: 0 auto 0.35rem; }
+        .obj-card h4 { color: var(--secondary-color); font-size: 0.76rem; font-weight: 600; margin-bottom: 0.2rem; }
+        .obj-card p { color: var(--text-light); font-size: 0.7rem; line-height: 1.45; }
+        .objectives-grid .obj-card:nth-child(4),
+        .objectives-grid .obj-card:nth-child(5) { max-width: 100%; }
+        @media (min-width: 769px) {
+            .objectives-grid .obj-card:nth-child(4) { grid-column: 1 / 2; justify-self: end; margin-right: 0; }
+            .objectives-grid .obj-card:nth-child(5) { grid-column: 2 / 3; justify-self: start; margin-left: 0; }
+        }
+
+        /* Leadership */
+        .leadership-section { padding: 0.75rem 0 0.5rem; background: linear-gradient(135deg, var(--gray-100) 0%, var(--white) 50%, var(--gray-100) 100%); display: flex; justify-content: center; }
+        .leadership-container { width: var(--section-width); max-width: var(--section-max-width); margin: 0 auto; position: relative; }
+        .members-carousel { position: relative; margin-top: 0.6rem; overflow: hidden; padding: 0 2.5rem; }
+        .carousel-track { display: flex; will-change: transform; }
+        .carousel-track.animating { transition: transform 0.5s cubic-bezier(0.25, 0.46, 0.45, 0.94); }
+        .member-card { flex: 0 0 calc(25% - 0.75rem); margin: 0 0.375rem; background: var(--white); border-radius: 12px; overflow: hidden; box-shadow: var(--shadow-sm); border: 1px solid rgba(13,69,147,0.08); transition: opacity 0.4s ease, box-shadow 0.4s ease; cursor: pointer; opacity: 1; position: relative; }
+        .member-card:hover { box-shadow: var(--shadow-lg); }
+        .member-image { width: 100%; height: 260px; overflow: hidden; background: linear-gradient(135deg, var(--gray-100), var(--gray-200)); position: relative; display: flex; align-items: center; justify-content: center; }
+        .member-image::after { display: none; }
+        .member-image img { width: 100%; height: 100%; object-fit: cover; object-position: center 15%; transition: transform 0.4s ease; }
+        .member-card:hover .member-image img { transform: scale(1.05); }
+        .member-info { position: absolute; bottom: 0; left: 0; right: 0; padding: 0.25rem 0.4rem 0.25rem; text-align: center; background: linear-gradient(to top, rgba(255,255,255,0.95) 0%, rgba(255,255,255,0.85) 50%, rgba(255,255,255,0.5) 80%, transparent 100%); -webkit-backdrop-filter: blur(14px) saturate(1.3); backdrop-filter: blur(14px) saturate(1.3); z-index: 2; line-height: 1.2; }
+        .member-title { display: inline-block; color: var(--white); font-size: 0.56rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.6px; margin-bottom: 0.1rem; background: linear-gradient(135deg, var(--primary-color), var(--primary-dark)); padding: 0.12rem 0.5rem; border-radius: 10px; }
+        .member-name { color: var(--secondary-color); font-size: 0.78rem; font-weight: 700; margin-bottom: 0.15rem; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.2; }
+        .read-more-btn { background: linear-gradient(135deg, var(--accent-color), #8ecfd1); color: var(--text-color); border: none; padding: 0.18rem 0.6rem; border-radius: 12px; cursor: pointer; font-size: 0.62rem; font-weight: 500; transition: all 0.3s ease; margin-top: 0; }
+        .read-more-btn:hover { background: linear-gradient(135deg, var(--secondary-color), var(--secondary-dark)); color: var(--white); transform: translateY(-1px); }
+        /* Arrows on the sides */
+        .carousel-arrow { position: absolute; top: 50%; transform: translateY(-50%); z-index: 10; width: 36px; height: 36px; border-radius: 50%; background: rgba(255,255,255,0.92); color: var(--secondary-color); display: flex; align-items: center; justify-content: center; cursor: pointer; box-shadow: 0 2px 8px rgba(0,0,0,0.12); border: 1.5px solid rgba(13,69,147,0.1); font-size: 1.1rem; transition: all 0.3s ease; }
+        .carousel-arrow:hover { background: var(--secondary-color); color: var(--white); transform: translateY(-50%) scale(1.1); box-shadow: 0 4px 12px rgba(13,69,147,0.25); }
+        .carousel-arrow:active { transform: translateY(-50%) scale(0.95); }
+        .carousel-arrow.prev { left: 0; }
+        .carousel-arrow.next { right: 0; }
+        /* Dots centered below */
+        .carousel-controls { display: flex; justify-content: center; align-items: center; gap: 0.5rem; margin-top: 0.75rem; }
+        .carousel-dots { display: flex; gap: 0.4rem; align-items: center; }
+        .carousel-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--gray-300); cursor: pointer; transition: all 0.4s ease; }
+        .carousel-dot:hover { transform: scale(1.3); filter: brightness(1.2); }
+        .carousel-dot.active { width: 22px; border-radius: 4px; background: var(--dot-color, var(--primary-color)); box-shadow: 0 0 6px var(--dot-glow, rgba(230,57,70,0.5)), 0 0 14px var(--dot-glow, rgba(230,57,70,0.25)); animation: dotGlow 1.5s ease-in-out infinite alternate; }
+        .carousel-dot:not(.active) { background: var(--dot-color, var(--gray-300)); opacity: 0.4; }
+        @keyframes dotGlow { 0% { box-shadow: 0 0 4px var(--dot-glow, rgba(230,57,70,0.4)), 0 0 8px var(--dot-glow, rgba(230,57,70,0.15)); } 100% { box-shadow: 0 0 10px var(--dot-glow, rgba(230,57,70,0.7)), 0 0 20px var(--dot-glow, rgba(230,57,70,0.35)); } }
+        .carousel-progress { display: none; }
+        /* View All button */
+        .view-all-btn { display: inline-flex; align-items: center; gap: 0.3rem; margin: 0.6rem auto 0; padding: 0.3rem 0.2rem; background: none; color: var(--secondary-color); border: none; border-radius: 0; cursor: pointer; font-size: 0.78rem; font-weight: 600; transition: all 0.3s ease; letter-spacing: 0.2px; position: relative; }
+        .view-all-btn::after { content: ''; position: absolute; bottom: 0; left: 0; width: 100%; height: 1.5px; background: var(--secondary-color); transform: scaleX(0.4); transform-origin: left; transition: transform 0.3s ease, background 0.3s ease; }
+        .view-all-btn:hover { color: var(--primary-color); transform: none; box-shadow: none; background: none; }
+        .view-all-btn:hover::after { transform: scaleX(1); background: var(--primary-color); }
+        .view-all-btn svg { transition: transform 0.3s ease; stroke: var(--secondary-color); }
+        .view-all-btn:hover svg { stroke: var(--primary-color); }
+        .view-all-btn.expanded svg { transform: rotate(180deg); }
+        .view-all-controls { display: flex; justify-content: center; }
+        /* View All expanded grid */
+        .leaders-grid-expanded { display: none; margin-top: 0.8rem; }
+        .leaders-grid-expanded.active { display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.75rem; animation: fadeInGrid 0.4s ease; }
+        .leaders-grid-expanded .member-card { flex: none; margin: 0; opacity: 1; }
+        @keyframes fadeInGrid { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+        @media (max-width: 992px) { .member-card { flex: 0 0 calc(33.333% - 0.75rem); } .leaders-grid-expanded.active { grid-template-columns: repeat(3, 1fr); } }
+        @media (max-width: 768px) { .member-card { flex: 0 0 calc(50% - 0.75rem); } .member-image { height: 220px; } .leaders-grid-expanded.active { grid-template-columns: repeat(2, 1fr); } .members-carousel { padding: 0 2rem; } .carousel-arrow { width: 30px; height: 30px; } }
+        @media (max-width: 480px) { .member-card { flex: 0 0 calc(100% - 0.75rem); } .member-image { height: 200px; } .leaders-grid-expanded.active { grid-template-columns: 1fr; } .members-carousel { padding: 0 1.5rem; } .carousel-arrow { width: 26px; height: 26px; } }
+
+        /* ---- Bio Popup: Glassmorphism Floating Card ---- */
+        .member-card > .bio-float-popup { display: none; }
+        #active-bio-popup {
+            position: absolute; z-index: 9999;
+            width: 290px; max-height: 170px;
+            background: rgba(255,255,255,0.04);
+            -webkit-backdrop-filter: blur(40px) saturate(1.8);
+            backdrop-filter: blur(40px) saturate(1.8);
+            border: 1px solid rgba(255,255,255,0.12);
+            border-radius: 14px;
+            padding: 0;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.12), 0 2px 6px rgba(0,0,0,0.06);
+            opacity: 0; transform: translateX(8px) scale(0.95);
+            transition: opacity 0.25s ease, transform 0.25s cubic-bezier(0.34,1.4,0.64,1);
+            pointer-events: none;
+        }
+        #active-bio-popup.pop-right { transform-origin: left center; }
+        #active-bio-popup.pop-left { transform-origin: right center; }
+        #active-bio-popup.pop-right { transform: translateX(8px) scale(0.95); }
+        #active-bio-popup.pop-left { transform: translateX(-8px) scale(0.95); }
+        #active-bio-popup.visible { opacity: 1; transform: translateX(0) scale(1); pointer-events: auto; }
+        /* Arrow pointing sideways at the button */
+        #active-bio-popup::before {
+            content: ''; position: absolute;
+            top: var(--arrow-y, 50%); transform: translateY(-50%) rotate(45deg);
+            width: 12px; height: 12px;
+            background: rgba(255,255,255,0.04);
+            -webkit-backdrop-filter: blur(40px); backdrop-filter: blur(40px);
+        }
+        #active-bio-popup.pop-right::before {
+            left: -7px;
+            border-left: 1px solid rgba(255,255,255,0.12);
+            border-bottom: 1px solid rgba(255,255,255,0.12);
+            border-right: none; border-top: none;
+        }
+        #active-bio-popup.pop-left::before {
+            right: -7px;
+            border-right: 1px solid rgba(255,255,255,0.12);
+            border-top: 1px solid rgba(255,255,255,0.12);
+            border-left: none; border-bottom: none;
+        }
+        .bio-popup-inner {
+            overflow-y: auto; max-height: 168px;
+            padding: 0.5rem 0.7rem 0.55rem;
+            scrollbar-width: thin; scrollbar-color: rgba(13,69,147,0.1) transparent;
+        }
+        .bio-popup-inner::-webkit-scrollbar { width: 3px; }
+        .bio-popup-inner::-webkit-scrollbar-track { background: transparent; }
+        .bio-popup-inner::-webkit-scrollbar-thumb { background: rgba(13,69,147,0.1); border-radius: 3px; }
+        .bio-popup-close {
+            position: absolute; top: 0.35rem; right: 0.4rem; z-index: 2;
+            width: 20px; height: 20px; display: flex; align-items: center; justify-content: center;
+            background: rgba(255,255,255,0.2); border: 1px solid rgba(255,255,255,0.22);
+            -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+            border-radius: 50%; font-size: 0.78rem; color: rgba(0,0,0,0.4);
+            cursor: pointer; line-height: 1; transition: all 0.2s ease;
+        }
+        .bio-popup-close:hover { background: var(--primary-color); color: #fff; border-color: var(--primary-color); transform: rotate(90deg); }
+        .bio-popup-header {
+            display: flex; align-items: center; gap: 0.5rem;
+            margin-bottom: 0.4rem; padding-right: 1.3rem;
+            padding-bottom: 0.35rem;
+            border-bottom: 1px solid rgba(255,255,255,0.15);
+        }
+        .bio-popup-img {
+            width: 30px; height: 30px; border-radius: 50%; overflow: hidden;
+            border: 1.5px solid rgba(255,255,255,0.3); flex-shrink: 0;
+            box-shadow: 0 1px 4px rgba(0,0,0,0.08);
+        }
+        .bio-popup-img img { width: 100%; height: 100%; object-fit: cover; object-position: center 20%; }
+        .bio-popup-title {
+            display: inline-block; color: #fff; font-size: 0.4rem; font-weight: 700;
+            text-transform: uppercase; letter-spacing: 0.4px;
+            background: linear-gradient(135deg, var(--primary-color), var(--primary-dark));
+            padding: 0.05rem 0.3rem; border-radius: 4px; margin-bottom: 0.06rem;
+        }
+        .bio-popup-name { color: var(--secondary-color); font-size: 0.68rem; font-weight: 700; line-height: 1.2; }
+        .bio-popup-quals { color: rgba(0,0,0,0.45); font-size: 0.5rem; font-style: italic; line-height: 1.2; margin-top: 0.04rem; }
+        .bio-popup-body { color: rgba(0,0,0,0.68); font-size: 0.58rem; line-height: 1.5; }
+        .bio-popup-body p { margin: 0 0 0.3rem; }
+        .bio-popup-body p:last-child { margin-bottom: 0; }
+        .bio-popup-loading { text-align: center; color: rgba(0,0,0,0.35); font-size: 0.55rem; padding: 0.6rem 0; }
+        .bio-popup-loading::after {
+            content: ''; display: block; width: 14px; height: 14px; margin: 0.3rem auto 0;
+            border: 2px solid rgba(13,69,147,0.1); border-top-color: var(--secondary-color);
+            border-radius: 50%; animation: bioSpin 0.7s linear infinite;
+        }
+        @keyframes bioSpin { to { transform: rotate(360deg); } }
+        @media (max-width: 768px) { #active-bio-popup { width: 260px; max-height: 160px; } .bio-popup-inner { max-height: 158px; } }
+        @media (max-width: 480px) { #active-bio-popup { width: 240px; max-height: 150px; } .bio-popup-inner { max-height: 148px; padding: 0.45rem 0.6rem; } }
+
+        /* Footer */
+        footer { background: var(--gray-100); padding: 1rem 0 0.4rem; border-top: 1px solid var(--gray-300); }
+        .footer-content { display: grid; grid-template-columns: 1fr 1.2fr 1.4fr 1fr; gap: 1rem; width: var(--section-width); max-width: var(--section-max-width); margin: 0 auto; }
+        .footer-section h4 { color: var(--secondary-color); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; position: relative; display: inline-block; }
+        .footer-section h4::after { content: ''; position: absolute; bottom: -3px; left: 0; width: 20px; height: 2px; background: var(--primary-color); }
+        .footer-section ul { list-style: none; }
+        .footer-section li { margin-bottom: 0.3rem; }
+        .footer-section a { color: var(--text-light); font-size: 0.8rem; transition: var(--transition); }
+        .footer-section a:hover { color: var(--primary-color); }
+        .footer-section address { font-style: normal; font-size: 0.8rem; color: var(--text-light); line-height: 1.5; }
+        .footer-section p { font-size: 0.78rem; color: var(--text-light); line-height: 1.4; }
+        .social-links { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+        .social-links a { width: 30px; height: 30px; border-radius: 50%; background: var(--gray-200); display: flex; align-items: center; justify-content: center; color: var(--secondary-color); transition: var(--transition); }
+        .social-links a:hover { background: var(--secondary-color); color: var(--white); }
+        .footer-dev-name { font-size: 0.8rem; font-weight: 600; color: var(--secondary-color); }
+        .footer-dev-contact { font-size: 0.75rem; color: var(--text-light); }
+        .copyright { text-align: center; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--gray-300); font-size: 0.72rem; color: var(--text-light); width: var(--section-width); max-width: var(--section-max-width); margin-left: auto; margin-right: auto; }
+
+        /* Responsive */
+        @media (max-width: 992px) {
+            .objectives-grid { grid-template-columns: repeat(2, 1fr); }
+            .objectives-grid .obj-card:nth-child(4),
+            .objectives-grid .obj-card:nth-child(5) { max-width: 100%; justify-self: stretch; margin: 0; }
+        }
+        @media (max-width: 768px) {
+            .page-hero { min-height: 280px; }
+            .hero-inner { flex-direction: column; min-height: 0; padding: 1rem 0; }
+            .hero-content { width: 92%; margin: 0 auto; text-align: center; align-items: center; padding: 1.2rem; background: rgba(255,255,255,0.7); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+            .hero-content h1::after { left: 50%; transform: translateX(-50%); }
+            .hero-image-container { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; }
+            .hero-image-container::after { background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.3) 50%, var(--white) 100%); }
+            .hero-stats { margin: 0.75rem auto 0; }
+            .hero-pills { justify-content: center; }
+            .hero-indicators { justify-content: center; }
+
+            .mv-grid { grid-template-columns: 1fr; }
+            .mv-card { padding: 0.85rem 1rem; }
+            .objectives-grid { grid-template-columns: 1fr 1fr; }
+            .objectives-grid .obj-card:nth-child(4),
+            .objectives-grid .obj-card:nth-child(5) { justify-self: stretch; margin: 0; }
+            .member-card { width: 160px; }
+            .footer-content { grid-template-columns: 1fr 1fr; }
+        }
+        @media (max-width: 480px) {
+            .objectives-grid { grid-template-columns: 1fr; }
+            .objectives-grid .obj-card:nth-child(4),
+            .objectives-grid .obj-card:nth-child(5) { justify-self: stretch; margin: 0; }
+            .footer-content { grid-template-columns: 1fr; }
+            .hero-stats { flex-direction: column; gap: 0.5rem; border-radius: 12px; padding: 0.6rem 1.25rem; }
+        }
+
+/* Login Floating Popup */
+.login-trigger-wrap {
+    position: relative;
+    display: inline-block;
+}
+.login-float-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 14px);
+    right: 0;
+    z-index: 1001;
+    width: 300px;
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem 1.1rem;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.14),
+        0 4px 12px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    animation: loginPopUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    text-align: left;
+}
+.login-float-popup.active {
+    display: block;
+}
+/* Arrow pointing up */
+.login-float-popup::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    right: 24px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.78);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+}
+.login-float-popup .lfp-close {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.06);
+    border: none;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+.login-float-popup .lfp-close:hover {
+    background: var(--primary-color);
+    color: var(--white);
+}
+.login-float-popup h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.15rem;
+    padding-right: 1.8rem;
+}
+.login-float-popup .lfp-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-bottom: 0.7rem;
+}
+.login-float-popup .lfp-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.login-float-popup .lfp-input {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.6);
+    box-sizing: border-box;
+}
+.login-float-popup .lfp-input:focus {
+    border-color: var(--secondary-color);
+}
+.login-float-popup .lfp-field {
+    margin-bottom: 0.5rem;
+}
+.login-float-popup .lfp-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.72rem;
+}
+.login-float-popup .lfp-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--text-light);
+    cursor: pointer;
+}
+.login-float-popup .lfp-options label input {
+    accent-color: var(--secondary-color);
+}
+.login-float-popup .lfp-options a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.login-float-popup .lfp-options a:hover {
+    text-decoration: underline;
+}
+.login-float-popup .lfp-submit {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--secondary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.login-float-popup .lfp-submit:hover {
+    background: var(--secondary-dark);
+    transform: translateY(-1px);
+}
+.login-float-popup .lfp-footer {
+    text-align: center;
+    margin-top: 0.6rem;
+    font-size: 0.72rem;
+    color: var(--text-light);
+}
+.login-float-popup .lfp-footer a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+}
+.login-float-popup .lfp-footer a:hover {
+    text-decoration: underline;
+}
+@keyframes loginPopUp {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar"></nav>
+
+    <!-- Hero -->
+    <section class="page-hero">
+        <div class="hero-inner">
+            <div class="hero-image-container" id="heroImageContainer">
+                <div class="hero-background bg-1 active"></div>
+                <div class="hero-background bg-2"></div>
+                <div class="hero-background bg-3"></div>
+                <div class="hero-background bg-4"></div>
+                <div class="hero-background bg-5"></div>
+            </div>
+            <div class="hero-content">
+                <!-- Slide 1: Intro -->
+                <article class="hero-slide active" data-slide="intro">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-heart-pulse"></i> Healthcare</span>
+                        <span class="hero-pill"><i class="fas fa-microscope"></i> Research</span>
+                        <span class="hero-pill"><i class="fas fa-graduation-cap"></i> Education</span>
+                    </div>
+                    <h1>About HOSU</h1>
+                    <p>The Hematology &amp; Oncology Society of Uganda (HOSU) is incorporated as a nonprofit organization for educational, scientific, and research purposes under the laws of Uganda. HOSU represents a critical step forward in addressing the challenges faced by healthcare professionals and patients in hematology and oncology.</p>
+                    <div class="hero-stats" id="aboutStatsBar">
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="ab-stat-0-val">–</span>
+                            <span class="hero-stat-label" id="ab-stat-0-lbl">Members</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="ab-stat-1-val">–</span>
+                            <span class="hero-stat-label" id="ab-stat-1-lbl">Founded</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="ab-stat-2-val">–</span>
+                            <span class="hero-stat-label" id="ab-stat-2-lbl">Events</span>
+                        </div>
+                    </div>
+                </article>
+
+                <!-- Slide 2: Mission -->
+                <article class="hero-slide" data-slide="mission">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-bullseye"></i> Purpose</span>
+                        <span class="hero-pill"><i class="fas fa-hand-holding-medical"></i> Service</span>
+                    </div>
+                    <h1>Our Mission</h1>
+                    <p>To eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
+                    <a href="#section-mission" class="hero-readmore">Read More &rarr;</a>
+                </article>
+
+                <!-- Slide 3: Vision -->
+                <article class="hero-slide" data-slide="vision">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-eye"></i> Vision</span>
+                        <span class="hero-pill"><i class="fas fa-star"></i> Aspiration</span>
+                    </div>
+                    <h1>Our Vision</h1>
+                    <p>A Uganda free from cancer and blood diseases.</p>
+                    <a href="#section-vision" class="hero-readmore">Read More &rarr;</a>
+                </article>
+
+                <!-- Slide 4: Core Values -->
+                <article class="hero-slide" data-slide="values">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-gem"></i> Values</span>
+                        <span class="hero-pill"><i class="fas fa-shield-halved"></i> Integrity</span>
+                    </div>
+                    <h1>Our Core Values</h1>
+                    <p>We uphold excellence, compassion, collaboration, and integrity in every aspect of cancer care&mdash;placing patients and evidence at the heart of everything we do.</p>
+                    <a href="#section-values" class="hero-readmore">Read More &rarr;</a>
+                </article>
+
+                <!-- Slide 5: Objectives -->
+                <article class="hero-slide" data-slide="objectives">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-list-check"></i> Goals</span>
+                        <span class="hero-pill"><i class="fas fa-chart-line"></i> Impact</span>
+                    </div>
+                    <h1>Our Objectives</h1>
+                    <p>Promoting professional development, fostering research, improving patient care, advocating for supportive policies, and building strategic collaborations in hematology and oncology across Uganda.</p>
+                    <a href="#section-objectives" class="hero-readmore">Read More &rarr;</a>
+                </article>
+
+                <div class="hero-indicators">
+                    <span class="hero-dot active" data-index="0" aria-label="About"></span>
+                    <span class="hero-dot" data-index="1" aria-label="Mission"></span>
+                    <span class="hero-dot" data-index="2" aria-label="Vision"></span>
+                    <span class="hero-dot" data-index="3" aria-label="Values"></span>
+                    <span class="hero-dot" data-index="4" aria-label="Objectives"></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+
+    <!-- Mission, Vision & Values -->
+    <section class="mission-vision">
+        <div class="mission-vision-container">
+            <h2 class="section-title">Our Purpose</h2>
+            <div class="mv-grid">
+                <div class="mv-card" id="section-mission">
+                    <div class="mv-icon-circle mv-icon-mission"><i class="fas fa-bullseye"></i></div>
+                    <h3>Our Mission</h3>
+                    <p>To eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
+                </div>
+                <div class="mv-card" id="section-vision">
+                    <div class="mv-icon-circle mv-icon-vision"><i class="fas fa-eye"></i></div>
+                    <h3>Our Vision</h3>
+                    <p>A Uganda free from cancer and blood diseases.</p>
+                </div>
+                <div class="mv-card" id="section-values">
+                    <div class="mv-icon-circle mv-icon-values"><i class="fas fa-gem"></i></div>
+                    <h3>Our Core Values</h3>
+                    <ul>
+                        <li><strong>Excellence</strong> — Highest standards in clinical care &amp; research</li>
+                        <li><strong>Compassion</strong> — Dignity, empathy &amp; respect for every patient</li>
+                        <li><strong>Collaboration</strong> — Partnerships across institutions &amp; borders</li>
+                        <li><strong>Integrity</strong> — Ethical practice &amp; transparency</li>
+                        <li><strong>Innovation</strong> — Evidence-based approaches &amp; new technologies</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Objectives -->
+    <section class="objectives-section" id="section-objectives">
+        <div class="objectives-container">
+            <h2 class="section-title">Our Objectives</h2>
+            <div class="objectives-grid">
+                <div class="obj-card">
+                    <div class="obj-icon"><i class="fas fa-user-graduate"></i></div>
+                    <h4>Professional Development</h4>
+                    <p>Improve the knowledge, skills, and competencies of healthcare professionals in hematology and oncology across Uganda through specialized training programs, continuous medical education, mentorship initiatives, evidence-based practice, and strategic academic and institutional partnerships.</p>
+                </div>
+                <div class="obj-card">
+                    <div class="obj-icon"><i class="fas fa-microscope"></i></div>
+                    <h4>Foster Research</h4>
+                    <p>Support the generation, publication, dissemination, and implementation of high-quality research addressing locally and globally relevant issues in hematology and oncology, to improve clinical practice, inform policy, and contribute to scientific advancement in Uganda.</p>
+                </div>
+                <div class="obj-card">
+                    <div class="obj-icon"><i class="fas fa-heartbeat"></i></div>
+                    <h4>Improve Patient Care</h4>
+                    <p>Strengthen the quality of care for patients with hematologic and oncologic conditions by developing, updating, and promoting evidence-based clinical guidelines, treatment protocols, and best practice standards across health facilities in Uganda.</p>
+                </div>
+                <div class="obj-card">
+                    <div class="obj-icon"><i class="fas fa-landmark"></i></div>
+                    <h4>Policy Advocacy &amp; Resource Mobilization</h4>
+                    <p>Influence national and international health policies and secure sustainable funding by engaging with policymakers, healthcare institutions, and development partners to improve access to comprehensive cancer and blood disorder care, including diagnostics, medicines, and treatment services.</p>
+                </div>
+                <div class="obj-card">
+                    <div class="obj-icon"><i class="fas fa-handshake"></i></div>
+                    <h4>Strategic Collaborations &amp; Networks</h4>
+                    <p>Establish and maintain a robust network of healthcare professionals, researchers, academic institutions, and partners to facilitate collaborative initiatives aimed at enhancing capacity, sharing knowledge, and improving outcomes for patients with cancer and blood disorders in Uganda and beyond.</p>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Leadership -->
+    <section class="leadership-section" id="leadership">
+        <div class="leadership-container">
+            <h2 class="section-title">Our Leadership</h2>
+            <div class="members-carousel" id="carouselWrapper">
+                <button class="carousel-arrow prev" aria-label="Previous">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="15 18 9 12 15 6"></polyline></svg>
+                </button>
+                <div class="carousel-track" id="leadershipTrack">
+                    <!-- Leaders loaded dynamically from database -->
+                </div>
+                <div class="carousel-progress"></div>
+                <button class="carousel-arrow next" aria-label="Next">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="9 18 15 12 9 6"></polyline></svg>
+                </button>
+            </div>
+            <div class="carousel-controls" id="carouselControls">
+                <div class="carousel-dots"></div>
+            </div>
+            <div class="view-all-controls">
+                <button class="view-all-btn" id="viewAllBtn" onclick="toggleViewAll()">
+                    View All
+                    <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="6 9 12 15 18 9"></polyline></svg>
+                </button>
+            </div>
+            <div class="leaders-grid-expanded" id="leadersGrid"></div>
+        </div>
+
+        <!-- Old overlay removed — bio now uses floating popups on each card -->
+    </section>
+
+    <!-- Footer -->
+    <footer></footer>
+
+
+    <script>
+
+        // Hero Slideshow
+        let heroIndex = 0;
+        const heroSlides = document.querySelectorAll('.hero-slide');
+        const heroBgs = document.querySelectorAll('.hero-background');
+        const heroDots = document.querySelectorAll('.hero-dot');
+
+        function showHeroSlide(index) {
+            document.querySelectorAll('.hero-float-popup.active').forEach(function(p) { p.classList.remove('active'); });
+            heroSlides.forEach(function(s) { s.classList.remove('active'); });
+            heroBgs.forEach(function(b) { b.classList.remove('active'); });
+            heroDots.forEach(function(d) { d.classList.remove('active'); });
+            heroSlides[index].classList.add('active');
+            heroBgs[index % heroBgs.length].classList.add('active');
+            heroDots[index].classList.add('active');
+            heroIndex = index;
+            // Re-trigger stats animation when "About HOSU" slide is active
+            var stats = heroSlides[index].querySelector('.hero-stats');
+            if (stats) {
+                stats.style.animation = 'none';
+                stats.offsetHeight; // force reflow
+                stats.style.animation = '';
+            }
+        }
+
+        let heroTimer = setInterval(function() {
+            showHeroSlide((heroIndex + 1) % heroSlides.length);
+        }, 6000);
+
+        function resetHeroTimer() {
+            clearInterval(heroTimer);
+            heroTimer = setInterval(function() {
+                showHeroSlide((heroIndex + 1) % heroSlides.length);
+            }, 6000);
+        }
+
+        heroDots.forEach(function(dot) {
+            dot.addEventListener('click', function() {
+                showHeroSlide(parseInt(dot.dataset.index, 10));
+                resetHeroTimer();
+            });
+        });
+
+        // Highlight target section when Read More is clicked
+        document.querySelectorAll('.hero-readmore[href^="#section-"]').forEach(function(link) {
+            link.addEventListener('click', function() {
+                var target = document.querySelector(this.getAttribute('href'));
+                if (target) {
+                    setTimeout(function() {
+                        target.classList.remove('scroll-highlight');
+                        void target.offsetWidth;
+                        target.classList.add('scroll-highlight');
+                    }, 400);
+                }
+            });
+        });
+
+        // Infinite Continuous Carousel
+        const track = document.getElementById('leadershipTrack');
+        const dotsContainer = document.querySelector('.carousel-dots');
+        const prevBtn = document.querySelector('.members-carousel .carousel-arrow.prev');
+        const nextBtn = document.querySelector('.members-carousel .carousel-arrow.next');
+        const progressBar = document.querySelector('.carousel-progress');
+        const carouselWrapper = document.getElementById('carouselWrapper');
+        const carouselControls = document.getElementById('carouselControls');
+        const leadersGrid = document.getElementById('leadersGrid');
+        const viewAllBtn = document.getElementById('viewAllBtn');
+
+        let currentIndex = 0;
+        let autoPlayInterval;
+        let progressInterval;
+        const autoPlayDelay = 2500;
+        let totalCards = 0;
+        let cardsPerView = 4;
+        let cardWidth = 0;
+        let isTransitioning = false;
+        let originalCardsHTML = '';
+        let viewAllExpanded = false;
+
+        function buildCardHTML(leader) {
+            var safeName = leader.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            var safeTitle = leader.title.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            var photo = (leader.photo_url || 'img/Picture1.jpg').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+            return '<div class="member-card">'
+                + '<div class="member-image"><img src="' + photo + '" alt="' + safeName + '" loading="lazy"></div>'
+                + '<div class="member-info">'
+                + '<div class="member-title">' + safeTitle + '</div>'
+                + '<h3 class="member-name">' + safeName + '</h3>'
+                + '<button class="read-more-btn" onclick="event.stopPropagation(); toggleBioPopup(this);">View Bio</button>'
+                + '</div>'
+                + '<div class="bio-float-popup" data-name="' + safeName + '">'
+                + '<button class="bio-popup-close" onclick="event.stopPropagation(); closeBioPopup(this);">&times;</button>'
+                + '<div class="bio-popup-inner">'
+                + '<div class="bio-popup-header">'
+                + '<div class="bio-popup-img"><img src="' + photo + '" alt="' + safeName + '"></div>'
+                + '<div><div class="bio-popup-title">' + safeTitle + '</div><div class="bio-popup-name">' + safeName + '</div></div>'
+                + '</div>'
+                + '<div class="bio-popup-body"><div class="bio-popup-loading">Loading...</div></div>'
+                + '</div>'
+                + '</div>'
+                + '</div>';
+        }
+
+        // Fetch leaders from API and build carousel
+        function loadLeadership() {
+            fetch('api.php?action=get_leaders')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    if (d.success && d.leaders && d.leaders.length) {
+                        // Sort by title hierarchy: President first, then VP, President Elect, etc.
+                        var titlePriority = function(title) {
+                            var t = (title || '').toLowerCase();
+                            if (/\bpresident\b/.test(t) && !/elect/.test(t) && !/vice/.test(t)) return 1;
+                            if (/vice\s*president/.test(t)) return 2;
+                            if (/president\s*elect/.test(t)) return 3;
+                            if (/general\s*secretary/.test(t)) return 4;
+                            if (/treasurer/.test(t)) return 5;
+                            if (/secretary/.test(t)) return 6;
+                            return 100;
+                        };
+                        d.leaders.sort(function(a, b) {
+                            return titlePriority(a.title) - titlePriority(b.title) || (a.sort_order || 0) - (b.sort_order || 0);
+                        });
+                        originalCardsHTML = d.leaders.map(buildCardHTML).join('');
+                        // Build "View All" grid
+                        leadersGrid.innerHTML = d.leaders.map(buildCardHTML).join('');
+                        // Build infinite track: clone sets before and after
+                        rebuildInfiniteTrack();
+                        initCarousel();
+                    }
+                })
+                .catch(function() {});
+        }
+
+        function rebuildInfiniteTrack() {
+            // We place: [clone-set] [original-set] [clone-set]
+            track.innerHTML = originalCardsHTML + originalCardsHTML + originalCardsHTML;
+        }
+
+        function initCarousel() {
+            var allCards = track.querySelectorAll('.member-card');
+            totalCards = allCards.length / 3; // original count
+            updateCardsPerView();
+            computeCardWidth();
+            // Position at the start of the middle (original) set
+            currentIndex = totalCards;
+            jumpToIndex(currentIndex);
+            generateDots();
+            startAutoPlay();
+        }
+
+        function computeCardWidth() {
+            var firstCard = track.querySelector('.member-card');
+            if (firstCard) {
+                var style = window.getComputedStyle(firstCard);
+                cardWidth = firstCard.offsetWidth + parseFloat(style.marginLeft) + parseFloat(style.marginRight);
+            }
+        }
+
+        function updateCardsPerView() {
+            if (window.innerWidth <= 480) cardsPerView = 1;
+            else if (window.innerWidth <= 768) cardsPerView = 2;
+            else if (window.innerWidth <= 992) cardsPerView = 3;
+            else cardsPerView = 4;
+        }
+
+        var dotColors = [
+            { color: '#e63946', glow: 'rgba(230,57,70,0.5)' },
+            { color: '#0d4593', glow: 'rgba(13,69,147,0.5)' },
+            { color: '#2a9d8f', glow: 'rgba(42,157,143,0.5)' },
+            { color: '#e9c46a', glow: 'rgba(233,196,106,0.55)' }
+        ];
+        var activeDotIndex = 0;
+
+        function generateDots() {
+            dotsContainer.innerHTML = '';
+            for (var i = 0; i < dotColors.length; i++) {
+                var dot = document.createElement('div');
+                var c = dotColors[i];
+                dot.className = 'carousel-dot' + (i === 0 ? ' active' : '');
+                dot.style.setProperty('--dot-color', c.color);
+                dot.style.setProperty('--dot-glow', c.glow);
+                dotsContainer.appendChild(dot);
+            }
+        }
+
+        function renderDots() {
+            var dots = dotsContainer.querySelectorAll('.carousel-dot');
+            dots.forEach(function(dot, i) { dot.classList.toggle('active', i === activeDotIndex); });
+        }
+
+        function advanceDot() {
+            activeDotIndex = (activeDotIndex + 1) % dotColors.length;
+            renderDots();
+        }
+
+        function retreatDot() {
+            activeDotIndex = (activeDotIndex - 1 + dotColors.length) % dotColors.length;
+            renderDots();
+        }
+
+        function jumpToIndex(index) {
+            track.classList.remove('animating');
+            currentIndex = index;
+            track.style.transform = 'translateX(-' + (currentIndex * cardWidth) + 'px)';
+        }
+
+        function goToSlide(index, direction) {
+            if (isTransitioning) return;
+            isTransitioning = true;
+            currentIndex = index;
+            track.classList.add('animating');
+            track.style.transform = 'translateX(-' + (currentIndex * cardWidth) + 'px)';
+            if (direction === 'prev') { retreatDot(); } else { advanceDot(); }
+            resetProgress();
+        }
+
+        track.addEventListener('transitionend', function() {
+            isTransitioning = false;
+            track.classList.remove('animating');
+            if (currentIndex >= totalCards * 2) {
+                currentIndex = currentIndex - totalCards;
+                track.style.transform = 'translateX(-' + (currentIndex * cardWidth) + 'px)';
+            } else if (currentIndex < totalCards) {
+                currentIndex = currentIndex + totalCards;
+                track.style.transform = 'translateX(-' + (currentIndex * cardWidth) + 'px)';
+            }
+        });
+
+        function nextSlide() {
+            goToSlide(currentIndex + 1, 'next');
+        }
+
+        function prevSlide() {
+            goToSlide(currentIndex - 1, 'prev');
+        }
+
+        // Progress bar animation
+        function resetProgress() {
+            progressBar.style.width = '0%';
+            clearInterval(progressInterval);
+            var progress = 0;
+            progressInterval = setInterval(function() {
+                progress += 100 / (autoPlayDelay / 50);
+                progressBar.style.width = Math.min(progress, 100) + '%';
+            }, 50);
+        }
+
+        function startAutoPlay() {
+            stopAutoPlay();
+            resetProgress();
+            autoPlayInterval = setInterval(nextSlide, autoPlayDelay);
+        }
+
+        function stopAutoPlay() {
+            clearInterval(autoPlayInterval);
+            clearInterval(progressInterval);
+        }
+
+        // Event listeners
+        prevBtn.addEventListener('click', function() { prevSlide(); startAutoPlay(); });
+        nextBtn.addEventListener('click', function() { nextSlide(); startAutoPlay(); });
+        track.addEventListener('mouseenter', stopAutoPlay);
+        track.addEventListener('mouseleave', function() { if (!viewAllExpanded && !_bioPopupOpen) startAutoPlay(); });
+
+        // Touch support
+        var touchStartX = 0;
+        track.addEventListener('touchstart', function(e) { touchStartX = e.touches[0].clientX; stopAutoPlay(); }, { passive: true });
+        track.addEventListener('touchend', function(e) {
+            var diff = touchStartX - e.changedTouches[0].clientX;
+            if (Math.abs(diff) > 50) { diff > 0 ? nextSlide() : prevSlide(); }
+            if (!_bioPopupOpen) startAutoPlay();
+        }, { passive: true });
+
+        // Resize handler
+        window.addEventListener('resize', function() {
+            if (totalCards === 0) return;
+            updateCardsPerView();
+            computeCardWidth();
+            generateDots();
+            jumpToIndex(currentIndex);
+        });
+
+        // View All toggle
+        function toggleViewAll() {
+            viewAllExpanded = !viewAllExpanded;
+            if (viewAllExpanded) {
+                stopAutoPlay();
+                carouselWrapper.style.display = 'none';
+                carouselControls.style.display = 'none';
+                leadersGrid.classList.add('active');
+                viewAllBtn.classList.add('expanded');
+                viewAllBtn.childNodes[0].textContent = 'Show Less ';
+            } else {
+                carouselWrapper.style.display = '';
+                carouselControls.style.display = '';
+                leadersGrid.classList.remove('active');
+                viewAllBtn.classList.remove('expanded');
+                viewAllBtn.childNodes[0].textContent = 'View All ';
+                computeCardWidth();
+                jumpToIndex(currentIndex);
+                startAutoPlay();
+            }
+        }
+
+        // Auto-collapse View All when clicking outside leadership section
+        var leadershipSection = document.getElementById('leadership');
+        document.addEventListener('click', function(e) {
+            if (viewAllExpanded
+                && !leadershipSection.contains(e.target)
+                && !e.target.closest('.bio-float-popup')
+                && !e.target.closest('#active-bio-popup')) {
+                toggleViewAll();
+            }
+        });
+
+        // Load leaders on page load
+        loadLeadership();
+
+        // Bio floating popup
+        var _bioCache = {};
+        var _bioPopupOpen = false;
+        function closeAllBioPopups() {
+            var el = document.getElementById('active-bio-popup');
+            if (el) { el.remove(); }
+            if (_bioPopupOpen) { _bioPopupOpen = false; startAutoPlay(); }
+        }
+        function toggleBioPopup(btn) {
+            var card = btn.closest('.member-card');
+            var name = card.querySelector('.member-name').textContent;
+            // Toggle off if same card
+            var existing = document.getElementById('active-bio-popup');
+            if (existing && existing.getAttribute('data-name') === name) {
+                closeAllBioPopups(); return;
+            }
+            // Remove any existing popup instantly
+            if (existing) existing.remove();
+            // Pause carousel
+            stopAutoPlay(); _bioPopupOpen = true;
+            // Clone hidden template from card
+            var srcPopup = card.querySelector('.bio-float-popup');
+            var popup = srcPopup.cloneNode(true);
+            popup.id = 'active-bio-popup';
+            popup.style.display = 'block';
+            popup.querySelector('.bio-popup-close').onclick = function(e) { e.stopPropagation(); closeAllBioPopups(); };
+            // Append into the leadership container (position: relative parent)
+            var container = document.querySelector('.leadership-container');
+            container.appendChild(popup);
+            // Position sideways at the View Bio button
+            var containerRect = container.getBoundingClientRect();
+            var btnRect = btn.getBoundingClientRect();
+            var pw = 290;
+            var ph = popup.offsetHeight || 170;
+            var gap = 10;
+            // Vertical: center popup on the button
+            var topPos = btnRect.top - containerRect.top + (btnRect.height / 2) - (ph / 2);
+            // Keep popup within container vertically
+            topPos = Math.max(4, topPos);
+            // Horizontal: try right side first, then left
+            var spaceRight = containerRect.right - btnRect.right;
+            var spaceLeft = btnRect.left - containerRect.left;
+            popup.classList.remove('pop-right', 'pop-left');
+            var leftPos;
+            if (spaceRight >= pw + gap || spaceRight >= spaceLeft) {
+                // Place to the RIGHT of the button
+                leftPos = btnRect.right - containerRect.left + gap;
+                popup.classList.add('pop-right');
+            } else {
+                // Place to the LEFT of the button
+                leftPos = btnRect.left - containerRect.left - pw - gap;
+                popup.classList.add('pop-left');
+            }
+            // Clamp horizontal
+            leftPos = Math.max(4, Math.min(leftPos, containerRect.width - pw - 4));
+            popup.style.top = topPos + 'px';
+            popup.style.left = leftPos + 'px';
+            // Arrow points at button center vertically
+            var arrowY = btnRect.top - containerRect.top + (btnRect.height / 2) - topPos;
+            popup.style.setProperty('--arrow-y', arrowY + 'px');
+            // Animate in
+            requestAnimationFrame(function() { popup.classList.add('visible'); });
+            var bodyEl = popup.querySelector('.bio-popup-body');
+            if (_bioCache[name]) {
+                renderBioPopup(popup, _bioCache[name]);
+            } else {
+                bodyEl.innerHTML = '<div class="bio-popup-loading">Loading...</div>';
+                fetch('api.php?action=get_leader_bio&name=' + encodeURIComponent(name))
+                    .then(function(r) { return r.json(); })
+                    .then(function(d) {
+                        if (d.success && d.leader) {
+                            _bioCache[name] = d.leader;
+                            renderBioPopup(popup, d.leader);
+                        } else {
+                            bodyEl.textContent = 'Biography will be available soon.';
+                        }
+                    })
+                    .catch(function() {
+                        bodyEl.textContent = 'Biography will be available soon.';
+                    });
+            }
+        }
+        function renderBioPopup(popup, leader) {
+            var qualsEl = popup.querySelector('.bio-popup-name');
+            var bodyEl = popup.querySelector('.bio-popup-body');
+            var quals = leader.qualifications ? leader.qualifications : '';
+            if (quals) {
+                var qSpan = popup.querySelector('.bio-popup-quals');
+                if (!qSpan) {
+                    var nameEl = popup.querySelector('.bio-popup-name');
+                    nameEl.insertAdjacentHTML('afterend', '<div class="bio-popup-quals"></div>');
+                    qSpan = popup.querySelector('.bio-popup-quals');
+                }
+                qSpan.textContent = quals;
+            }
+            var bio = leader.biography || 'Biography will be available soon.';
+            var esc = function(s) { var d = document.createElement('div'); d.textContent = s; return d.innerHTML; };
+            var paragraphs = bio.split(/\n\s*\n/).filter(function(p) { return p.trim(); });
+            if (paragraphs.length > 1) {
+                bodyEl.innerHTML = paragraphs.map(function(p) { return '<p>' + esc(p.trim()) + '</p>'; }).join('');
+            } else {
+                bodyEl.textContent = bio;
+            }
+            if (leader.photo_url) {
+                var img = popup.querySelector('.bio-popup-img img');
+                if (img) img.src = leader.photo_url;
+            }
+        }
+        function closeBioPopup(btn) {
+            closeAllBioPopups();
+        }
+        // Close bio popup when clicking outside
+        document.addEventListener('click', function(e) {
+            if (!e.target.closest('#active-bio-popup') && !e.target.closest('.read-more-btn')) {
+                closeAllBioPopups();
+            }
+        });
+        document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeAllBioPopups(); });
+</script>
+<script>
+// Load dynamic stats from DB for about page
+fetch('api.php?action=get_site_stats&page=about').then(function(r){return r.json();}).then(function(d){
+    if(d.success && d.stats && d.stats.length){
+        d.stats.forEach(function(s,i){
+            var v=document.getElementById('ab-stat-'+i+'-val');
+            var l=document.getElementById('ab-stat-'+i+'-lbl');
+            if(v)v.textContent=s.stat_value;
+            if(l)l.textContent=s.stat_label;
+        });
+    }
+}).catch(function(){});
+</script>
+<script src="shared-components.js?v=2026040404"></script>
+<script src="shared-login.js?v=2026040404"></script>
+<script src="donate-float.js?v=2026040404"></script>
+</body>
+</html>

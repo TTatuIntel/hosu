@@ -1,0 +1,28 @@
+# Deny access to sensitive files
+<FilesMatch "\.(env|env\.example|md)$">
+    Require all denied
+</FilesMatch>
+
+# Deny access to env loader
+<Files "env.php">
+    Require all denied
+</Files>
+
+# Deny access to setup/seed scripts
+<Files "setup_db.php">
+    Require all denied
+</Files>
+<Files "seed_sample_data.php">
+    Require all denied
+</Files>
+<Files "_tmp_check.php">
+    Require all denied
+</Files>
+
+# Prevent directory listing
+Options -Indexes
+
+# Disable .htaccess file serving
+<Files ".htaccess">
+    Require all denied
+</Files>
