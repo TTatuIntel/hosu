@@ -54,7 +54,6 @@
     width: 320px;
     max-height: calc(100vh - 100px);
     overflow-y: auto;
-    overflow-x: hidden;
     background: rgba(255, 255, 255, 0.99);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
     backdrop-filter: blur(24px) saturate(1.4);
@@ -353,133 +352,37 @@
     cursor: not-allowed;
 }
 
-/* --- Processing step indicator --- */
-.donate-float-popup .dfp-steps {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    gap: 0;
-    margin: 1rem 0 1.2rem;
-}
-.donate-float-popup .dfp-step {
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 0.3rem;
-}
-.donate-float-popup .dfp-step span {
-    font-size: 0.65rem;
-    font-weight: 600;
-    color: var(--text-light, #4a5568);
-}
-.donate-float-popup .dfp-step-dot {
-    width: 28px;
-    height: 28px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    font-size: 0.72rem;
-    font-weight: 700;
-    border: 2px solid var(--gray-300, #e2e8f0);
-    background: var(--white, #fff);
-    color: var(--text-light, #4a5568);
-    transition: all 0.3s;
-}
-.donate-float-popup .dfp-step-dot.active {
-    border-color: var(--secondary-color, #0d4593);
-    background: var(--secondary-color, #0d4593);
-    color: var(--white, #fff);
-}
-.donate-float-popup .dfp-step-dot.done {
-    border-color: #27ae60;
-    background: #27ae60;
-    color: var(--white, #fff);
-}
-.donate-float-popup .dfp-step-line {
-    width: 36px;
-    height: 2px;
-    background: var(--gray-300, #e2e8f0);
-    margin: 0 0.2rem;
-    margin-bottom: 1.3rem;
-    transition: background 0.3s;
-}
-.donate-float-popup .dfp-step-line.active {
-    background: var(--secondary-color, #0d4593);
-}
-.donate-float-popup .dfp-step-line.done {
-    background: #27ae60;
-}
-
-/* --- Spinner --- */
-.donate-float-popup .dfp-spinner {
-    width: 36px;
-    height: 36px;
-    border: 3px solid var(--gray-300, #e2e8f0);
-    border-top-color: var(--secondary-color, #0d4593);
-    border-radius: 50%;
-    margin: 0.5rem auto;
-    animation: dfpSpin 0.7s linear infinite;
-}
-@keyframes dfpSpin {
-    to { transform: rotate(360deg); }
-}
-
-/* --- Process messages --- */
-.donate-float-popup .dfp-process-msg {
-    text-align: center;
-    font-size: 0.82rem;
-    font-weight: 600;
-    color: var(--text-color, #001848);
-    margin: 0.5rem 0 0.2rem;
-}
-.donate-float-popup .dfp-process-sub {
-    text-align: center;
-    font-size: 0.72rem;
-    color: var(--text-light, #4a5568);
-    margin: 0 0 0.3rem;
-}
-.donate-float-popup .dfp-countdown {
-    text-align: center;
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--primary-color, #e63946);
-    margin: 0.3rem 0;
-}
-
-/* --- Processing overlay (sits on top of form inside popup) --- */
+/* --- Processing overlay (absolute inside popup) --- */
 .donate-float-popup .dfp-process-overlay {
-    position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: #fff;
-    z-index: 20;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    justify-content: center;
-    padding: 1.5rem 1rem;
-    text-align: center;
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff; z-index: 20; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 1.5rem; text-align: center;
     border-radius: 12px;
 }
-.donate-float-popup .dfp-proc-close {
-    display: inline-block;
-    padding: 0.4rem 1.4rem;
-    background: var(--secondary-color, #0d4593);
-    color: #fff;
-    border: none;
-    border-radius: 8px;
-    font-size: 0.72rem;
-    font-weight: 600;
-    cursor: pointer;
-    margin-top: 0.8rem;
-    transition: background 0.2s;
-    font-family: inherit;
+.donate-float-popup .dfp-proc-steps { display: flex; gap: 6px; margin-bottom: 1.2rem; }
+.donate-float-popup .dfp-proc-steps .dfp-step {
+    width: 28px; height: 4px; border-radius: 2px; background: var(--gray-300, #e2e8f0); transition: background 0.3s;
 }
-.donate-float-popup .dfp-proc-close:hover {
-    background: var(--primary-color, #e63946);
+.donate-float-popup .dfp-proc-steps .dfp-step.active { background: var(--secondary-color, #0d4593); }
+.donate-float-popup .dfp-proc-steps .dfp-step.done { background: #27ae60; }
+.donate-float-popup .dfp-proc-spinner {
+    width: 36px; height: 36px; border: 3px solid var(--gray-300, #e2e8f0);
+    border-top-color: var(--secondary-color, #0d4593);
+    border-radius: 50%; animation: dfpSpin 0.8s linear infinite; margin-bottom: 1rem;
+}
+@keyframes dfpSpin { to { transform: rotate(360deg); } }
+.donate-float-popup .dfp-proc-msg {
+    font-size: 0.82rem; font-weight: 700; color: var(--text-color, #001848); margin-bottom: 0.3rem;
+}
+.donate-float-popup .dfp-proc-sub {
+    font-size: 0.72rem; color: var(--text-light, #4a5568); margin-bottom: 0.5rem;
+}
+.donate-float-popup .dfp-proc-countdown {
+    font-size: 0.68rem; color: #888; margin-bottom: 0.5rem;
+}
+.donate-float-popup .dfp-proc-close {
+    margin-top: 0.5rem; padding: 0.4rem 1.2rem; border: none; border-radius: 6px;
+    background: var(--secondary-color, #0d4593); color: #fff; cursor: pointer; font-size: 0.75rem;
 }
 
 @keyframes donatePopUp {

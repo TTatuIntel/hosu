@@ -158,7 +158,7 @@ function seedAdmin(PDO $pdo): void {
     if ((int) $stmt->fetchColumn() === 0) {
         $hash = password_hash('Admin@hosu2026', PASSWORD_BCRYPT, ['cost' => 12]);
         $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, 'admin')");
-        $stmt->execute(['admin', 'admin@hosu.org', '+256700000000', $hash]);
+        $stmt->execute(['admin', 'admin@hosu.org', '+256766529869', $hash]);
     }
 }
 
