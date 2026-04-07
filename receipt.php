@@ -15,7 +15,7 @@ $token = trim($_GET['token'] ?? '');
 
 if (!$token || strlen($token) !== 64 || !ctype_xdigit($token)) {
     http_response_code(400);
-    die(renderError('Invalid receipt link. Please contact HOSU support at infor@hosu.or.ug.'));
+    die(renderError('Invalid receipt link. Please contact HOSU support at info@hosu.or.ug.'));
 }
 
 try {
@@ -557,7 +557,7 @@ body {
     <!-- Footer -->
     <div class="receipt-footer">
         Official receipt &mdash; Hematology &amp; Oncology Society of Uganda
-        &middot; <a href="mailto:infor@hosu.or.ug">infor@hosu.or.ug</a>
+        &middot; <a href="mailto:info@hosu.or.ug">info@hosu.or.ug</a>
         &middot; <a href="https://hosu.or.ug">www.hosu.or.ug</a>
 
 </div>

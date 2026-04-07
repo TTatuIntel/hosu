@@ -133,7 +133,7 @@ function sendReceiptEmail($pdo, $paymentId, $receiptToken) {
   </td></tr>
   <tr><td style="background:#f8fafc;padding:16px 28px;font-size:12px;color:#888;text-align:center;">
     Haematology &amp; Oncology Society of Uganda (HOSU)<br>
-    Contact: <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;text-decoration:none;">infor@hosu.or.ug</a> &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a><br>
+    Contact: <a href="mailto:info@hosu.or.ug" style="color:#0d4593;text-decoration:none;">info@hosu.or.ug</a> &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a><br>
     This is an auto-generated receipt. Please do not reply to this email.
   </td></tr>
 </table>

@@ -2089,7 +2089,7 @@ footer {
             document.getElementById('reg-countdown').style.display = 'none';
             document.getElementById('reg-proc-msg').textContent = msg;
             document.getElementById('reg-proc-msg').style.color = '#e63946';
-            document.getElementById('reg-proc-sub').innerHTML = detailsHtml || 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+            document.getElementById('reg-proc-sub').innerHTML = detailsHtml || 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('reg-proc-close').style.display = '';
         }
 
@@ -2149,14 +2149,14 @@ footer {
                 } catch(e) {}
             }
             _regPollActive = false;
-            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
+            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
         }
 
         async function _regCheckMtn(txnRef, txnId, ev) {
             _regPollActive = true;
             var MAX_POLLS = 12, INTERVAL = 10000;
             document.getElementById('reg-proc-msg').textContent = 'Waiting for your approval…';
-            document.getElementById('reg-proc-sub').innerHTML = 'Approve the MTN Mobile Money prompt on your phone.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+            document.getElementById('reg-proc-sub').innerHTML = 'Approve the MTN Mobile Money prompt on your phone.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
 
             for (var i = 0; i < MAX_POLLS; i++) {
                 if (!_regPollActive) return;
@@ -2182,7 +2182,7 @@ footer {
                 } catch(e) {}
             }
             _regPollActive = false;
-            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
+            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
         }
 
         document.getElementById('reg-form').addEventListener('submit', async function(e) {
@@ -2260,7 +2260,7 @@ footer {
                 _regSetStep(1);
                 document.getElementById('reg-spinner').style.display = 'none';
                 document.getElementById('reg-proc-msg').textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
-                document.getElementById('reg-proc-sub').innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+                document.getElementById('reg-proc-sub').innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
                 document.getElementById('reg-proc-close').style.display = '';
                 return;
             }
@@ -2313,7 +2313,7 @@ footer {
 
             // Step 2: Send payment through server proxy
             _regSetStep(2);
-            var regProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+            var regProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('reg-proc-msg').textContent = 'Sending payment request to ' + (_regSelectedPay === 'mtn' ? 'MTN' : 'Airtel') + '…';
             document.getElementById('reg-proc-sub').innerHTML = 'Check your phone for the payment prompt.<br><br>' + regProofOfPaymentHtml;
 

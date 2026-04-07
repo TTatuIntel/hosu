@@ -517,10 +517,7 @@ section {
 }
 
 #hero-bg-0{background-image:url('img/IMG_7825.webp')}
-#hero-bg-1{background-image:url('img/IMG_7891.jpg')}
-#hero-bg-2{background-image:url('img/IMG_8022.webp')}
-#hero-bg-3{background-image:url('img/IMG_8316.jpg')}
-#hero-bg-4{background-image:url('img/IMG_8317.webp')}
+/* Load the remaining hero backgrounds lazily after first paint to reduce initial bandwidth */
 .hero-background.active {
     opacity: 1;
     transform: scale(1);
@@ -2594,9 +2591,6 @@ footer {
 }
 
 </style>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
 </head>
 <body>
 <!-- Custom cursor element -->
@@ -2695,10 +2689,10 @@ footer {
     </div>            
     <div class="hero-image-container">
         <div id="hero-bg-0" class="hero-background active"></div>
-        <div id="hero-bg-1" class="hero-background"></div>
-        <div id="hero-bg-2" class="hero-background"></div>
-        <div id="hero-bg-3" class="hero-background"></div>
-        <div id="hero-bg-4" class="hero-background"></div>
+        <div id="hero-bg-1" class="hero-background" data-bg="img/IMG_7891.jpg"></div>
+        <div id="hero-bg-2" class="hero-background" data-bg="img/IMG_8022.webp"></div>
+        <div id="hero-bg-3" class="hero-background" data-bg="img/IMG_8316.jpg"></div>
+        <div id="hero-bg-4" class="hero-background" data-bg="img/IMG_8317.webp"></div>
     </div>
 </div>
 
@@ -3330,153 +3324,116 @@ footer {
 
 <script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
 <script>
-// Enhanced custom cursor effect for events section
+// Enhanced custom cursor effect for events section — optimized to avoid first-load lag
 const cursor = document.getElementById('custom-cursor');
 const joinButton = document.getElementById('join-button');
 const eventsSection = document.getElementById('events');
-const eventCards = document.querySelectorAll('.event-card');
-const carouselArrows = document.querySelectorAll('.carousel-arrow');
-const filterButtons = document.querySelectorAll('.filter-button');
+const canUseFancyCursor = !!(
+    cursor &&
+    eventsSection &&
+    window.matchMedia &&
+    window.matchMedia('(pointer: fine) and (min-width: 992px)').matches &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+);
 
-// Track if we're in the events section
 let isInEventsSection = false;
 
-document.addEventListener('mousemove', (e) => {
-    // Basic cursor positioning
-    const x = e.clientX;
-    const y = e.clientY;
-    
-    // Set CSS variables for position to use in transforms
-    cursor.style.setProperty('--x', `${x}px`);
-    cursor.style.setProperty('--y', `${y}px`);
-    
-    // Check if mouse is over the events section
-    const eventsSectionRect = eventsSection?.getBoundingClientRect();
-    isInEventsSection = eventsSectionRect && 
-        x >= eventsSectionRect.left && 
-        x <= eventsSectionRect.right && 
-        y >= eventsSectionRect.top && 
-        y <= eventsSectionRect.bottom;
-    
-    // Check if mouse is over the join button
-    const buttonRect = joinButton?.getBoundingClientRect();
-    const isOverButton = buttonRect && 
-        x >= buttonRect.left && 
-        x <= buttonRect.right && 
-        y >= buttonRect.top && 
-        y <= buttonRect.bottom;
-    
-    // Check if mouse is over any event card
-    let isOverCard = false;
-    let activeCard = null;
-    
-    eventCards.forEach(card => {
-        const cardRect = card.getBoundingClientRect();
-        if (
-            x >= cardRect.left && 
-            x <= cardRect.right && 
-            y >= cardRect.top && 
-            y <= cardRect.bottom &&
-            isInEventsSection
-        ) {
-            isOverCard = true;
-            activeCard = card;
-            card.classList.add('cursor-hover');
-        } else {
-            card.classList.remove('cursor-hover');
-        }
-    });
-    
-    // Check if mouse is over carousel arrows
-    let isOverArrow = false;
-    carouselArrows.forEach(arrow => {
-        const arrowRect = arrow.getBoundingClientRect();
-        if (
-            x >= arrowRect.left && 
-            x <= arrowRect.right && 
-            y >= arrowRect.top && 
-            y <= arrowRect.bottom &&
-            isInEventsSection
-        ) {
-            isOverArrow = true;
-            arrow.classList.add('cursor-hover');
-        } else {
-            arrow.classList.remove('cursor-hover');
-        }
-    });
-    
-    // Check if mouse is over filter buttons
-    let isOverFilter = false;
-    filterButtons.forEach(button => {
-        const buttonRect = button.getBoundingClientRect();
-        if (
-            x >= buttonRect.left && 
-            x <= buttonRect.right && 
-            y >= buttonRect.top && 
-            y <= buttonRect.bottom &&
-            isInEventsSection
-        ) {
-            isOverFilter = true;
-            button.classList.add('cursor-hover');
-        } else {
-            button.classList.remove('cursor-hover');
-        }
-    });
-    
-    // Update cursor appearance based on context
-    if (isOverButton) {
-        cursor.className = 'custom-cursor';
-        cursor.style.opacity = '1';
-        cursor.style.transform = `translate(${x}px, ${y}px) scale(1)`;
-        cursor.textContent = '';
-    } else if (isOverCard) {
-        cursor.className = 'custom-cursor card-hover';
-        cursor.style.opacity = '1';
-        cursor.style.transform = `translate(${x}px, ${y}px)`;
-        cursor.textContent = 'View';
-    } else if (isOverArrow) {
-        cursor.className = 'custom-cursor events-cursor';
-        cursor.style.opacity = '1';
-        cursor.style.transform = `translate(${x}px, ${y}px)`;
-        cursor.textContent = carouselArrows[0].classList.contains('prev') ? 'Prev' : 'Next';
-    } else if (isOverFilter) {
-        cursor.className = 'custom-cursor events-cursor';
-        cursor.style.opacity = '1';
-        cursor.style.transform = `translate(${x}px, ${y}px)`;
-        cursor.textContent = 'Filter';
-    } else if (isInEventsSection) {
-        cursor.className = 'custom-cursor events-cursor';
-        cursor.style.opacity = '0.7';
-        cursor.style.transform = `translate(${x}px, ${y}px)`;
-        cursor.textContent = '';
-    } else {
-        cursor.className = 'custom-cursor';
-        cursor.style.opacity = '0';
-        cursor.style.transform = `translate(${x}px, ${y}px) scale(0.5)`;
-        cursor.textContent = '';
-    }
-    
-    // Remove active class from all cards
-    eventCards.forEach(card => {
-        card.classList.remove('cursor-active');
-    });
-    
-    // Add active class to the card under cursor
-    if (activeCard) {
-        activeCard.classList.add('cursor-active');
-    }
-});
+if (canUseFancyCursor) {
+    let mouseX = 0;
+    let mouseY = 0;
+    let cursorFramePending = false;
 
-// Add click effect to cursor
-document.addEventListener('mousedown', () => {
-    if (isInEventsSection) {
-        cursor.classList.add('clicking');
+    function clearCursorStates() {
+        document.querySelectorAll('.event-card.cursor-hover, .event-card.cursor-active, .carousel-arrow.cursor-hover, .filter-button.cursor-hover').forEach(function (el) {
+            el.classList.remove('cursor-hover', 'cursor-active');
+        });
     }
-});
 
-document.addEventListener('mouseup', () => {
-    cursor.classList.remove('clicking');
-});
+    function updateCustomCursor() {
+        cursorFramePending = false;
+
+        const x = mouseX;
+        const y = mouseY;
+        cursor.style.setProperty('--x', `${x}px`);
+        cursor.style.setProperty('--y', `${y}px`);
+
+        const eventsRect = eventsSection.getBoundingClientRect();
+        isInEventsSection = (
+            x >= eventsRect.left &&
+            x <= eventsRect.right &&
+            y >= eventsRect.top &&
+            y <= eventsRect.bottom
+        );
+
+        if (!isInEventsSection) {
+            clearCursorStates();
+            cursor.className = 'custom-cursor';
+            cursor.style.opacity = '0';
+            cursor.style.transform = `translate(${x}px, ${y}px) scale(0.5)`;
+            cursor.textContent = '';
+            return;
+        }
+
+        const hovered = document.elementFromPoint(x, y);
+        const overButton = !!(joinButton && hovered && (hovered === joinButton || hovered.closest('#join-button')));
+        const overCard = hovered ? hovered.closest('.event-card') : null;
+        const overArrow = hovered ? hovered.closest('.carousel-arrow') : null;
+        const overFilter = hovered ? hovered.closest('.filter-button') : null;
+
+        clearCursorStates();
+
+        if (overButton) {
+            cursor.className = 'custom-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px) scale(1)`;
+            cursor.textContent = '';
+        } else if (overCard) {
+            overCard.classList.add('cursor-hover', 'cursor-active');
+            cursor.className = 'custom-cursor card-hover';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = 'View';
+        } else if (overArrow) {
+            overArrow.classList.add('cursor-hover');
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = overArrow.classList.contains('prev') ? 'Prev' : 'Next';
+        } else if (overFilter) {
+            overFilter.classList.add('cursor-hover');
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = 'Filter';
+        } else {
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '0.7';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = '';
+        }
+    }
+
+    document.addEventListener('mousemove', function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (!cursorFramePending) {
+            cursorFramePending = true;
+            requestAnimationFrame(updateCustomCursor);
+        }
+    }, { passive: true });
+
+    document.addEventListener('mousedown', function () {
+        if (isInEventsSection) {
+            cursor.classList.add('clicking');
+        }
+    });
+
+    document.addEventListener('mouseup', function () {
+        cursor.classList.remove('clicking');
+    });
+} else if (cursor) {
+    cursor.style.display = 'none';
+}
 
 // Add glow effect to join button on hover
 if (joinButton) {
@@ -3498,11 +3455,32 @@ var HeroSlideshow = (function() {
     var heroDots = [];
     var heroTimer = null;
 
+    function ensureHeroBackgroundLoaded(bgEl) {
+        if (!bgEl) return;
+        var src = bgEl.getAttribute('data-bg');
+        if (src && !bgEl.style.backgroundImage) {
+            bgEl.style.backgroundImage = "url('" + src + "')";
+        }
+    }
+
     function init() {
         heroSlides = Array.from(document.querySelectorAll('.hero-slide'));
         heroBgs = Array.from(document.querySelectorAll('.hero-background'));
         heroDots = Array.from(document.querySelectorAll('.hero-dot'));
         heroIndex = 0;
+
+        ensureHeroBackgroundLoaded(heroBgs[0]);
+
+        // Warm remaining backgrounds after first paint instead of blocking initial load
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(function () {
+                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+            }, { timeout: 2000 });
+        } else {
+            setTimeout(function () {
+                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+            }, 1500);
+        }
 
         // Bind dot clicks
         heroDots.forEach(function(dot, idx) {
@@ -3532,7 +3510,11 @@ var HeroSlideshow = (function() {
         heroSlides[index].classList.add('active');
         // Use exact index matching for backgrounds (1:1 with slides)
         if (heroBgs[index]) {
+            ensureHeroBackgroundLoaded(heroBgs[index]);
             heroBgs[index].classList.add('active');
+        }
+        if (heroBgs[(index + 1) % heroBgs.length]) {
+            ensureHeroBackgroundLoaded(heroBgs[(index + 1) % heroBgs.length]);
         }
         if (heroDots[index]) {
             heroDots[index].classList.add('active');
@@ -4494,25 +4476,29 @@ document.addEventListener('DOMContentLoaded', function() {
     // Auto-cycling filters
     let currentFilterIndex = 0;
     let autoFilterInterval;
-    const filterCycleTime = 5000;
+    const filterCycleTime = 12000;
+    const shouldAutoRotateFilters = false;
 
     function startFilterAutoCycle() {
+        if (!shouldAutoRotateFilters || filterButtons.length <= 1) return;
+        clearInterval(autoFilterInterval);
         autoFilterInterval = setInterval(() => {
             currentFilterIndex = (currentFilterIndex + 1) % filterButtons.length;
             filterButtons[currentFilterIndex].click();
         }, filterCycleTime);
     }
 
-    startFilterAutoCycle();
-
     const eventsSection = document.getElementById('events');
-    eventsSection.addEventListener('mouseenter', () => {
-        clearInterval(autoFilterInterval);
-    });
-
-    eventsSection.addEventListener('mouseleave', () => {
+    if (eventsSection && shouldAutoRotateFilters) {
         startFilterAutoCycle();
-    });
+        eventsSection.addEventListener('mouseenter', () => {
+            clearInterval(autoFilterInterval);
+        });
+
+        eventsSection.addEventListener('mouseleave', () => {
+            startFilterAutoCycle();
+        });
+    }
 
     if (window.location.hash) {
         const eventId = window.location.hash.substring(1);

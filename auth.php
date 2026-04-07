@@ -160,7 +160,7 @@ function seedAdmin(PDO $pdo): void {
         $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'Admin@hosu2026';
         $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
         $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)");
-        $stmt->execute(['admin', 'infor@hosu.or.ug', '+256766529869', $hash]);
+        $stmt->execute(['admin', 'info@hosu.or.ug', '+256766529869', $hash]);
     }
 }
 

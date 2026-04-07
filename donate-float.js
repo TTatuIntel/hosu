@@ -244,7 +244,7 @@
         msg.textContent = '\u274C ' + errMsg;
         msg.style.color = '#e63946';
         if (helpHtml) sub.innerHTML = helpHtml;
-        else sub.innerHTML = 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+        else sub.innerHTML = 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
         var btn = overlay.querySelector('.dfp-proc-close');
         btn.textContent = 'Close';
         btn.style.display = '';
@@ -329,7 +329,7 @@
             setStep(overlay, 1);
             msgEl.textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
             msgEl.style.color = '';
-            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             closeBtnEl.textContent = 'Close';
             closeBtnEl.style.display = '';
             closeBtnEl.onclick = function () { overlay.style.display = 'none'; };
@@ -395,7 +395,7 @@
         }
 
         // Step 2: Send payment to phone
-        var donationProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+        var donationProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
         setStep(overlay, 1);
         msgEl.textContent = 'Sending payment request to ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + '…';
         subEl.innerHTML = 'A payment prompt will appear on your phone.<br><br>' + donationProofOfPaymentHtml;
@@ -459,7 +459,7 @@
                     } catch (e) { /* continue polling */ }
                 }
                 st.pollActive = false;
-                showError(overlay, 'Payment timed out.', 'If money was deducted, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
+                showError(overlay, 'Payment timed out.', 'If money was deducted, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
             } else {
                 showError(overlay, payRes.message || 'Payment failed. Please try again.');
             }

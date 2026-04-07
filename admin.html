@@ -1,4 +1,4 @@
-﻿<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -26,7 +26,7 @@ span.flatpickr-weekday{color:var(--text-light)!important;font-weight:600;}
 .flatpickr-day.today{border-color:var(--primary)!important;}
 .flatpickr-day.today:hover{background:rgba(230,57,70,.08)!important;}
 input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
-/* AUTH — removed standalone login; admin must log in via site portal */
+/* AUTH � removed standalone login; admin must log in via site portal */
 /* TOPBAR */
 .topbar{position:sticky;top:0;z-index:200;background:var(--white);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;padding:0 1.5rem;height:58px;box-shadow:var(--shadow);}
 .tb-brand{display:flex;align-items:center;gap:.6rem;}
@@ -203,7 +203,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 /* Search input */
 .search-wrap{position:relative;display:inline-flex;align-items:center;}
 .search-wrap input{padding:.45rem .8rem .45rem 2rem;border:1.5px solid var(--border);border-radius:7px;font-size:.8rem;font-family:inherit;width:200px;}
-.search-wrap::before{content:'🔍';position:absolute;left:.55rem;font-size:.75rem;pointer-events:none;}
+.search-wrap::before{content:'??';position:absolute;left:.55rem;font-size:.75rem;pointer-events:none;}
 /* Empty state */
 .empty{text-align:center;padding:2.5rem;color:var(--text-light);font-size:.83rem;}
 .empty .big{font-size:2.2rem;margin-bottom:.4rem;}
@@ -348,7 +348,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 <body>
 
 <!-- ===== AUTH GATE ===== -->
-<!-- Auth gate removed — admin must log in via member portal. Session is verified on load. -->
+<!-- Auth gate removed � admin must log in via member portal. Session is verified on load. -->
 
 <!-- ===== DASHBOARD ===== -->
 <div id="dashboard">
@@ -358,45 +358,45 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         </div>
         <div class="tb-right">
             <div class="tb-user"><div class="tb-avatar" id="u-av">A</div><span id="u-name">Admin</span></div>
-            <a href="index.html" class="btn-xs btn-outline-xs">View Site ↗</a>
-            <button class="btn-xs btn-outline-xs" onclick="openChangePassword()" title="Change Password">🔑 Password</button>
+            <a href="index.html" class="btn-xs btn-outline-xs">View Site ?</a>
+            <button class="btn-xs btn-outline-xs" onclick="openChangePassword()" title="Change Password">?? Password</button>
             <button class="btn-xs btn-danger-xs" onclick="doLogout()">Sign Out</button>
         </div>
     </header>
 
     <!-- TABS -->
     <nav class="tabs-bar">
-        <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">📊 Overview</button>
-        <button class="tab-btn" id="tab-events" onclick="showTab('events')">📅 Events <span class="t-badge" id="tab-ev-cnt">–</span></button>
-        <button class="tab-btn" id="tab-members" onclick="showTab('members')">👥 Members <span class="t-badge" id="tab-mem-cnt">–</span></button>
-        <button class="tab-btn" id="tab-payments" onclick="showTab('payments')">💳 Payments <span class="t-badge" id="tab-pay-cnt">–</span></button>
-        <button class="tab-btn" id="tab-research" onclick="showTab('research')">📚 Research <span class="t-badge" id="tab-res-cnt">–</span></button>
-        <button class="tab-btn" id="tab-leadership" onclick="showTab('leadership')">🏛️ Leadership <span class="t-badge" id="tab-lead-cnt">–</span></button>
-        <button class="tab-btn" id="tab-blog" onclick="showTab('blog')">📝 Blog <span class="t-badge" id="tab-blog-cnt">–</span></button>
-        <button class="tab-btn" id="tab-sitecontent" onclick="showTab('sitecontent')">🖼️ Site Content</button>
+        <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">?? Overview</button>
+        <button class="tab-btn" id="tab-events" onclick="showTab('events')">?? Events <span class="t-badge" id="tab-ev-cnt">�</span></button>
+        <button class="tab-btn" id="tab-members" onclick="showTab('members')">?? Members <span class="t-badge" id="tab-mem-cnt">�</span></button>
+        <button class="tab-btn" id="tab-payments" onclick="showTab('payments')">?? Payments <span class="t-badge" id="tab-pay-cnt">�</span></button>
+        <button class="tab-btn" id="tab-research" onclick="showTab('research')">?? Research <span class="t-badge" id="tab-res-cnt">�</span></button>
+        <button class="tab-btn" id="tab-leadership" onclick="showTab('leadership')">??? Leadership <span class="t-badge" id="tab-lead-cnt">�</span></button>
+        <button class="tab-btn" id="tab-blog" onclick="showTab('blog')">?? Blog <span class="t-badge" id="tab-blog-cnt">�</span></button>
+        <button class="tab-btn" id="tab-sitecontent" onclick="showTab('sitecontent')">??? Site Content</button>
     </nav>
 
     <main class="main">
 
         <!-- ===== OVERVIEW ===== -->
         <div class="panel active" id="panel-overview">
-            <div class="ph"><div><h1>📊 Dashboard Overview</h1><p>Welcome back. Here's a snapshot of HOSU data.</p></div></div>
+            <div class="ph"><div><h1>?? Dashboard Overview</h1><p>Welcome back. Here's a snapshot of HOSU data.</p></div></div>
             <div class="stats" id="stats-row">
-                <div class="sc" onclick="showTab('events')" title="View all events"><div class="s-icon">📅</div><div class="s-val" id="s-ev">–</div><div class="s-lbl">Total Events</div></div>
-                <div class="sc" onclick="goToTab('members','mem-status-filter','')" title="View all members"><div class="s-icon">👥</div><div class="s-val" id="s-mem">–</div><div class="s-lbl">Total Members</div></div>
-                <div class="sc" onclick="goToTab('members','mem-status-filter','active')" title="View active members"><div class="s-icon">✅</div><div class="s-val" id="s-active">–</div><div class="s-lbl">Active Members</div></div>
-                <div class="sc" onclick="goToTab('members','mem-status-filter','pending')" title="View pending approvals"><div class="s-icon">⏳</div><div class="s-val" id="s-pend">–</div><div class="s-lbl">Pending Approvals</div></div>
-                <div class="sc" onclick="goToTab('payments','pay-status-filter','verified')" title="View verified payments"><div class="s-icon">💰</div><div class="s-val" id="s-col">–</div><div class="s-lbl">Revenue (UGX)</div></div>
-                <div class="sc" onclick="goToTab('payments','pay-status-filter','pending')" title="View pending invoices"><div class="s-icon">📄</div><div class="s-val" id="s-inv">–</div><div class="s-lbl">Invoices Pending</div></div>
+                <div class="sc" onclick="showTab('events')" title="View all events"><div class="s-icon">??</div><div class="s-val" id="s-ev">�</div><div class="s-lbl">Total Events</div></div>
+                <div class="sc" onclick="goToTab('members','mem-status-filter','')" title="View all members"><div class="s-icon">??</div><div class="s-val" id="s-mem">�</div><div class="s-lbl">Total Members</div></div>
+                <div class="sc" onclick="goToTab('members','mem-status-filter','active')" title="View active members"><div class="s-icon">?</div><div class="s-val" id="s-active">�</div><div class="s-lbl">Active Members</div></div>
+                <div class="sc" onclick="goToTab('members','mem-status-filter','pending')" title="View pending approvals"><div class="s-icon">?</div><div class="s-val" id="s-pend">�</div><div class="s-lbl">Pending Approvals</div></div>
+                <div class="sc" onclick="goToTab('payments','pay-status-filter','verified')" title="View verified payments"><div class="s-icon">??</div><div class="s-val" id="s-col">�</div><div class="s-lbl">Revenue (UGX)</div></div>
+                <div class="sc" onclick="goToTab('payments','pay-status-filter','pending')" title="View pending invoices"><div class="s-icon">??</div><div class="s-val" id="s-inv">�</div><div class="s-lbl">Invoices Pending</div></div>
             </div>
             <div class="ov-grid">
                 <div class="card">
                     <div class="card-hd"><h2>Recent Members</h2><button class="btn-sm" onclick="showTab('members')">View All</button></div>
-                    <div class="card-body card-body-flush"><table class="tbl" id="ov-members-tbl"><thead><tr><th>Name</th><th>Profession</th><th>Status</th><th>Joined</th></tr></thead><tbody id="ov-members-body"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table></div>
+                    <div class="card-body card-body-flush"><table class="tbl" id="ov-members-tbl"><thead><tr><th>Name</th><th>Profession</th><th>Status</th><th>Joined</th></tr></thead><tbody id="ov-members-body"><tr><td colspan="4" class="empty">Loading�</td></tr></tbody></table></div>
                 </div>
                 <div class="card">
                     <div class="card-hd"><h2>Recent Events</h2><button class="btn-sm" onclick="showTab('events')">View All</button></div>
-                    <div class="card-body card-body-flush"><table class="tbl" id="ov-events-tbl"><thead><tr><th>Title</th><th>Type</th><th>Category</th></tr></thead><tbody id="ov-events-body"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody></table></div>
+                    <div class="card-body card-body-flush"><table class="tbl" id="ov-events-tbl"><thead><tr><th>Title</th><th>Type</th><th>Category</th></tr></thead><tbody id="ov-events-body"><tr><td colspan="3" class="empty">Loading�</td></tr></tbody></table></div>
                 </div>
             </div>
         </div>
@@ -404,16 +404,16 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- ===== EVENTS LIST ===== -->
         <div class="panel" id="panel-events">
             <div class="ph">
-                <div><h1>📅 All Events</h1><p>Create, edit and delete events shown on the website.</p></div>
-                <button class="btn-primary" onclick="openAddEventModal()">➕ Add New Event</button>
+                <div><h1>?? All Events</h1><p>Create, edit and delete events shown on the website.</p></div>
+                <button class="btn-primary" onclick="openAddEventModal()">? Add New Event</button>
             </div>
             <div class="card">
                 <div class="card-hd"><h2>Events (<span id="ev-count">0</span>)</h2>
-                    <div class="search-wrap"><input type="text" id="ev-search" placeholder="Search events…" oninput="filterEvents()"></div>
+                    <div class="search-wrap"><input type="text" id="ev-search" placeholder="Search events�" oninput="filterEvents()"></div>
                 </div>
                 <div class="card-body card-body-flush">
                     <table class="tbl"><thead><tr><th>Event</th><th>Type</th><th>Category</th><th>Status</th><th>Price</th><th>Registrants</th><th>Date</th><th>Location</th><th>Actions</th></tr></thead>
-                    <tbody id="ev-body"><tr><td colspan="9" class="empty"><div class="big">📅</div>Loading events…</td></tr></tbody></table>
+                    <tbody id="ev-body"><tr><td colspan="9" class="empty"><div class="big">??</div>Loading events�</td></tr></tbody></table>
                 </div>
             </div>
         </div>
@@ -421,7 +421,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- ===== MEMBERS ===== -->
         <div class="panel" id="panel-members">
             <div class="ph">
-                <div><h1>👥 Members</h1><p>All society members and their membership status.</p></div>
+                <div><h1>?? Members</h1><p>All society members and their membership status.</p></div>
                 <div class="filter-toolbar">
                     <select id="mem-type-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Plans</option>
@@ -432,20 +432,20 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                     </select>
                     <select id="mem-status-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Statuses</option>
-                        <option value="active">✅ Active</option>
-                        <option value="pending">⏳ Pending</option>
-                        <option value="expired">🔴 Expired</option>
-                        <option value="rejected">✖ Rejected</option>
+                        <option value="active">? Active</option>
+                        <option value="pending">? Pending</option>
+                        <option value="expired">?? Expired</option>
+                        <option value="rejected">? Rejected</option>
                     </select>
-                    <div class="search-wrap"><input type="text" id="mem-search" placeholder="Search members…" oninput="filterMembers()"></div>
-                    <a href="api.php?action=export_csv" class="btn-primary btn-nodecor" id="csv-btn">⬇ Export CSV</a>
+                    <div class="search-wrap"><input type="text" id="mem-search" placeholder="Search members�" oninput="filterMembers()"></div>
+                    <a href="api.php?action=export_csv" class="btn-primary btn-nodecor" id="csv-btn">? Export CSV</a>
                 </div>
             </div>
             <div class="card">
                 <div class="card-hd"><h2>Members (<span id="mem-count">0</span>)</h2></div>
                 <div class="card-body card-body-flush">
                     <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Profession</th><th>Type</th><th>Status</th><th>Joined</th><th>Payment</th><th>Actions</th></tr></thead>
-                    <tbody id="mem-body"><tr><td colspan="9" class="empty"><div class="big">👥</div>Loading members…</td></tr></tbody></table>
+                    <tbody id="mem-body"><tr><td colspan="9" class="empty"><div class="big">??</div>Loading members�</td></tr></tbody></table>
                 </div>
             </div>
         </div>
@@ -453,7 +453,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- ===== PAYMENTS ===== -->
         <div class="panel" id="panel-payments">
             <div class="ph">
-                <div><h1>💳 Payments</h1><p>All membership payments, event registrations, donations, and invoice management.</p></div>
+                <div><h1>?? Payments</h1><p>All membership payments, event registrations, donations, and invoice management.</p></div>
                 <div class="filter-toolbar">
                     <select id="pay-type-filter" class="btn-sm select-sm-pad" onchange="filterPayments()">
                         <option value="">All Types</option>
@@ -464,28 +464,28 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                     </select>
                     <select id="pay-status-filter" class="btn-sm select-sm-pad" onchange="filterPayments()">
                         <option value="">All Statuses</option>
-                        <option value="verified">✅ Verified</option>
-                        <option value="pending">⏳ Pending</option>
-                        <option value="rejected">✖ Rejected</option>
+                        <option value="verified">? Verified</option>
+                        <option value="pending">? Pending</option>
+                        <option value="rejected">? Rejected</option>
                     </select>
-                    <div class="search-wrap"><input type="text" id="pay-search" placeholder="Search…" oninput="filterPayments()"></div>
-                    <a href="api.php?action=export_payments_csv" class="btn-primary btn-nodecor">⬇ Export CSV</a>
+                    <div class="search-wrap"><input type="text" id="pay-search" placeholder="Search�" oninput="filterPayments()"></div>
+                    <a href="api.php?action=export_payments_csv" class="btn-primary btn-nodecor">? Export CSV</a>
                 </div>
             </div>
             <div class="stats" id="pay-stats">
-                <div class="sc"><div class="s-icon">💰</div><div class="s-val" id="ps-total">UGX 0</div><div class="s-lbl">Total Collected</div></div>
-                <div class="sc"><div class="s-icon">🪪</div><div class="s-val" id="ps-mem-rev">UGX 0</div><div class="s-lbl">Membership Revenue</div></div>
-                <div class="sc"><div class="s-icon">🎫</div><div class="s-val" id="ps-ev-rev">UGX 0</div><div class="s-lbl">Event Revenue</div></div>
-                <div class="sc"><div class="s-icon">📋</div><div class="s-val" id="ps-grant-rev">UGX 0</div><div class="s-lbl">Grant Revenue</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ps-total">UGX 0</div><div class="s-lbl">Total Collected</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ps-mem-rev">UGX 0</div><div class="s-lbl">Membership Revenue</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ps-ev-rev">UGX 0</div><div class="s-lbl">Event Revenue</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ps-grant-rev">UGX 0</div><div class="s-lbl">Grant Revenue</div></div>
                 <div class="sc"><div class="s-icon"></div><div class="s-val" id="ps-don-rev">UGX 0</div><div class="s-lbl">Donations</div></div>
-                <div class="sc"><div class="s-icon">✅</div><div class="s-val" id="ps-verified">0</div><div class="s-lbl">Verified</div></div>
-                <div class="sc"><div class="s-icon">⏳</div><div class="s-val" id="ps-pending">0</div><div class="s-lbl">Pending</div></div>
+                <div class="sc"><div class="s-icon">?</div><div class="s-val" id="ps-verified">0</div><div class="s-lbl">Verified</div></div>
+                <div class="sc"><div class="s-icon">?</div><div class="s-val" id="ps-pending">0</div><div class="s-lbl">Pending</div></div>
             </div>
             <div class="card">
                 <div class="card-hd"><h2>Payments (<span id="pay-count">0</span>)</h2></div>
                 <div class="card-body card-body-flush">
-                    <table class="tbl"><thead><tr><th>#</th><th>Payer</th><th>Amount</th><th>Transaction ID</th><th>Status</th><th>Expires · Paid</th><th>Actions</th></tr></thead>
-                    <tbody id="pay-body"><tr><td colspan="7" class="empty"><div class="big">💳</div>Loading payments…</td></tr></tbody></table>
+                    <table class="tbl"><thead><tr><th>#</th><th>Payer</th><th>Amount</th><th>Transaction ID</th><th>Status</th><th>Expires � Paid</th><th>Actions</th></tr></thead>
+                    <tbody id="pay-body"><tr><td colspan="7" class="empty"><div class="big">??</div>Loading payments�</td></tr></tbody></table>
                 </div>
             </div>
         </div>
@@ -493,18 +493,18 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- ===== RESEARCH (Publications & Grants) ===== -->
         <div class="panel" id="panel-research">
             <div class="ph ph-tight">
-                <div><h1 class="ph-title-sm">📚 Research</h1><p>Publications, grants &amp; applications</p></div>
-                <a href="api.php?action=export_grants_report_csv" class="btn-pill btn-pill-primary btn-nodecor btn-pill-compact">📊 Export Report</a>
+                <div><h1 class="ph-title-sm">?? Research</h1><p>Publications, grants &amp; applications</p></div>
+                <a href="api.php?action=export_grants_report_csv" class="btn-pill btn-pill-primary btn-nodecor btn-pill-compact">?? Export Report</a>
             </div>
 
             <!-- Research Stats (compact) -->
             <div class="stats stats-compact" id="res-stats">
-                <div class="sc"><div class="s-icon">📄</div><div class="s-val" id="rs-pubs">0</div><div class="s-lbl">Publications</div></div>
-                <div class="sc"><div class="s-icon">🏆</div><div class="s-val" id="rs-grants">0</div><div class="s-lbl">Total Grants</div></div>
-                <div class="sc"><div class="s-icon">✅</div><div class="s-val" id="rs-open">0</div><div class="s-lbl">Open Grants</div></div>
-                <div class="sc"><div class="s-icon">📋</div><div class="s-val" id="rs-apps">0</div><div class="s-lbl">Applications</div></div>
-                <div class="sc"><div class="s-icon">⏳</div><div class="s-val" id="rs-pending">0</div><div class="s-lbl">Pending Review</div></div>
-                <div class="sc"><div class="s-icon">💰</div><div class="s-val" id="rs-revenue">UGX 0</div><div class="s-lbl">Grant Revenue</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="rs-pubs">0</div><div class="s-lbl">Publications</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="rs-grants">0</div><div class="s-lbl">Total Grants</div></div>
+                <div class="sc"><div class="s-icon">?</div><div class="s-val" id="rs-open">0</div><div class="s-lbl">Open Grants</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="rs-apps">0</div><div class="s-lbl">Applications</div></div>
+                <div class="sc"><div class="s-icon">?</div><div class="s-val" id="rs-pending">0</div><div class="s-lbl">Pending Review</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="rs-revenue">UGX 0</div><div class="s-lbl">Grant Revenue</div></div>
             </div>
 
             <!-- Side-by-side cards -->
@@ -514,7 +514,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
             <div class="card">
                 <div class="card-hd card-hd-stack">
                     <div class="card-hd-top">
-                        <h2>📄 Publications (<span id="pub-count">0</span>)</h2>
+                        <h2>?? Publications (<span id="pub-count">0</span>)</h2>
                         <button class="btn-pill btn-pill-primary" onclick="openPubModal()">+ Add</button>
                     </div>
                     <div class="filter-toolbar">
@@ -526,12 +526,12 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                             <option value="Report">Report</option>
                             <option value="Book Chapter">Book Chapter</option>
                         </select>
-                        <div class="search-wrap"><input type="text" id="pub-search" class="search-input-xs" placeholder="Search…" oninput="filterPubs()"></div>
+                        <div class="search-wrap"><input type="text" id="pub-search" class="search-input-xs" placeholder="Search�" oninput="filterPubs()"></div>
                     </div>
                 </div>
                 <div class="card-body card-body-flush">
                     <table class="tbl"><thead><tr><th>#</th><th>Type</th><th>Title</th><th>Authors</th><th>Date</th><th>Actions</th></tr></thead>
-                    <tbody id="pub-body"><tr><td colspan="6" class="empty"><div class="big">📄</div>No publications yet</td></tr></tbody></table>
+                    <tbody id="pub-body"><tr><td colspan="6" class="empty"><div class="big">??</div>No publications yet</td></tr></tbody></table>
                 </div>
             </div>
 
@@ -539,7 +539,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
             <div class="card">
                 <div class="card-hd card-hd-stack">
                     <div class="card-hd-top">
-                        <h2>🏆 Grants (<span id="grant-count">0</span>)</h2>
+                        <h2>?? Grants (<span id="grant-count">0</span>)</h2>
                         <button class="btn-pill btn-pill-primary" onclick="openGrantModal()">+ Add</button>
                     </div>
                     <div class="filter-toolbar">
@@ -549,12 +549,12 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                             <option value="closing">Closing</option>
                             <option value="closed">Closed</option>
                         </select>
-                        <div class="search-wrap"><input type="text" id="grant-search" class="search-input-xs" placeholder="Search…" oninput="filterGrantsTable()"></div>
+                        <div class="search-wrap"><input type="text" id="grant-search" class="search-input-xs" placeholder="Search�" oninput="filterGrantsTable()"></div>
                     </div>
                 </div>
                 <div class="card-body card-body-flush">
                     <table class="tbl"><thead><tr><th>#</th><th>Title</th><th>Amount</th><th>Deadline</th><th>Status</th><th>Apps</th><th>Actions</th></tr></thead>
-                    <tbody id="grant-body"><tr><td colspan="7" class="empty"><div class="big">🏆</div>No grants yet</td></tr></tbody></table>
+                    <tbody id="grant-body"><tr><td colspan="7" class="empty"><div class="big">??</div>No grants yet</td></tr></tbody></table>
                 </div>
             </div>
 
@@ -564,11 +564,11 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 
         <!-- Leadership Panel -->
         <div class="panel" id="panel-leadership">
-            <div class="ph"><div><h1>🏛️ Leadership Biographies</h1><p>Manage About page leader profiles &amp; bios</p></div><button class="btn-primary" onclick="openLeaderModal()">+ Add Leader</button></div>
+            <div class="ph"><div><h1>??? Leadership Biographies</h1><p>Manage About page leader profiles &amp; bios</p></div><button class="btn-primary" onclick="openLeaderModal()">+ Add Leader</button></div>
             <div class="stats grid-3fr">
-                <div class="sc"><div class="s-icon">👤</div><div class="s-val" id="ld-total">0</div><div class="s-lbl">Total Leaders</div></div>
-                <div class="sc"><div class="s-icon">✅</div><div class="s-val" id="ld-active">0</div><div class="s-lbl">Active</div></div>
-                <div class="sc"><div class="s-icon">📝</div><div class="s-val" id="ld-with-bio">0</div><div class="s-lbl">With Bio</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ld-total">0</div><div class="s-lbl">Total Leaders</div></div>
+                <div class="sc"><div class="s-icon">?</div><div class="s-val" id="ld-active">0</div><div class="s-lbl">Active</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="ld-with-bio">0</div><div class="s-lbl">With Bio</div></div>
             </div>
             <div class="card"><div class="card-hd"><h2>Leaders (<span id="lead-count">0</span>)</h2></div>
             <div class="card-body card-body-flush"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Title</th><th>Bio</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
@@ -577,29 +577,29 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 
         <!-- ===== BLOG ===== -->
         <div class="panel" id="panel-blog">
-            <div class="ph"><div><h1>📝 Blog Posts</h1><p>Create and manage blog articles visible on the public Blog page.</p></div><button class="btn-primary" onclick="openBlogModal()">+ New Post</button></div>
+            <div class="ph"><div><h1>?? Blog Posts</h1><p>Create and manage blog articles visible on the public Blog page.</p></div><button class="btn-primary" onclick="openBlogModal()">+ New Post</button></div>
             <div class="stats grid-3fr">
-                <div class="sc"><div class="s-icon">📄</div><div class="s-val" id="bp-total">0</div><div class="s-lbl">Total Posts</div></div>
-                <div class="sc"><div class="s-icon">📂</div><div class="s-val" id="bp-cats">0</div><div class="s-lbl">Categories</div></div>
-                <div class="sc"><div class="s-icon">💬</div><div class="s-val" id="bp-comments">0</div><div class="s-lbl">Comments</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="bp-total">0</div><div class="s-lbl">Total Posts</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="bp-cats">0</div><div class="s-lbl">Categories</div></div>
+                <div class="sc"><div class="s-icon">??</div><div class="s-val" id="bp-comments">0</div><div class="s-lbl">Comments</div></div>
             </div>
             <div class="card"><div class="card-hd"><h2>All Posts (<span id="bp-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="bp-cat-filter" onchange="renderBlogTable()"><option value="">All Categories</option></select></div></div>
             <div class="card-body card-body-flush table-scroll"><table class="tbl"><thead><tr><th>Image</th><th>Title</th><th>Category</th><th>Author</th><th>Date</th><th>Actions</th></tr></thead>
-            <tbody id="bp-body"><tr><td colspan="6" class="empty"><div class="big">📝</div>No posts yet. Create your first article!</td></tr></tbody></table></div></div>
+            <tbody id="bp-body"><tr><td colspan="6" class="empty"><div class="big">??</div>No posts yet. Create your first article!</td></tr></tbody></table></div></div>
 
             <!-- Comments Management -->
-            <div class="card"><div class="card-hd"><h2>💬 Comments (<span id="cm-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="cm-post-filter" onchange="renderCommentsTable()"><option value="">All Posts</option></select><button class="btn-danger hidden" id="cm-del-all" onclick="deleteAllFilteredComments()">🗑️ Delete All</button></div></div>
+            <div class="card"><div class="card-hd"><h2>?? Comments (<span id="cm-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="cm-post-filter" onchange="renderCommentsTable()"><option value="">All Posts</option></select><button class="btn-danger hidden" id="cm-del-all" onclick="deleteAllFilteredComments()">??? Delete All</button></div></div>
             <div class="card-body card-body-flush table-scroll-sm"><table class="tbl"><thead><tr><th>Author</th><th>Comment</th><th>Post</th><th>Date</th><th>Actions</th></tr></thead>
-            <tbody id="cm-body"><tr><td colspan="5" class="empty"><div class="big">💬</div>No comments yet.</td></tr></tbody></table></div></div>
+            <tbody id="cm-body"><tr><td colspan="5" class="empty"><div class="big">??</div>No comments yet.</td></tr></tbody></table></div></div>
         </div>
 
         <!-- ===== SITE CONTENT ===== -->
         <div class="panel" id="panel-sitecontent">
-            <div class="ph"><div><h1>🖼️ Site Content</h1><p>Manage stats counters and media (images) shown across public pages.</p></div></div>
+            <div class="ph"><div><h1>??? Site Content</h1><p>Manage stats counters and media (images) shown across public pages.</p></div></div>
 
-            <!-- ── STATS SECTION ── -->
+            <!-- -- STATS SECTION -- -->
             <div class="card">
-                <div class="card-hd"><h2>📊 Site Stats (<span id="sc-stat-count">0</span>)</h2>
+                <div class="card-hd"><h2>?? Site Stats (<span id="sc-stat-count">0</span>)</h2>
                     <div class="filter-toolbar">
                         <select class="btn-sm select-sm-pad" id="sc-page-filter" onchange="renderStatsTable()">
                             <option value="">All Pages</option>
@@ -616,9 +616,9 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                 </div>
             </div>
 
-            <!-- ── MEDIA SECTION ── -->
+            <!-- -- MEDIA SECTION -- -->
             <div class="card">
-                <div class="card-hd"><h2>🖼️ Media Gallery (<span id="sc-media-count">0</span>)</h2>
+                <div class="card-hd"><h2>??? Media Gallery (<span id="sc-media-count">0</span>)</h2>
                     <div class="filter-toolbar">
                         <select class="btn-sm select-sm-pad" id="sc-media-cat-filter" onchange="renderMediaGrid()">
                             <option value="">All Categories</option>
@@ -643,8 +643,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 <div class="modal-backdrop" id="blog-modal">
     <div class="modal-box modal-box-md">
         <div class="modal-hd">
-            <h3 id="bp-form-title">➕ New Blog Post</h3>
-            <button class="modal-close" onclick="closeModal('blog-modal')">×</button>
+            <h3 id="bp-form-title">? New Blog Post</h3>
+            <button class="modal-close" onclick="closeModal('blog-modal')">�</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="bp-edit-id">
@@ -656,18 +656,18 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                 <div class="ff"><label>Post Image</label>
                     <div class="upload-zone upload-zone-compact" id="bp-upload">
                         <input type="file" id="bp-img-file" accept="image/jpeg,image/png,image/webp,image/gif">
-                        <div class="upload-inner"><span class="upload-icon">📷</span><p class="upload-text"><strong>Post image</strong><br><span class="upload-hint">JPG, PNG, WebP</span></p></div>
+                        <div class="upload-inner"><span class="upload-icon">??</span><p class="upload-text"><strong>Post image</strong><br><span class="upload-hint">JPG, PNG, WebP</span></p></div>
                     </div>
-                    <div class="img-pre" id="bp-img-pre"><img id="bp-img-thumb"><span class="img-pre-rm" onclick="clearBlogImg()">✕ Remove</span></div>
+                    <div class="img-pre" id="bp-img-pre"><img id="bp-img-thumb"><span class="img-pre-rm" onclick="clearBlogImg()">? Remove</span></div>
                 </div>
                 <div class="ff"><label>Author Avatar</label>
                     <div class="upload-zone upload-zone-compact" id="bp-avatar-upload">
                         <input type="file" id="bp-avatar-file" accept="image/jpeg,image/png,image/webp,image/gif">
-                        <div class="upload-inner"><span class="upload-icon">👤</span><p class="upload-text"><strong>Avatar</strong><br><span class="upload-hint">Square image</span></p></div>
+                        <div class="upload-inner"><span class="upload-icon">??</span><p class="upload-text"><strong>Avatar</strong><br><span class="upload-hint">Square image</span></p></div>
                     </div>
-                    <div class="img-pre" id="bp-avatar-pre"><img id="bp-avatar-thumb"><span class="img-pre-rm" onclick="clearBlogAvatar()">✕ Remove</span></div>
+                    <div class="img-pre" id="bp-avatar-pre"><img id="bp-avatar-thumb"><span class="img-pre-rm" onclick="clearBlogAvatar()">? Remove</span></div>
                 </div>
-                <div class="full form-spaced"><button class="btn-primary full-width" onclick="saveBlogPost()">📤 Publish Post</button></div>
+                <div class="full form-spaced"><button class="btn-primary full-width" onclick="saveBlogPost()">?? Publish Post</button></div>
             </div>
         </div>
     </div>
@@ -725,8 +725,8 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <div class="ld-modal-backdrop" id="leader-modal">
     <div class="ld-modal-box">
         <div class="ld-modal-header">
-            <h3 id="ld-form-title">➕ Add Leader</h3>
-            <button class="ld-modal-close" onclick="closeLeaderModal()">✕</button>
+            <h3 id="ld-form-title">? Add Leader</h3>
+            <button class="ld-modal-close" onclick="closeLeaderModal()">?</button>
         </div>
         <div class="ld-modal-body">
             <input type="hidden" id="ld-edit-id">
@@ -738,19 +738,19 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="ld-photo-zone">
                     <div class="ld-photo-preview" id="ld-photo-preview">
                         <div class="ld-photo-placeholder" id="ld-photo-placeholder">
-                            <span>📷</span>No photo
+                            <span>??</span>No photo
                         </div>
                         <img id="ld-photo-img" src="" alt="" class="hidden">
-                        <button class="ld-photo-remove" id="ld-photo-remove" type="button" onclick="removeLeaderPhoto()">✕</button>
+                        <button class="ld-photo-remove" id="ld-photo-remove" type="button" onclick="removeLeaderPhoto()">?</button>
                     </div>
                     <div class="ld-photo-controls">
                         <div class="ld-upload-drop" id="ld-upload-drop" onclick="document.getElementById('ld-photo-file').click()">
-                            <div class="ld-upload-icon">📁</div>
+                            <div class="ld-upload-icon">??</div>
                             <div class="ld-upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
                             <div class="ld-upload-hint">JPG, PNG or WebP (max 5 MB)</div>
                         </div>
                         <input type="file" id="ld-photo-file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleLeaderPhoto(this)">
-                        <div class="ld-or-divider">— or paste URL —</div>
+                        <div class="ld-or-divider">� or paste URL �</div>
                         <input type="text" id="ld-photo" class="ld-input" placeholder="https://example.com/photo.jpg" oninput="previewLeaderPhotoUrl(this.value)">
                     </div>
                 </div>
@@ -790,14 +790,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <label>Status</label>
                     <input type="hidden" id="ld-active" value="1">
                     <div class="ld-status-toggle">
-                        <div class="ld-status-opt active-on" id="ld-status-on" onclick="setLeaderStatus(1)">✅ Active</div>
-                        <div class="ld-status-opt" id="ld-status-off" onclick="setLeaderStatus(0)">⛔ Inactive</div>
+                        <div class="ld-status-opt active-on" id="ld-status-on" onclick="setLeaderStatus(1)">? Active</div>
+                        <div class="ld-status-opt" id="ld-status-off" onclick="setLeaderStatus(0)">? Inactive</div>
                     </div>
                 </div>
             </div>
 
             <button class="ld-save-btn" id="ld-save-btn" onclick="saveLeader()">
-                <span id="ld-save-text">💾 Save Leader</span>
+                <span id="ld-save-text">?? Save Leader</span>
             </button>
         </div>
     </div>
@@ -806,7 +806,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Stat Modal -->
 <div class="modal-backdrop" id="stat-modal">
     <div class="modal-box modal-small">
-        <div class="modal-hd"><h3 id="sc-stat-form-title">➕ Add Stat</h3><button class="modal-close" onclick="closeModal('stat-modal')">×</button></div>
+        <div class="modal-hd"><h3 id="sc-stat-form-title">? Add Stat</h3><button class="modal-close" onclick="closeModal('stat-modal')">�</button></div>
         <div class="modal-body">
             <input type="hidden" id="sc-stat-edit-id">
             <div class="ff"><label>Key (unique slug) <span>*</span></label><input type="text" id="sc-stat-key" placeholder="e.g. members_count"></div>
@@ -819,9 +819,9 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="ff"><label>Sort Order</label><input type="number" id="sc-stat-order" value="0" min="0"></div>
             </div>
             <div class="ff"><label>Active</label>
-                <select id="sc-stat-active"><option value="1">Yes — Visible on site</option><option value="0">No — Hidden</option></select>
+                <select id="sc-stat-active"><option value="1">Yes � Visible on site</option><option value="0">No � Hidden</option></select>
             </div>
-            <button class="btn-primary full-width form-spaced" onclick="saveStat()"><span id="sc-stat-save-text">💾 Save Stat</span></button>
+            <button class="btn-primary full-width form-spaced" onclick="saveStat()"><span id="sc-stat-save-text">?? Save Stat</span></button>
         </div>
     </div>
 </div>
@@ -829,7 +829,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Media Upload Modal -->
 <div class="modal-backdrop" id="media-upload-modal">
     <div class="modal-box modal-medium">
-        <div class="modal-hd"><h3>📁 Upload Media</h3><button class="modal-close" onclick="closeModal('media-upload-modal')">×</button></div>
+        <div class="modal-hd"><h3>?? Upload Media</h3><button class="modal-close" onclick="closeModal('media-upload-modal')">�</button></div>
         <div class="modal-body">
             <div class="ff"><label>Title</label><input type="text" id="sc-media-title" placeholder="Image title (optional)"></div>
             <div class="ff"><label>Description</label><textarea id="sc-media-desc" rows="2" placeholder="Brief description (optional)"></textarea></div>
@@ -839,14 +839,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="ff">
                 <label>File(s) <span>*</span></label>
                 <div class="upload-card" id="sc-media-drop" onclick="document.getElementById('sc-media-files').click()">
-                    <div class="upload-card-icon">📁</div>
+                    <div class="upload-card-icon">??</div>
                     <div class="upload-card-text"><strong>Click to upload</strong> or drag & drop</div>
-                    <div class="upload-card-note">JPG, PNG, WebP, GIF, PDF — max 10 MB each</div>
+                    <div class="upload-card-note">JPG, PNG, WebP, GIF, PDF � max 10 MB each</div>
                 </div>
                 <input type="file" id="sc-media-files" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" class="hidden" onchange="previewMediaFiles(this)">
                 <div id="sc-media-preview" class="media-preview"></div>
             </div>
-            <button class="btn-primary full-width form-spaced" onclick="uploadMedia()"><span id="sc-media-upload-text">📤 Upload</span></button>
+            <button class="btn-primary full-width form-spaced" onclick="uploadMedia()"><span id="sc-media-upload-text">?? Upload</span></button>
         </div>
     </div>
 </div>
@@ -857,63 +857,63 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <div class="modal-backdrop" id="event-modal">
     <div class="modal-box modal-box-md">
         <div class="modal-hd">
-            <h3 id="ev-form-title">➕ Add New Event</h3>
-            <button class="modal-close" onclick="closeModal('event-modal')">×</button>
+            <h3 id="ev-form-title">? Add New Event</h3>
+            <button class="modal-close" onclick="closeModal('event-modal')">�</button>
         </div>
         <div class="modal-body">
             <input type="hidden" id="ev-edit-id">
             <div class="prog-wrap prog-wrap-sm"><div class="prog-fill" id="eprog"></div></div>
 
-            <!-- 1 — Image -->
+            <!-- 1 � Image -->
             <div class="aef-sec">
-                <div class="aef-lbl">🖼 Event Image</div>
+                <div class="aef-lbl">?? Event Image</div>
                 <div class="aef-upload-row">
                     <div class="upload-zone upload-zone-compact" id="ev-upload">
                         <input type="file" id="ev-img-file" accept="image/jpeg,image/png,image/webp,image/gif">
                         <div class="upload-inner">
-                            <span class="upload-icon">📷</span>
-                            <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop<br><span class="upload-hint">JPG, PNG, WebP — max 5 MB</span></p>
+                            <span class="upload-icon">??</span>
+                            <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop<br><span class="upload-hint">JPG, PNG, WebP � max 5 MB</span></p>
                         </div>
                     </div>
                     <div class="ff">
                         <label>Or image URL</label>
-                        <input type="url" id="ev-img-url" placeholder="https://…/image.jpg">
+                        <input type="url" id="ev-img-url" placeholder="https://�/image.jpg">
                         <small>Leave blank if uploading a file</small>
                     </div>
                 </div>
-                <div class="img-pre img-pre-mt" id="ev-img-pre"><img id="ev-img-thumb" src="" alt=""><span class="img-pre-rm" onclick="clearEvImg()">✕ Remove</span></div>
+                <div class="img-pre img-pre-mt" id="ev-img-pre"><img id="ev-img-thumb" src="" alt=""><span class="img-pre-rm" onclick="clearEvImg()">? Remove</span></div>
             </div>
 
-            <!-- 2 — Core Details -->
+            <!-- 2 � Core Details -->
             <div class="aef-sec">
-                <div class="aef-lbl">📝 Event Details</div>
+                <div class="aef-lbl">?? Event Details</div>
                 <div class="aef-grid">
                     <div class="ff c3"><label>Event Title <span>*</span></label><input type="text" id="ev-title" placeholder="e.g. Annual Oncology Conference 2026" oninput="autoSlug()"></div>
                     <div class="ff c2"><label>Event ID / Slug <span>*</span></label><input type="text" id="ev-slug" placeholder="auto-generated" readonly><small>Auto-filled from title</small></div>
                     <div class="ff"><label>Type <span>*</span></label>
-                        <select id="ev-type"><option value="">Select…</option><option value="conference">Conference</option><option value="workshop">Workshop</option><option value="webinar">Webinar</option></select>
+                        <select id="ev-type"><option value="">Select�</option><option value="conference">Conference</option><option value="workshop">Workshop</option><option value="webinar">Webinar</option></select>
                     </div>
                     <div class="ff"><label>Image Alt Text <span>*</span></label><input type="text" id="ev-alt" placeholder="Brief image description"></div>
                 </div>
             </div>
 
-            <!-- 3 — Date & Location -->
+            <!-- 3 � Date & Location -->
             <div class="aef-sec">
-                <div class="aef-lbl">📅 Date &amp; Location</div>
+                <div class="aef-lbl">?? Date &amp; Location</div>
                 <div class="aef-grid">
                     <div class="ff"><label>Start Date <span>*</span></label><input type="text" id="ev-date-start" placeholder="Select start date" readonly oninput="buildDate()"></div>
                     <div class="ff"><label>End Date <small class="ev-date-opt">(optional)</small></label><input type="text" id="ev-date-end" placeholder="Select end date" readonly oninput="buildDate()"></div>
                     <div class="ff"><label>Formatted Date</label><input type="text" id="ev-date" placeholder="Auto-filled" readonly><small>Generated from pickers</small></div>
-                    <div class="ff c3"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="📍 e.g. Serena Hotel, Kampala"></div>
-                    <div class="ff c3"><label>Description <span>*</span></label><textarea id="ev-desc" rows="3" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
+                    <div class="ff c3"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="?? e.g. Serena Hotel, Kampala"></div>
+                    <div class="ff c3"><label>Description <span>*</span></label><textarea id="ev-desc" rows="3" placeholder="Describe the event � agenda, speakers, objectives�"></textarea></div>
                 </div>
             </div>
 
-            <!-- 4 — Pricing -->
+            <!-- 4 � Pricing -->
             <div class="aef-sec">
-                <div class="aef-lbl">💰 Pricing</div>
+                <div class="aef-lbl">?? Pricing</div>
                 <div class="pricing-row">
-                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-is-free" checked onchange="toggleFee()"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">🆓 Free Event</span></div>
+                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-is-free" checked onchange="toggleFee()"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">?? Free Event</span></div>
                 </div>
                 <div id="ev-fee-section">
                     <div class="aef-grid">
@@ -923,12 +923,12 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 </div>
             </div>
 
-            <!-- 5 — Footer: show on home toggle + actions -->
+            <!-- 5 � Footer: show on home toggle + actions -->
             <div class="modal-footer-bar">
-                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-featured"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">🏠 Show on Home</span></div>
+                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-featured"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">?? Show on Home</span></div>
                 <div class="btn-row">
-                    <button class="btn-primary" id="ev-save-btn" onclick="saveEvent()">💾 Save Event</button>
-                    <button class="btn-sm" onclick="closeModal('event-modal')">✕ Cancel</button>
+                    <button class="btn-primary" id="ev-save-btn" onclick="saveEvent()">?? Save Event</button>
+                    <button class="btn-sm" onclick="closeModal('event-modal')">? Cancel</button>
                 </div>
             </div>
 
@@ -944,7 +944,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Payment Edit Modal -->
 <div class="modal-backdrop" id="pay-edit-modal">
     <div class="modal-box">
-        <div class="modal-hd"><h3>✏️ Edit Payment</h3><button class="modal-close" onclick="closeModal('pay-edit-modal')">×</button></div>
+        <div class="modal-hd"><h3>?? Edit Payment</h3><button class="modal-close" onclick="closeModal('pay-edit-modal')">�</button></div>
         <div class="modal-body">
             <div id="pem-info"></div>
             <div style="margin-top:.85rem;">
@@ -963,7 +963,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             </div>
             <div id="pem-verify-actions"></div>
             <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
-                <button class="btn-primary btn-sm" onclick="savePaymentEdit()">💾 Save Changes</button>
+                <button class="btn-primary btn-sm" onclick="savePaymentEdit()">?? Save Changes</button>
                 <button class="btn-sm btn-outline-xs" onclick="closeModal('pay-edit-modal')">Cancel</button>
             </div>
         </div>
@@ -973,7 +973,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Invoice Modal -->
 <div class="modal-backdrop" id="inv-modal">
     <div class="modal-box">
-        <div class="modal-hd"><h3>📄 Invoice Preview</h3><button class="modal-close" onclick="closeModal('inv-modal')">×</button></div>
+        <div class="modal-hd"><h3>?? Invoice Preview</h3><button class="modal-close" onclick="closeModal('inv-modal')">�</button></div>
         <div class="modal-body" id="inv-modal-body"></div>
     </div>
 </div>
@@ -981,16 +981,16 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Event Registrants Modal -->
 <div class="modal-backdrop" id="reg-modal">
     <div class="modal-box modal-box-lg">
-        <div class="modal-hd"><h3 id="reg-modal-title">👥 Registrants</h3><button class="modal-close" onclick="closeModal('reg-modal')">×</button></div>
+        <div class="modal-hd"><h3 id="reg-modal-title">?? Registrants</h3><button class="modal-close" onclick="closeModal('reg-modal')">�</button></div>
         <div class="modal-body">
             <div id="reg-modal-stats" class="reg-stats-row"></div>
-            <div class="reg-search-wrap"><input type="text" id="reg-search" class="reg-search-input" placeholder="Search registrants…" oninput="filterRegModal()"></div>
+            <div class="reg-search-wrap"><input type="text" id="reg-search" class="reg-search-input" placeholder="Search registrants�" oninput="filterRegModal()"></div>
             <div class="overflow-auto">
                 <table class="tbl"><thead><tr><th>#</th><th>Name / Email</th><th>Phone</th><th>Institution</th><th>Payment</th><th>Date</th><th>Actions</th></tr></thead>
-                <tbody id="reg-modal-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table>
+                <tbody id="reg-modal-body"><tr><td colspan="7" class="empty">Loading�</td></tr></tbody></table>
             </div>
             <div id="reg-modal-empty">
-                <div class="empty-icon">📭</div>
+                <div class="empty-icon">??</div>
                 <p class="empty-title">No registrations yet</p>
                 <p class="empty-desc">Once users register for this event, they'll appear here.</p>
             </div>
@@ -1001,13 +1001,13 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Publication Modal -->
 <div class="modal-backdrop" id="pub-modal">
     <div class="modal-box modal-box-md">
-        <div class="modal-hd"><h3 id="pub-form-title">➕ Add Publication</h3><button class="modal-close" onclick="closeModal('pub-modal')">×</button></div>
+        <div class="modal-hd"><h3 id="pub-form-title">? Add Publication</h3><button class="modal-close" onclick="closeModal('pub-modal')">�</button></div>
         <div class="modal-body">
             <input type="hidden" id="pub-edit-id">
 
             <!-- Import from Event toggle -->
             <div class="aef-sec" id="pub-import-sec">
-                <div class="aef-lbl">📥 Source</div>
+                <div class="aef-lbl">?? Source</div>
                 <div class="radio-inline-row">
                     <label class="radio-inline-label">
                         <input type="radio" name="pub-source" value="new" checked onchange="togglePubSource()"> Create New
@@ -1020,7 +1020,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="ff">
                         <label>Select Event <span>*</span></label>
                         <select id="pub-event-select" onchange="fillPubFromEvent()">
-                            <option value="">— Choose an event —</option>
+                            <option value="">� Choose an event �</option>
                         </select>
                         <small>Event details will auto-fill the form below</small>
                     </div>
@@ -1029,7 +1029,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 
             <!-- Publication form fields -->
             <div class="aef-sec">
-                <div class="aef-lbl">📝 Publication Details</div>
+                <div class="aef-lbl">?? Publication Details</div>
                 <div class="form-grid">
                     <div class="ff"><label>Type <span>*</span></label>
                         <select id="pub-type"><option value="Journal">Journal</option><option value="Conference">Conference</option><option value="Review">Review</option><option value="Report">Report</option><option value="Book Chapter">Book Chapter</option></select>
@@ -1037,17 +1037,17 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="ff"><label>Date <span>*</span></label><input type="text" id="pub-date" placeholder="Select month & year" readonly></div>
                     <div class="ff full"><label>Title <span>*</span></label><input type="text" id="pub-title" placeholder="Publication title"></div>
                     <div class="ff full"><label>Authors</label><input type="text" id="pub-authors" placeholder="e.g. HOSU Research Network, UCI Collaborators"></div>
-                    <div class="ff"><label>Link URL</label><input type="url" id="pub-link" placeholder="https://…"></div>
+                    <div class="ff"><label>Link URL</label><input type="url" id="pub-link" placeholder="https://�"></div>
                     <div class="ff"><label>Link Label</label><input type="text" id="pub-link-label" placeholder="Read abstract" value="Read abstract"></div>
                     <div class="ff"><label>Sort Order</label><input type="number" id="pub-sort" value="0" min="0"><small>Lower = shown first</small></div>
                 </div>
             </div>
 
             <div class="modal-footer-bar">
-                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="pub-show-home"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">🏠 Show on Home</span></div>
+                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="pub-show-home"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">?? Show on Home</span></div>
                 <div class="btn-row">
-                    <button class="btn-primary" id="pub-save-btn" onclick="savePub()">💾 Save</button>
-                    <button class="btn-sm" onclick="closeModal('pub-modal')">✕ Cancel</button>
+                    <button class="btn-primary" id="pub-save-btn" onclick="savePub()">?? Save</button>
+                    <button class="btn-sm" onclick="closeModal('pub-modal')">? Cancel</button>
                 </div>
             </div>
         </div>
@@ -1057,11 +1057,11 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Grant Modal -->
 <div class="modal-backdrop" id="grant-modal">
     <div class="modal-box modal-box-md">
-        <div class="modal-hd"><h3 id="grant-form-title">➕ Add Grant</h3><button class="modal-close" onclick="closeModal('grant-modal')">×</button></div>
+        <div class="modal-hd"><h3 id="grant-form-title">? Add Grant</h3><button class="modal-close" onclick="closeModal('grant-modal')">�</button></div>
         <div class="modal-body">
             <input type="hidden" id="grant-edit-id">
             <div class="aef-sec">
-                <div class="aef-lbl">📝 Grant Details</div>
+                <div class="aef-lbl">?? Grant Details</div>
                 <div class="form-grid">
                     <div class="ff full"><label>Title <span>*</span></label><input type="text" id="grant-title" placeholder="Grant title"></div>
                     <div class="ff"><label>Amount</label><input type="number" id="grant-amount" min="0" step="1000" placeholder="e.g. 40000000"></div>
@@ -1072,16 +1072,16 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="ff"><label>Status</label>
                         <select id="grant-status"><option value="open">Open for Applications</option><option value="closing">Closing Soon</option><option value="closed">Closed</option></select>
                     </div>
-                    <div class="ff full"><label>Description</label><textarea id="grant-desc" rows="3" placeholder="Brief description of the grant…"></textarea></div>
-                    <div class="ff full"><label>Apply Link</label><input type="url" id="grant-apply-link" placeholder="https://… (leave blank to use built-in form)"></div>
+                    <div class="ff full"><label>Description</label><textarea id="grant-desc" rows="3" placeholder="Brief description of the grant�"></textarea></div>
+                    <div class="ff full"><label>Apply Link</label><input type="url" id="grant-apply-link" placeholder="https://� (leave blank to use built-in form)"></div>
                     <div class="ff"><label>Sort Order</label><input type="number" id="grant-sort" value="0" min="0"><small>Lower = shown first</small></div>
                 </div>
             </div>
             <div class="modal-footer-bar">
-                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="grant-show-home"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">🏠 Show on Home</span></div>
+                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="grant-show-home"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">?? Show on Home</span></div>
                 <div class="btn-row">
-                    <button class="btn-primary" id="grant-save-btn" onclick="saveGrant()">💾 Save</button>
-                    <button class="btn-sm" onclick="closeModal('grant-modal')">✕ Cancel</button>
+                    <button class="btn-primary" id="grant-save-btn" onclick="saveGrant()">?? Save</button>
+                    <button class="btn-sm" onclick="closeModal('grant-modal')">? Cancel</button>
                 </div>
             </div>
         </div>
@@ -1091,25 +1091,25 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <!-- Grant Applications Modal (like reg-modal) -->
 <div class="modal-backdrop" id="gapp-modal">
     <div class="modal-box modal-box-lg">
-        <div class="modal-hd"><h3 id="gapp-modal-title">📋 Grant Applications</h3><button class="modal-close" onclick="closeModal('gapp-modal')">×</button></div>
+        <div class="modal-hd"><h3 id="gapp-modal-title">?? Grant Applications</h3><button class="modal-close" onclick="closeModal('gapp-modal')">�</button></div>
         <div class="modal-body">
             <div id="gapp-stats" class="reg-stats-row"></div>
             <div class="gapp-toolbar">
-                <input type="text" id="gapp-search" class="reg-search-input gapp-search-grow" placeholder="Search applicants…" oninput="filterGappModal()">
+                <input type="text" id="gapp-search" class="reg-search-input gapp-search-grow" placeholder="Search applicants�" oninput="filterGappModal()">
                 <select id="gapp-status-filter" class="btn-sm select-sm-pad" onchange="filterGappModal()">
                     <option value="">All Statuses</option>
-                    <option value="pending">⏳ Pending</option>
-                    <option value="approved">✅ Approved</option>
-                    <option value="rejected">❌ Rejected</option>
+                    <option value="pending">? Pending</option>
+                    <option value="approved">? Approved</option>
+                    <option value="rejected">? Rejected</option>
                 </select>
-                <a id="gapp-export-btn" href="#" class="btn-sm btn-green" target="_blank">⬇ Export CSV</a>
+                <a id="gapp-export-btn" href="#" class="btn-sm btn-green" target="_blank">? Export CSV</a>
             </div>
             <div class="overflow-auto">
                 <table class="tbl"><thead><tr><th>#</th><th>Applicant</th><th>Phone</th><th>Institution</th><th>Proposal</th><th>Status</th><th>Payment</th><th>Date</th><th>Actions</th></tr></thead>
-                <tbody id="gapp-body"><tr><td colspan="9" class="empty">Loading…</td></tr></tbody></table>
+                <tbody id="gapp-body"><tr><td colspan="9" class="empty">Loading�</td></tr></tbody></table>
             </div>
             <div id="gapp-empty" class="gapp-empty-state">
-                <div class="gapp-empty-icon">📭</div>
+                <div class="gapp-empty-icon">??</div>
                 <p class="gapp-empty-title">No applications yet</p>
                 <p class="gapp-empty-desc">Once applicants apply for this grant, they'll appear here.</p>
             </div>
@@ -1121,8 +1121,8 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 <div class="modal-backdrop" id="chpw-modal">
     <div class="modal-box modal-small">
         <div class="modal-hd">
-            <h3>🔑 Change Password</h3>
-            <button class="modal-close" onclick="closeChangePassword()">✕</button>
+            <h3>?? Change Password</h3>
+            <button class="modal-close" onclick="closeChangePassword()">?</button>
         </div>
         <div class="modal-body">
             <div id="chpw-msg" class="alert-message hidden"></div>
@@ -1143,7 +1143,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <button type="submit" class="btn-primary full-width">Update Password</button>
             </form>
             <div class="modal-section-divider">
-                <button class="btn-sm full-width" onclick="loadLoginHistory()">📋 View Login History</button>
+                <button class="btn-sm full-width" onclick="loadLoginHistory()">?? View Login History</button>
                 <div id="login-history" class="hidden login-history-box">
                     <table class="tbl"><thead><tr><th>Time</th><th>IP</th><th>Status</th></tr></thead><tbody id="login-history-body"></tbody></table>
                 </div>
@@ -1158,7 +1158,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 'use strict';
 var _members=[], _events=[], _payments=[], _hasEvImg=false, _editingEvId=null;
 
-/* ── AUTO-INJECT CSRF TOKEN INTO ALL POST REQUESTS ── */
+/* -- AUTO-INJECT CSRF TOKEN INTO ALL POST REQUESTS -- */
 (function(){
     var _origFetch = window.fetch;
     window.fetch = function(url, opts){
@@ -1171,7 +1171,7 @@ var _members=[], _events=[], _payments=[], _hasEvImg=false, _editingEvId=null;
     };
 })();
 
-/* ── Fetch CSRF token on admin page load ── */
+/* -- Fetch CSRF token on admin page load -- */
 (function(){
     fetch('auth.php?action=check_session',{credentials:'same-origin'})
         .then(function(r){return r.json();})
@@ -1180,8 +1180,8 @@ var _members=[], _events=[], _payments=[], _hasEvImg=false, _editingEvId=null;
         }).catch(function(){});
 })();
 
-/* ── AUTH ─────────────────────────────────── */
-// No standalone login — verify existing session on load, redirect if not admin
+/* -- AUTH ----------------------------------- */
+// No standalone login � verify existing session on load, redirect if not admin
 (function(){
     fetch('auth.php?action=heartbeat',{credentials:'same-origin'})
         .then(function(r){return r.json();})
@@ -1208,7 +1208,7 @@ function showDashboard(user){
         });
 }
 
-/* ── Force Password Change Modal ── */
+/* -- Force Password Change Modal -- */
 window.showForcePasswordChange = function(){
     var overlay = document.createElement('div');
     overlay.id = 'force-pw-overlay';
@@ -1263,7 +1263,7 @@ function doLogout(){
     });
 }
 
-/* ── SECURITY: Idle timeout + tab close + heartbeat ── */
+/* -- SECURITY: Idle timeout + tab close + heartbeat -- */
 var _idleTimer=null, _heartbeatTimer=null, _idleTimeout=1800;
 var _idleCountdown=null, _idleWarnShown=false;
 
@@ -1311,7 +1311,7 @@ function showIdleWarning(){
         el = document.createElement('div');
         el.id = 'idle-warning';
         el.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:10000;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:.6rem 1.25rem;display:flex;align-items:center;justify-content:space-between;font-family:Inter,sans-serif;font-size:.82rem;color:#92400e;gap:.5rem;';
-        el.innerHTML = '<span><strong>Session expiring</strong> — <span id=\"idle-seconds\">60</span>s remaining. Move mouse to stay logged in.</span><button onclick=\"resetIdleTimer()\" style=\"padding:.3rem .8rem;border-radius:6px;border:1.5px solid #d97706;background:#fff;color:#92400e;font-weight:600;cursor:pointer;font-size:.75rem;font-family:inherit;\">Stay Logged In</button>';
+        el.innerHTML = '<span><strong>Session expiring</strong> � <span id=\"idle-seconds\">60</span>s remaining. Move mouse to stay logged in.</span><button onclick=\"resetIdleTimer()\" style=\"padding:.3rem .8rem;border-radius:6px;border:1.5px solid #d97706;background:#fff;color:#92400e;font-weight:600;cursor:pointer;font-size:.75rem;font-family:inherit;\">Stay Logged In</button>';
         document.body.appendChild(el);
     }
     el.style.display = 'flex';
@@ -1356,7 +1356,7 @@ function forceLogout(reason){
                 '<div style="font-size:2.2rem;margin-bottom:.5rem;">&#128274;</div>' +
                 '<h3 style="color:#0d4593;margin:0 0 .5rem;font-size:1.15rem;">Session Ended</h3>' +
                 '<p style="color:#64748b;font-size:.85rem;margin:0 0 .75rem;">' + (reason||'You have been logged out.') + '</p>' +
-                '<p id="logout-countdown" style="color:#94a3b8;font-size:.78rem;margin:0 0 1rem;">Redirecting in <strong>' + countdown + '</strong> seconds…</p>' +
+                '<p id="logout-countdown" style="color:#94a3b8;font-size:.78rem;margin:0 0 1rem;">Redirecting in <strong>' + countdown + '</strong> seconds�</p>' +
                 '<a href="index.html" style="display:inline-block;padding:.55rem 1.6rem;background:#e63946;color:#fff;border-radius:30px;font-weight:600;text-decoration:none;font-size:.85rem;transition:background .2s;" onmouseover="this.style.background=\'#d62839\'" onmouseout="this.style.background=\'#e63946\'">Go to Website</a>' +
             '</div>';
         document.body.appendChild(overlay);
@@ -1364,7 +1364,7 @@ function forceLogout(reason){
         var timer = setInterval(function(){
             countdown--;
             var el = document.getElementById('logout-countdown');
-            if(el) el.innerHTML = 'Redirecting in <strong>' + countdown + '</strong> second' + (countdown!==1?'s':'') + '…';
+            if(el) el.innerHTML = 'Redirecting in <strong>' + countdown + '</strong> second' + (countdown!==1?'s':'') + '�';
             if(countdown <= 0){
                 clearInterval(timer);
                 window.location.replace('index.html');
@@ -1375,11 +1375,11 @@ function forceLogout(reason){
 
 function onVisChange(){
     if(document.hidden){
-        // Tab hidden — pause heartbeat, let server idle timeout handle it naturally
+        // Tab hidden � pause heartbeat, let server idle timeout handle it naturally
         if(_heartbeatTimer) clearInterval(_heartbeatTimer);
         _heartbeatTimer = null;
     } else {
-        // Tab visible — check session is still alive, resume heartbeat
+        // Tab visible � check session is still alive, resume heartbeat
         fetch('auth.php?action=heartbeat',{credentials:'same-origin'})
             .then(function(r){return r.json();})
             .then(function(d){
@@ -1399,11 +1399,11 @@ function onVisChange(){
     }
 }
 
-/* ── SESSION CHECK ON LOAD ── */
+/* -- SESSION CHECK ON LOAD -- */
 // Block back-button access: if no valid session, redirect immediately
 window.addEventListener('pageshow', function(e) {
     if (e.persisted) {
-        // Page was restored from bfcache — recheck session
+        // Page was restored from bfcache � recheck session
         fetch('auth.php?action=check_session', {credentials:'same-origin'})
             .then(r => r.json())
             .then(d => {
@@ -1415,7 +1415,7 @@ window.addEventListener('pageshow', function(e) {
     }
 });
 
-/* ── CHANGE PASSWORD ── */
+/* -- CHANGE PASSWORD -- */
 function openChangePassword(){
     document.getElementById('chpw-modal').classList.add('open');
     document.getElementById('chpw-current').value = '';
@@ -1478,7 +1478,7 @@ function loadLoginHistory(){
     var body = document.getElementById('login-history-body');
     el.style.display = el.style.display === 'none' ? 'block' : 'none';
     if(el.style.display === 'none') return;
-    body.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:.5rem;color:var(--text-light);">Loading…</td></tr>';
+    body.innerHTML = '<tr><td colspan="3" style="text-align:center;padding:.5rem;color:var(--text-light);">Loading�</td></tr>';
     fetch('auth.php?action=login_history',{credentials:'same-origin'})
         .then(r=>r.json())
         .then(d=>{
@@ -1507,7 +1507,7 @@ fetch('auth.php?action=check_session',{credentials:'same-origin'})
     })
     .catch(()=>{});
 
-/* ── TABS ─────────────────────────────────── */
+/* -- TABS ----------------------------------- */
 function showTab(name){
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
     document.querySelectorAll('.tab-btn').forEach(b=>b.classList.remove('active'));
@@ -1516,7 +1516,7 @@ function showTab(name){
     if(tabBtn)tabBtn.classList.add('active');
 }
 
-/* ── LOAD ALL ─────────────────────────────── */
+/* -- LOAD ALL ------------------------------- */
 function loadAll(){loadEvents();loadMembers();loadPayments();loadPublications();loadGrants();loadLeaders();loadBlogPosts();loadSiteStats();loadSiteMedia();}
 
 function loadEvents(){
@@ -1530,7 +1530,7 @@ function loadMembers(){
         .then(r=>r.json()).then(d=>{
             if(d.success){
                 var _allRows=d.members||[];
-                // Deduplicate members — keep first occurrence per member id
+                // Deduplicate members � keep first occurrence per member id
                 var _seen={};_members=_allRows.filter(function(r){if(_seen[r.id])return false;_seen[r.id]=true;return true;});
                 renderMembers();renderStats();renderOvMembers();
             }
@@ -1546,7 +1546,7 @@ function loadPayments(){
         }).catch(()=>{});
 }
 
-/* ── STATS ────────────────────────────────── */
+/* -- STATS ---------------------------------- */
 function renderStats(){
     document.getElementById('s-ev').textContent=_events.length;
     document.getElementById('s-mem').textContent=_members.length;
@@ -1577,13 +1577,13 @@ function renderPayStats(){
     document.getElementById('rs-revenue').textContent=grantRev?'UGX '+grantRev.toLocaleString():'UGX 0';
 }
 
-/* ── EVENTS TABLE ─────────────────────────── */
+/* -- EVENTS TABLE --------------------------- */
 var _filteredEv=[], _evRegCounts={};
 function renderEvents(){
     _filteredEv=filterArr(_events,document.getElementById('ev-search').value,'title','id','type','category');
     document.getElementById('ev-count').textContent=_filteredEv.length;
     var html='';
-    if(!_filteredEv.length){html='<tr><td colspan="9" class="empty"><div class="big">📅</div>No events found.</td></tr>';}
+    if(!_filteredEv.length){html='<tr><td colspan="9" class="empty"><div class="big">??</div>No events found.</td></tr>';}
     else _filteredEv.forEach(ev=>{
         var img=ev.image?'<img class="ev-thumb" src="'+esc(ev.image)+'" alt="" onerror="this.style.display=\'none\'">':'<div class="ev-thumb" style="background:var(--bg);"></div>';
         var isFree=ev.is_free===undefined?true:!!parseInt(ev.is_free);
@@ -1592,7 +1592,7 @@ function renderEvents(){
         var regBadge='<button class="btn-sm" onclick="viewRegistrants(\''+esc(ev.id)+'\')" style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;">'
             +'<span style="background:'+(regCount?'var(--primary-color)':'var(--text-light)')+';color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;">'+regCount+'</span>'
             +'<span style="font-size:.72rem;">View</span></button>';
-        var homeBadge=ev.featured?'<span class="tag" style="background:#e3f2fd;color:#1976d2;font-size:.58rem;margin-left:4px;" title="Shown on Home Hero">🏠</span>':'';
+        var homeBadge=ev.featured?'<span class="tag" style="background:#e3f2fd;color:#1976d2;font-size:.58rem;margin-left:4px;" title="Shown on Home Hero">??</span>':'';
         html+='<tr><td><div class="ev-cell">'+img+'<div><div class="ev-name">'+esc(ev.title)+homeBadge+'</div><div class="ev-id">'+esc(ev.id)+'</div></div></div></td>'
             +'<td><span class="tag tag-'+esc(ev.type)+'">'+esc(ev.type)+'</span></td>'
             +'<td><span class="tag tag-'+esc(ev.category)+'">'+esc(ev.category)+'</span></td>'
@@ -1601,7 +1601,7 @@ function renderEvents(){
             +'<td class="td-center">'+regBadge+'</td>'
             +'<td class="td-date">'+esc(ev.date)+'</td>'
             +'<td class="td-location">'+esc(ev.location)+'</td>'
-            +'<td class="td-nowrap"><button class="btn-edit" onclick="openEditEvent(\''+esc(ev.id)+'\')">✏️ Edit</button> <button class="btn-danger" onclick="deleteEvent(\''+esc(ev.id)+'\')">🗑 Del</button></td></tr>';
+            +'<td class="td-nowrap"><button class="btn-edit" onclick="openEditEvent(\''+esc(ev.id)+'\')">?? Edit</button> <button class="btn-danger" onclick="deleteEvent(\''+esc(ev.id)+'\')">?? Del</button></td></tr>';
     });
     document.getElementById('ev-body').innerHTML=html;
 }
@@ -1618,10 +1618,10 @@ function viewRegistrants(eventId){
     _regModalEventId=eventId;
     var ev=_events.find(e=>e.id===eventId);
     var isFree=ev&&(ev.is_free===undefined?true:!!parseInt(ev.is_free));
-    var priceLbl=isFree?'<span class="tag tag-free tag-free-sm">🆓 Free</span>'
-        :'<span class="tag tag-paid tag-paid-sm">💰 UGX '+Number(ev&&ev.event_fee||0).toLocaleString()+'</span>';
-    document.getElementById('reg-modal-title').innerHTML='👥 Registrants — '+(ev?esc(ev.title):esc(eventId))+' '+priceLbl;
-    document.getElementById('reg-modal-body').innerHTML='<tr><td colspan="7" class="empty">⏳ Loading…</td></tr>';
+    var priceLbl=isFree?'<span class="tag tag-free tag-free-sm">?? Free</span>'
+        :'<span class="tag tag-paid tag-paid-sm">?? UGX '+Number(ev&&ev.event_fee||0).toLocaleString()+'</span>';
+    document.getElementById('reg-modal-title').innerHTML='?? Registrants � '+(ev?esc(ev.title):esc(eventId))+' '+priceLbl;
+    document.getElementById('reg-modal-body').innerHTML='<tr><td colspan="7" class="empty">? Loading�</td></tr>';
     document.getElementById('reg-modal-stats').innerHTML='';
     document.getElementById('reg-modal-empty').style.display='none';
     document.getElementById('reg-search').value='';
@@ -1652,19 +1652,19 @@ function renderRegModal(){
     data.forEach((r,i)=>{
         var isPaid=parseFloat(r.amount||0)>0;
         var payBadge='<span class="tag tag-'+esc(r.payment_status)+'">'+esc(r.payment_status)+'</span>';
-        var amtStr=isPaid?'<div class="reg-amt-paid">UGX '+parseFloat(r.amount).toLocaleString()+'</div>':'<div class="reg-amt-free">🆓 Free</div>';
-        var receiptLink=r.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(r.receipt_token)+'" target="_blank">🧾 Receipt</a>':'';
+        var amtStr=isPaid?'<div class="reg-amt-paid">UGX '+parseFloat(r.amount).toLocaleString()+'</div>':'<div class="reg-amt-free">?? Free</div>';
+        var receiptLink=r.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(r.receipt_token)+'" target="_blank">?? Receipt</a>':'';
         var verifyBtn='';
-        if(isPaid&&r.payment_status!=='verified') verifyBtn='<button class="btn-green btn-sm" onclick="verifyRegistrant('+r.id+',\'verified\')">✅ Verify Payment</button>';
-        if(isPaid&&r.payment_status==='pending') verifyBtn+=' <button class="btn-danger btn-sm" onclick="verifyRegistrant('+r.id+',\'rejected\')">✖ Reject</button>';
-        var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteRegistrant('+r.id+')" title="Remove registrant">🗑</button>';
+        if(isPaid&&r.payment_status!=='verified') verifyBtn='<button class="btn-green btn-sm" onclick="verifyRegistrant('+r.id+',\'verified\')">? Verify Payment</button>';
+        if(isPaid&&r.payment_status==='pending') verifyBtn+=' <button class="btn-danger btn-sm" onclick="verifyRegistrant('+r.id+',\'rejected\')">? Reject</button>';
+        var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteRegistrant('+r.id+')" title="Remove registrant">??</button>';
         html+='<tr>'
             +'<td class="reg-sub col-num">'+(i+1)+'</td>'
             +'<td><div class="reg-name">'+esc(r.full_name)+'</div><div class="reg-sub">'+esc(r.email)+'</div></td>'
-            +'<td class="reg-sub">'+esc(r.phone||'–')+'</td>'
-            +'<td class="reg-sub col-inst">'+esc(r.institution||'–')+'</td>'
+            +'<td class="reg-sub">'+esc(r.phone||'�')+'</td>'
+            +'<td class="reg-sub col-inst">'+esc(r.institution||'�')+'</td>'
             +'<td>'+payBadge+amtStr+'</td>'
-            +'<td class="reg-sub col-date">'+esc(r.registered_date||'–')+'</td>'
+            +'<td class="reg-sub col-date">'+esc(r.registered_date||'�')+'</td>'
             +'<td class="col-actions">'+receiptLink+verifyBtn+' '+deleteBtn+'</td></tr>';
     });
     document.getElementById('reg-modal-body').innerHTML=html;
@@ -1701,7 +1701,7 @@ function renderOvEvents(){
     document.getElementById('ov-events-body').innerHTML=html||'<tr><td colspan="3" class="empty">No events yet.</td></tr>';
 }
 
-/* ── DELETE EVENT ─────────────────────────── */
+/* -- DELETE EVENT --------------------------- */
 function deleteEvent(id){
     if(!confirm('Delete "'+id+'"? This cannot be undone.'))return;
     var fd=new FormData();fd.append('action','delete_event');fd.append('id',id);
@@ -1712,7 +1712,7 @@ function deleteEvent(id){
         }).catch(()=>toast('Error.','error'));
 }
 
-/* ── UNIFIED EVENT MODAL (Add + Edit) ─────── */
+/* -- UNIFIED EVENT MODAL (Add + Edit) ------- */
 var MONTHS=['January','February','March','April','May','June','July','August','September','October','November','December'];
 
 function toggleFee(){
@@ -1734,8 +1734,8 @@ function buildDate(){
     var sd=new Date(s+'T00:00:00');
     if(!e){document.getElementById('ev-date').value=MONTHS[sd.getMonth()]+' '+sd.getDate()+', '+sd.getFullYear();}
     else{var ed=new Date(e+'T00:00:00');
-        if(sd.getMonth()===ed.getMonth()&&sd.getFullYear()===ed.getFullYear())document.getElementById('ev-date').value=MONTHS[sd.getMonth()]+' '+sd.getDate()+'–'+ed.getDate()+', '+sd.getFullYear();
-        else document.getElementById('ev-date').value=MONTHS[sd.getMonth()]+' '+sd.getDate()+' – '+MONTHS[ed.getMonth()]+' '+ed.getDate()+', '+ed.getFullYear();
+        if(sd.getMonth()===ed.getMonth()&&sd.getFullYear()===ed.getFullYear())document.getElementById('ev-date').value=MONTHS[sd.getMonth()]+' '+sd.getDate()+'�'+ed.getDate()+', '+sd.getFullYear();
+        else document.getElementById('ev-date').value=MONTHS[sd.getMonth()]+' '+sd.getDate()+' � '+MONTHS[ed.getMonth()]+' '+ed.getDate()+', '+ed.getFullYear();
     }updateProg();
 }
 
@@ -1790,8 +1790,8 @@ function initEvDatePickers(){
 
 function openAddEventModal(){
     resetEvForm();
-    document.getElementById('ev-form-title').textContent='➕ Add New Event';
-    document.getElementById('ev-save-btn').textContent='💾 Save Event';
+    document.getElementById('ev-form-title').textContent='? Add New Event';
+    document.getElementById('ev-save-btn').textContent='?? Save Event';
     document.getElementById('ev-slug').readOnly=false;
     openModal('event-modal');
     initEvDatePickers();
@@ -1804,8 +1804,8 @@ function openEditEvent(id){
     if(!ev){toast('Event not found.','error');return;}
     resetEvForm();
     _editingEvId=id;
-    document.getElementById('ev-form-title').textContent='✏️ Edit Event';
-    document.getElementById('ev-save-btn').textContent='💾 Save Changes';
+    document.getElementById('ev-form-title').textContent='?? Edit Event';
+    document.getElementById('ev-save-btn').textContent='?? Save Changes';
     document.getElementById('ev-edit-id').value=id;
     document.getElementById('ev-slug').value=id;
     document.getElementById('ev-slug').readOnly=true;
@@ -1821,7 +1821,7 @@ function openEditEvent(id){
     // Featured flag - handle string "0"/"1" or boolean
     var isFeatured = ev.featured === true || ev.featured === 1 || ev.featured === '1';
     document.getElementById('ev-featured').checked=isFeatured;
-    // Image — show URL for edit, admin can replace
+    // Image � show URL for edit, admin can replace
     if(ev.image){document.getElementById('ev-img-url').value=ev.image;_hasEvImg=false;}
     // Pricing - handle string "0"/"1" or boolean
     var isFree = ev.is_free === undefined || ev.is_free === true || ev.is_free === 1 || ev.is_free === '1';
@@ -1894,7 +1894,7 @@ function saveEvent(){
     else{status='open';cat='upcoming';}
 
     var btn=document.getElementById('ev-save-btn');
-    btn.disabled=true;btn.textContent='⏳ Saving…';
+    btn.disabled=true;btn.textContent='? Saving�';
 
     var fd=new FormData();
     fd.append('title',title);fd.append('type',type);fd.append('category',cat);
@@ -1914,22 +1914,22 @@ function saveEvent(){
         fd.append('id',_editingEvId);
         fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'})
             .then(r=>r.json()).then(d=>{
-                if(d.success){toast('✓ Event updated!','success');closeModal('event-modal');resetEvForm();loadEvents();}
+                if(d.success){toast('? Event updated!','success');closeModal('event-modal');resetEvForm();loadEvents();}
                 else toast(d.error||'Failed.','error');
             }).catch(()=>toast('Connection error.','error'))
-            .finally(()=>{btn.disabled=false;btn.textContent='💾 Save Changes';});
+            .finally(()=>{btn.disabled=false;btn.textContent='?? Save Changes';});
     } else {
         fd.append('id',slug);
         fetch('save_event.php',{method:'POST',body:fd,credentials:'same-origin'})
             .then(r=>r.json()).then(d=>{
-                if(d.success){toast('✓ Event saved!','success');closeModal('event-modal');resetEvForm();loadEvents();}
+                if(d.success){toast('? Event saved!','success');closeModal('event-modal');resetEvForm();loadEvents();}
                 else toast(d.error||'Failed to save.','error');
             }).catch(()=>toast('Connection error.','error'))
-            .finally(()=>{btn.disabled=false;btn.textContent='💾 Save Event';});
+            .finally(()=>{btn.disabled=false;btn.textContent='?? Save Event';});
     }
 }
 
-/* ── MEMBERS TABLE ────────────────────────── */
+/* -- MEMBERS TABLE -------------------------- */
 var _filteredMem=[];
 function renderMembers(){
     var statFilter=document.getElementById('mem-status-filter').value;
@@ -1941,7 +1941,7 @@ function renderMembers(){
     document.getElementById('mem-count').textContent=_filteredMem.length;
     var html='';
     var _PLAN_LABELS={'1_year':'1 Year','2_years':'2 Years','3_years':'3 Years','lifetime':'5+ Yrs Premium'};
-    if(!_filteredMem.length){html='<tr><td colspan="9" class="empty"><div class="big">👥</div>No members found.</td></tr>';}
+    if(!_filteredMem.length){html='<tr><td colspan="9" class="empty"><div class="big">??</div>No members found.</td></tr>';}
     else _filteredMem.forEach((m,i)=>{
         var payStatus=m.payment_status?'<span class="tag tag-'+esc(m.payment_status)+'">'+esc(m.payment_status)+'</span>':'<span class="tag tag-past">none</span>';
         var planLabel=_PLAN_LABELS[m.membership_type]||esc(m.membership_type);
@@ -1949,17 +1949,17 @@ function renderMembers(){
         html+='<tr><td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
             +'<td style="font-weight:600;font-size:.82rem;">'+esc(m.full_name)+'</td>'
             +'<td style="font-size:.78rem;">'+esc(m.email)+'</td>'
-            +'<td style="font-size:.76rem;">'+esc(m.profession||'–')+'</td>'
+            +'<td style="font-size:.76rem;">'+esc(m.profession||'�')+'</td>'
             +'<td>'+typeLabel+'</td>'
             +'<td><span class="tag tag-'+esc(m.status)+'">'+esc(m.status)+'</span></td>'
-            +'<td style="font-size:.76rem;">'+esc(m.joined_date||'–')+'</td>'
+            +'<td style="font-size:.76rem;">'+esc(m.joined_date||'�')+'</td>'
             +'<td>'+payStatus+'</td>'
             +'<td style="white-space:nowrap;">'
             +'<select class="btn-sm" style="padding:.28rem .5rem;font-size:.7rem;" onchange="updateMemberStatus('+m.id+',this.value)">'
-            +'<option value="">Change status…</option>'
-            +'<option value="active">✅ Active</option><option value="pending">⏳ Pending</option><option value="expired">🔴 Expired</option><option value="rejected">✖ Rejected</option>'
+            +'<option value="">Change status�</option>'
+            +'<option value="active">? Active</option><option value="pending">? Pending</option><option value="expired">?? Expired</option><option value="rejected">? Rejected</option>'
             +'</select>'
-            +(m.payment_id?'<button class="btn-sm" style="margin-left:.3rem;" onclick="openPayModal('+m.id+')">💳 Payment</button>':'')
+            +(m.payment_id?'<button class="btn-sm" style="margin-left:.3rem;" onclick="openPayModal('+m.id+')">?? Payment</button>':'')
             +'</td></tr>';
     });
     document.getElementById('mem-body').innerHTML=html;
@@ -1969,9 +1969,9 @@ function renderOvMembers(){
     var html='';
     _members.slice(0,6).forEach(m=>{
         html+='<tr><td style="font-size:.8rem;font-weight:600;">'+esc(m.full_name)+'</td>'
-            +'<td style="font-size:.74rem;">'+esc(m.profession||'–')+'</td>'
+            +'<td style="font-size:.74rem;">'+esc(m.profession||'�')+'</td>'
             +'<td><span class="tag tag-'+esc(m.status)+'">'+esc(m.status)+'</span></td>'
-            +'<td style="font-size:.72rem;">'+esc(m.joined_date||'–')+'</td></tr>';
+            +'<td style="font-size:.72rem;">'+esc(m.joined_date||'�')+'</td></tr>';
     });
     document.getElementById('ov-members-body').innerHTML=html||'<tr><td colspan="4" class="empty">No members yet.</td></tr>';
 }
@@ -1983,9 +1983,9 @@ function updateMemberStatus(id,status){
         .catch(()=>toast('Error.','error'));
 }
 
-/* ── PAYMENTS TABLE ───────────────────────── */
+/* -- PAYMENTS TABLE ------------------------- */
 var _filteredPay=[];
-var _PAY_TYPE_LABELS={'membership':'🪪 Membership','donation':'💝 Donation','event_registration':'🎫 Event','grant_application':'📋 Grant'};
+var _PAY_TYPE_LABELS={'membership':'?? Membership','donation':'?? Donation','event_registration':'?? Event','grant_application':'?? Grant'};
 var _PERIOD_LABELS={'1_year':'1 Year','2_years':'2 Years','3_years':'3 Years','lifetime':'5+ Yrs Premium'};
 function renderPayments(){
     var typeFilter=document.getElementById('pay-type-filter').value;
@@ -1995,7 +1995,7 @@ function renderPayments(){
     _filteredPay=filterArr(base,document.getElementById('pay-search').value,'full_name','email','transaction_ref','transaction_id','event_title');
     document.getElementById('pay-count').textContent=_filteredPay.length;
     var html='';
-    if(!_filteredPay.length){html='<tr><td colspan="7" class="empty"><div class="big">💳</div>No payments found.</td></tr>';}
+    if(!_filteredPay.length){html='<tr><td colspan="7" class="empty"><div class="big">??</div>No payments found.</td></tr>';}
     else _filteredPay.forEach((p,i)=>{
         var ptype=p.payment_type||'membership';
         var ptypeLabel=_PAY_TYPE_LABELS[ptype]||ptype;
@@ -2012,16 +2012,16 @@ function renderPayments(){
             +'</div>';
         var validUntil=ptype==='membership'?(p.membership_period==='lifetime'
             ?'<div style="color:#0d4593;font-weight:700;font-size:.7rem;">Lifetime</div>'
-            :(p.membership_expires_at?'<div style="font-size:.72rem;">'+esc(p.membership_expires_at.substring(0,10))+'</div>':'<div style="color:var(--text-light);font-size:.7rem;">—</div>'))
-            :'<div style="color:var(--text-light);font-size:.7rem;">—</div>';
-        var paidDate='<div style="font-size:.69rem;color:var(--text-light);">'+esc(p.paid_at?p.paid_at.substring(0,10):'—')+'</div>';
+            :(p.membership_expires_at?'<div style="font-size:.72rem;">'+esc(p.membership_expires_at.substring(0,10))+'</div>':'<div style="color:var(--text-light);font-size:.7rem;">�</div>'))
+            :'<div style="color:var(--text-light);font-size:.7rem;">�</div>';
+        var paidDate='<div style="font-size:.69rem;color:var(--text-light);">'+esc(p.paid_at?p.paid_at.substring(0,10):'�')+'</div>';
         var isEvReg=p.source==='event_registrants';
         var invBtn=isEvReg?'':( +p.invoice_sent
-            ?'<span class="tag tag-active" style="font-size:.6rem;">✓ Invoice</span>'
-            :'<button class="btn-sm btn-amber" onclick="openInvoice('+p.payment_id+')" title="View Invoice">📄</button>');
-        var receiptBtn=p.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(p.receipt_token)+'" target="_blank" title="View Receipt">🧾</a>':'';
+            ?'<span class="tag tag-active" style="font-size:.6rem;">? Invoice</span>'
+            :'<button class="btn-sm btn-amber" onclick="openInvoice('+p.payment_id+')" title="View Invoice">??</button>');
+        var receiptBtn=p.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(p.receipt_token)+'" target="_blank" title="View Receipt">??</a>':'';
         var verifyAttr=isEvReg?'verifyEvPay('+p.registrant_id:'verifyPay('+p.payment_id;
-        var editBtn='<button class="btn-sm btn-outline-xs" style="padding:.28rem .55rem;" onclick="openPayEditModal('+p.payment_id+',\''+esc(p.source)+'\')" title="Edit Transaction ID / Upload Proof">✏️</button>';
+        var editBtn='<button class="btn-sm btn-outline-xs" style="padding:.28rem .55rem;" onclick="openPayEditModal('+p.payment_id+',\''+esc(p.source)+'\')" title="Edit Transaction ID / Upload Proof">??</button>';
         html+='<tr>'
             +'<td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
             +'<td>'+payerCell+'</td>'
@@ -2030,8 +2030,8 @@ function renderPayments(){
             +'<td><span class="tag tag-'+esc(p.payment_status)+'">'+esc(p.payment_status)+'</span></td>'
             +'<td>'+validUntil+paidDate+'</td>'
             +'<td style="white-space:nowrap;display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">'
-            +(p.payment_status!=='verified'?'<button class="btn-green btn-sm" style="padding:.28rem .55rem;" onclick="'+verifyAttr+',\'verified\')" title="Verify">✅</button>':'')
-            +(p.payment_status==='pending'?'<button class="btn-danger" style="padding:.28rem .5rem;" onclick="'+verifyAttr+',\'rejected\')" title="Reject">✖</button>':'')
+            +(p.payment_status!=='verified'?'<button class="btn-green btn-sm" style="padding:.28rem .55rem;" onclick="'+verifyAttr+',\'verified\')" title="Verify">?</button>':'')
+            +(p.payment_status==='pending'?'<button class="btn-danger" style="padding:.28rem .5rem;" onclick="'+verifyAttr+',\'rejected\')" title="Reject">?</button>':'')
             +editBtn+receiptBtn+invBtn
             +'</td></tr>';
     });
@@ -2063,9 +2063,9 @@ function openPayEditModal(paymentId,source){
     document.getElementById('pem-info').innerHTML='<div class="pem-summary">'
         +'<div class="pem-name">'+esc(p.full_name)+' <span class="tag tag-'+esc(p.payment_status)+'">'+esc(p.payment_status)+'</span></div>'
         +'<div class="pem-sub">'+esc(p.email)
-        +(p.payment_method?' &nbsp;·&nbsp; <strong>'+esc(p.payment_method)+'</strong>':'')
-        +' &nbsp;·&nbsp; <strong>'+esc(p.currency||'UGX')+' '+parseFloat(p.amount||0).toLocaleString()+'</strong>'
-        +(p.event_title?' &nbsp;·&nbsp; '+esc(p.event_title):'')
+        +(p.payment_method?' &nbsp;�&nbsp; <strong>'+esc(p.payment_method)+'</strong>':'')
+        +' &nbsp;�&nbsp; <strong>'+esc(p.currency||'UGX')+' '+parseFloat(p.amount||0).toLocaleString()+'</strong>'
+        +(p.event_title?' &nbsp;�&nbsp; '+esc(p.event_title):'')
         +'</div></div>';
     // Fields
     document.getElementById('pem-txid').value=p.transaction_id||'';
@@ -2076,9 +2076,9 @@ function openPayEditModal(paymentId,source){
     if(p.proof_file){
         var ext=(p.proof_file.split('.').pop()||'').toLowerCase();
         if(['jpg','jpeg','png','gif','webp'].includes(ext)){
-            ph='<img class="pem-proof-img" src="'+esc(p.proof_file)+'" alt="Payment proof" onerror="this.replaceWith(Object.assign(document.createElement(\'a\'),{href:\''+esc(p.proof_file)+'\',target:\'_blank\',textContent:\'📎 View file\'}))">';
+            ph='<img class="pem-proof-img" src="'+esc(p.proof_file)+'" alt="Payment proof" onerror="this.replaceWith(Object.assign(document.createElement(\'a\'),{href:\''+esc(p.proof_file)+'\',target:\'_blank\',textContent:\'?? View file\'}))">';
         } else {
-            ph='<a href="'+esc(p.proof_file)+'" target="_blank" style="font-size:.82rem;">📎 View uploaded proof</a>';
+            ph='<a href="'+esc(p.proof_file)+'" target="_blank" style="font-size:.82rem;">?? View uploaded proof</a>';
         }
     } else {ph='<span style="font-size:.78rem;color:var(--text-light);">No proof uploaded yet</span>';}
     document.getElementById('pem-proof-preview').innerHTML=ph;
@@ -2088,8 +2088,8 @@ function openPayEditModal(paymentId,source){
         var isEvReg=p.source==='event_registrants';
         var vfn=isEvReg?'verifyEvPay('+p.registrant_id:'verifyPay('+p.payment_id;
         va='<div class="pay-actions">'
-            +'<button class="btn-green btn-sm" onclick="'+vfn+',\'verified\');closeModal(\'pay-edit-modal\')">✅ Verify Payment</button>'
-            +(p.payment_status==='pending'?'<button class="btn-danger btn-sm" onclick="'+vfn+',\'rejected\');closeModal(\'pay-edit-modal\')">✖ Reject</button>':'')
+            +'<button class="btn-green btn-sm" onclick="'+vfn+',\'verified\');closeModal(\'pay-edit-modal\')">? Verify Payment</button>'
+            +(p.payment_status==='pending'?'<button class="btn-danger btn-sm" onclick="'+vfn+',\'rejected\');closeModal(\'pay-edit-modal\')">? Reject</button>':'')
             +'</div>';
     }
     document.getElementById('pem-verify-actions').innerHTML=va;
@@ -2114,25 +2114,25 @@ function savePaymentEdit(){
         }).catch(()=>toast('Connection error.','error'));
 }
 
-/* ── INVOICE ──────────────────────────────── */
+/* -- INVOICE -------------------------------- */
 function openInvoice(payId){
     var p=_payments.find(x=>x.payment_id==payId&&x.source==='payments');
     if(!p)return;
     var invNo='INV-'+String(payId).padStart(5,'0');
     var today=new Date().toISOString().substring(0,10);
     document.getElementById('inv-modal-body').innerHTML='<div class="invoice">'
-        +'<div class="invoice-header"><div><div class="invoice-logo">🏥 HOSU</div><div style="font-size:.72rem;color:var(--text-light);">Hematology & Oncology Society of Uganda<br>Kampala, Uganda · infor@hosu.or.ug · www.hosu.or.ug<br>+256 766 529869 / +256 709 752107</div></div>'
+        +'<div class="invoice-header"><div><div class="invoice-logo">?? HOSU</div><div style="font-size:.72rem;color:var(--text-light);">Hematology & Oncology Society of Uganda<br>Mulago Hospital Complex, P.O. Box 170251, Kampala, Uganda � info@hosu.or.ug � www.hosu.or.ug<br>+256 766 529869 / +256 709 752107</div></div>'
         +'<div class="invoice-no"><div style="font-size:.85rem;font-weight:700;">INVOICE</div><div>'+invNo+'</div><div>Date: '+today+'</div></div></div>'
         +'<div style="margin-bottom:.75rem;font-size:.8rem;"><strong>Billed to:</strong><br>'+esc(p.full_name)+'<br>'+esc(p.email)+'</div>'
-        +'<div class="invoice-row"><span>Annual Membership Fee</span><span>–</span></div>'
+        +'<div class="invoice-row"><span>Annual Membership Fee</span><span>�</span></div>'
         +'<div class="invoice-row"><span>Membership Type</span><span>Annual</span></div>'
-        +'<div class="invoice-row"><span>Payment Method</span><span>'+esc(p.payment_method||'–')+'</span></div>'
-        +'<div class="invoice-row"><span>Transaction Ref</span><span>'+esc(p.transaction_ref||'–')+'</span></div>'
+        +'<div class="invoice-row"><span>Payment Method</span><span>'+esc(p.payment_method||'�')+'</span></div>'
+        +'<div class="invoice-row"><span>Transaction Ref</span><span>'+esc(p.transaction_ref||'�')+'</span></div>'
         +'<div class="invoice-total"><span>Total Paid</span><span>'+esc(p.currency||'UGX')+' '+parseFloat(p.amount||100000).toLocaleString()+'</span></div></div>'
         +'<div style="margin-top:1rem;font-size:.75rem;color:var(--text-light);">Thank you for your membership. This invoice confirms your payment has been received. Please retain for your records.</div>'
         +'<div style="margin-top:1rem;display:flex;gap:.5rem;">'
-        +'<button class="btn-primary" onclick="printInvoice()">🖨 Print / Save PDF</button>'
-        +'<button class="btn-sm btn-green" onclick="markInvSent('+payId+')">📨 Mark Invoice Sent</button>'
+        +'<button class="btn-primary" onclick="printInvoice()">?? Print / Save PDF</button>'
+        +'<button class="btn-sm btn-green" onclick="markInvSent('+payId+')">?? Mark Invoice Sent</button>'
         +'<button class="btn-sm" onclick="closeModal(\'inv-modal\')">Close</button></div>';
     openModal('inv-modal');
 }
@@ -2144,7 +2144,7 @@ function markInvSent(payId){
         .catch(()=>toast('Error.','error'));
 }
 
-/* ── HELPERS ──────────────────────────────── */
+/* -- HELPERS -------------------------------- */
 function openModal(id){document.getElementById(id).classList.add('open');}
 function closeModal(id){document.getElementById(id).classList.remove('open');}
 document.querySelectorAll('.modal-backdrop').forEach(m=>{m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
@@ -2159,7 +2159,7 @@ function esc(s){if(!s&&s!==0)return'';return String(s).replace(/&/g,'&amp;').rep
 var _toastT;
 function toast(msg,type){var t=document.getElementById('toast');t.textContent=msg;t.className=type||'';t.style.display='block';clearTimeout(_toastT);_toastT=setTimeout(()=>t.style.display='none',4000);}
 
-/* ── PUBLICATIONS & GRANTS ────────────────── */
+/* -- PUBLICATIONS & GRANTS ------------------ */
 var _publications=[], _grants=[], _grantAppCounts={};
 var _fpPubDate=null, _fpGrantDeadline=null;
 
@@ -2213,7 +2213,7 @@ function loadGrantAppCounts(){
         }).catch(()=>{});
 }
 
-/* ── Research Stats ── */
+/* -- Research Stats -- */
 function renderResearchStats(){
     document.getElementById('rs-pubs').textContent=_publications.length;
     document.getElementById('rs-grants').textContent=_grants.length;
@@ -2226,42 +2226,42 @@ function renderResearchStats(){
     document.getElementById('rs-apps').textContent=totalApps;
     document.getElementById('rs-pending').textContent=pendingApps;
     // Revenue: sum from payments linked to grant applications (shown from payment stats)
-    document.getElementById('rs-revenue').textContent='—';
+    document.getElementById('rs-revenue').textContent='�';
     document.getElementById('tab-res-cnt').textContent=_publications.length+_grants.length;
 }
 
-/* ── Publications Table ── */
+/* -- Publications Table -- */
 function renderPublications(){
     var typeFilter=document.getElementById('pub-type-filter').value;
     var base=typeFilter?_publications.filter(p=>p.pub_type===typeFilter):_publications;
     var filtered=filterArr(base,document.getElementById('pub-search').value,'title','authors','pub_type','pub_date');
     document.getElementById('pub-count').textContent=filtered.length;
     var html='';
-    if(!filtered.length){html='<tr><td colspan="6" class="empty"><div class="big">📄</div>No publications yet</td></tr>';}
+    if(!filtered.length){html='<tr><td colspan="6" class="empty"><div class="big">??</div>No publications yet</td></tr>';}
     else filtered.forEach(function(p,i){
         html+='<tr><td class="td-idx">'+(i+1)+'</td>'
             +'<td><span class="tag tag-conf" style="font-size:.62rem;">'+esc(p.pub_type)+'</span></td>'
             +'<td class="td-ev-title" title="'+esc(p.title)+'">'+esc(p.title)+'</td>'
-            +'<td class="td-sm" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.authors||'–')+'</td>'
-            +'<td class="td-date">'+esc(p.pub_date||'–')+'</td>'
+            +'<td class="td-sm" style="max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;">'+esc(p.authors||'�')+'</td>'
+            +'<td class="td-date">'+esc(p.pub_date||'�')+'</td>'
             +'<td class="td-nowrap"><div class="act-row">'
-            +(p.link?'<a href="'+esc(p.link)+'" target="_blank" class="btn-pill btn-pill-green" title="View link">🔗</a>':'')+''
-            +'<button class="btn-pill btn-pill-edit" onclick="openEditPub('+p.id+')" title="Edit">✏️</button>'
-            +'<button class="btn-pill btn-pill-del" onclick="deletePub('+p.id+')" title="Delete">🗑</button>'
+            +(p.link?'<a href="'+esc(p.link)+'" target="_blank" class="btn-pill btn-pill-green" title="View link">??</a>':'')+''
+            +'<button class="btn-pill btn-pill-edit" onclick="openEditPub('+p.id+')" title="Edit">??</button>'
+            +'<button class="btn-pill btn-pill-del" onclick="deletePub('+p.id+')" title="Delete">??</button>'
             +'</div></td></tr>';
     });
     document.getElementById('pub-body').innerHTML=html;
 }
 function filterPubs(){renderPublications();}
 
-/* ── Grants Table ── */
+/* -- Grants Table -- */
 function renderGrants(){
     var statFilter=document.getElementById('grant-status-filter').value;
     var base=statFilter?_grants.filter(g=>g.status===statFilter):_grants;
     var filtered=filterArr(base,document.getElementById('grant-search').value,'title','description','currency');
     document.getElementById('grant-count').textContent=filtered.length;
     var html='';
-    if(!filtered.length){html='<tr><td colspan="7" class="empty"><div class="big">🏆</div>No grants found. Add one!</td></tr>';}
+    if(!filtered.length){html='<tr><td colspan="7" class="empty"><div class="big">??</div>No grants found. Add one!</td></tr>';}
     else filtered.forEach(function(g,i){
         var statusTag=g.status==='open'?'tag-open':g.status==='closing'?'tag-closing':'tag-past';
         var statusLabel=g.status==='open'?'Open':g.status==='closing'?'Closing':'Closed';
@@ -2272,26 +2272,26 @@ function renderGrants(){
         html+='<tr><td class="td-idx">'+(i+1)+'</td>'
             +'<td class="td-ev-title" title="'+esc(g.title)+'">'+esc(g.title)+'</td>'
             +'<td class="td-amt" style="font-size:.74rem;">'+esc(g.currency)+' '+parseFloat(g.amount||0).toLocaleString()+'</td>'
-            +'<td class="td-date">'+esc(g.deadline||'–')+'</td>'
+            +'<td class="td-date">'+esc(g.deadline||'�')+'</td>'
             +'<td><span class="tag '+statusTag+'" style="font-size:.62rem;">'+statusLabel+'</span></td>'
             +'<td class="td-center">'+appBadge+'</td>'
             +'<td class="td-nowrap"><div class="act-row">'
-            +'<button class="btn-pill btn-pill-edit" onclick="openEditGrant('+g.id+')" title="Edit">✏️</button>'
-            +'<button class="btn-pill btn-pill-del" onclick="deleteGrant('+g.id+')" title="Delete">🗑</button>'
+            +'<button class="btn-pill btn-pill-edit" onclick="openEditGrant('+g.id+')" title="Edit">??</button>'
+            +'<button class="btn-pill btn-pill-del" onclick="deleteGrant('+g.id+')" title="Delete">??</button>'
             +'</div></td></tr>';
     });
     document.getElementById('grant-body').innerHTML=html;
 }
 function filterGrantsTable(){renderGrants();}
 
-/* ── Publication modal ── */
+/* -- Publication modal -- */
 function togglePubSource(){
     var val=document.querySelector('input[name="pub-source"]:checked').value;
     document.getElementById('pub-event-picker').style.display=val==='event'?'block':'none';
     if(val==='event'){
         // Populate event dropdown
         var sel=document.getElementById('pub-event-select');
-        sel.innerHTML='<option value="">— Choose an event —</option>';
+        sel.innerHTML='<option value="">� Choose an event �</option>';
         _events.forEach(function(ev){
             sel.innerHTML+='<option value="'+esc(ev.id)+'">'+esc(ev.title)+' ('+esc(ev.type)+', '+esc(ev.date)+')</option>';
         });
@@ -2316,8 +2316,8 @@ function fillPubFromEvent(){
 }
 function openPubModal(){
     document.getElementById('pub-edit-id').value='';
-    document.getElementById('pub-form-title').textContent='➕ Add Publication';
-    document.getElementById('pub-save-btn').textContent='💾 Save';
+    document.getElementById('pub-form-title').textContent='? Add Publication';
+    document.getElementById('pub-save-btn').textContent='?? Save';
     ['pub-title','pub-authors','pub-link'].forEach(function(id){document.getElementById(id).value='';});
     document.getElementById('pub-type').selectedIndex=0;
     document.getElementById('pub-link-label').value='Read abstract';
@@ -2336,8 +2336,8 @@ function openEditPub(id){
     var p=_publications.find(function(x){return x.id==id;});
     if(!p){toast('Publication not found.','error');return;}
     document.getElementById('pub-edit-id').value=p.id;
-    document.getElementById('pub-form-title').textContent='✏️ Edit Publication';
-    document.getElementById('pub-save-btn').textContent='💾 Save Changes';
+    document.getElementById('pub-form-title').textContent='?? Edit Publication';
+    document.getElementById('pub-save-btn').textContent='?? Save Changes';
     document.getElementById('pub-type').value=p.pub_type||'Journal';
     document.getElementById('pub-title').value=p.title||'';
     document.getElementById('pub-authors').value=p.authors||'';
@@ -2388,11 +2388,11 @@ function deletePub(id){
         }).catch(()=>toast('Error.','error'));
 }
 
-/* ── Grant modal ── */
+/* -- Grant modal -- */
 function openGrantModal(){
     document.getElementById('grant-edit-id').value='';
-    document.getElementById('grant-form-title').textContent='➕ Add Grant';
-    document.getElementById('grant-save-btn').textContent='💾 Save';
+    document.getElementById('grant-form-title').textContent='? Add Grant';
+    document.getElementById('grant-save-btn').textContent='?? Save';
     ['grant-title','grant-amount','grant-desc','grant-apply-link'].forEach(function(id){document.getElementById(id).value='';});
     document.getElementById('grant-currency').value='UGX';
     document.getElementById('grant-status').value='open';
@@ -2406,8 +2406,8 @@ function openEditGrant(id){
     var g=_grants.find(function(x){return x.id==id;});
     if(!g){toast('Grant not found.','error');return;}
     document.getElementById('grant-edit-id').value=g.id;
-    document.getElementById('grant-form-title').textContent='✏️ Edit Grant';
-    document.getElementById('grant-save-btn').textContent='💾 Save Changes';
+    document.getElementById('grant-form-title').textContent='?? Edit Grant';
+    document.getElementById('grant-save-btn').textContent='?? Save Changes';
     document.getElementById('grant-title').value=g.title||'';
     document.getElementById('grant-amount').value=g.amount||'';
     document.getElementById('grant-currency').value=g.currency||'UGX';
@@ -2458,14 +2458,14 @@ function deleteGrant(id){
         }).catch(()=>toast('Error.','error'));
 }
 
-/* ── Grant Applications Modal (like reg-modal) ── */
+/* -- Grant Applications Modal (like reg-modal) -- */
 var _gappModalData=[], _gappGrantId=0;
 function viewGrantApplicants(grantId){
     _gappGrantId=grantId;
     var g=_grants.find(function(x){return x.id==grantId;});
     var statusBadge=g?'<span class="tag tag-'+(g.status==='open'?'open':g.status==='closing'?'closing':'past')+'">'+esc(g.status)+'</span>':'';
-    document.getElementById('gapp-modal-title').innerHTML='📋 Applications — '+(g?esc(g.title):'Grant #'+grantId)+' '+statusBadge;
-    document.getElementById('gapp-body').innerHTML='<tr><td colspan="9" class="empty">⏳ Loading…</td></tr>';
+    document.getElementById('gapp-modal-title').innerHTML='?? Applications � '+(g?esc(g.title):'Grant #'+grantId)+' '+statusBadge;
+    document.getElementById('gapp-body').innerHTML='<tr><td colspan="9" class="empty">? Loading�</td></tr>';
     document.getElementById('gapp-stats').innerHTML='';
     document.getElementById('gapp-empty').style.display='none';
     document.getElementById('gapp-search').value='';
@@ -2505,21 +2505,21 @@ function renderGappModal(){
     document.getElementById('gapp-empty').style.display='none';
     var html='';
     data.forEach(function(a,i){
-        var statusBadge=a.status==='approved'?'<span class="tag tag-active">✅ Approved</span>'
-            :a.status==='rejected'?'<span class="tag tag-rejected">❌ Rejected</span>'
-            :'<span class="tag tag-pending">⏳ Pending</span>';
+        var statusBadge=a.status==='approved'?'<span class="tag tag-active">? Approved</span>'
+            :a.status==='rejected'?'<span class="tag tag-rejected">? Rejected</span>'
+            :'<span class="tag tag-pending">? Pending</span>';
         var payInfo=a.payment_id?'<span class="tag tag-active">'+esc((a.paid_currency||'')+' '+parseFloat(a.paid_amount||0).toLocaleString())+' ('+esc(a.payment_status||'')+')</span>'
             :'<span style="color:var(--text-light);font-size:.74rem;">None</span>';
-        var proposalBtn=a.proposal?'<button class="btn-sm" onclick="showProposal('+a.id+')" title="View proposal">📄 Proposal</button>':'';
-        var approveBtn=a.status!=='approved'?'<button class="btn-green btn-sm" onclick="updateGappStatus('+a.id+',\'approved\')">✅</button> ':'';
-        var rejectBtn=a.status!=='rejected'?'<button class="btn-danger" onclick="updateGappStatus('+a.id+',\'rejected\')" style="font-size:.72rem;">✖</button> ':'';
-        var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteGapp('+a.id+')" title="Remove application">🗑</button>';
-        var dateStr=a.created_at?a.created_at.substring(0,10):'—';
+        var proposalBtn=a.proposal?'<button class="btn-sm" onclick="showProposal('+a.id+')" title="View proposal">?? Proposal</button>':'';
+        var approveBtn=a.status!=='approved'?'<button class="btn-green btn-sm" onclick="updateGappStatus('+a.id+',\'approved\')">?</button> ':'';
+        var rejectBtn=a.status!=='rejected'?'<button class="btn-danger" onclick="updateGappStatus('+a.id+',\'rejected\')" style="font-size:.72rem;">?</button> ':'';
+        var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteGapp('+a.id+')" title="Remove application">??</button>';
+        var dateStr=a.created_at?a.created_at.substring(0,10):'�';
         html+='<tr>'
             +'<td class="td-idx">'+(i+1)+'</td>'
             +'<td><div class="reg-name">'+esc(a.full_name)+'</div><div class="reg-sub">'+esc(a.email)+'</div></td>'
-            +'<td class="reg-sub">'+esc(a.phone||'–')+'</td>'
-            +'<td class="reg-sub col-inst">'+esc(a.institution||'–')+'</td>'
+            +'<td class="reg-sub">'+esc(a.phone||'�')+'</td>'
+            +'<td class="reg-sub col-inst">'+esc(a.institution||'�')+'</td>'
             +'<td>'+proposalBtn+'</td>'
             +'<td>'+statusBadge+'</td>'
             +'<td>'+payInfo+'</td>'
@@ -2538,8 +2538,8 @@ function showProposal(appId){
     overlay.onclick=function(e){if(e.target===overlay)overlay.remove();};
     overlay.innerHTML='<div style="background:var(--white);border-radius:14px;max-width:600px;width:100%;max-height:80vh;overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18);animation:popIn .28s cubic-bezier(.22,1,.36,1);">'
         +'<div style="display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--white);z-index:1;">'
-        +'<h3 style="font-size:.9rem;font-weight:700;">📄 Proposal — '+esc(a.full_name)+'</h3>'
-        +'<button onclick="this.closest(\'div[style]\').parentElement.remove()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.05);border:none;border-radius:50%;font-size:.9rem;cursor:pointer;color:var(--text-light);">×</button></div>'
+        +'<h3 style="font-size:.9rem;font-weight:700;">?? Proposal � '+esc(a.full_name)+'</h3>'
+        +'<button onclick="this.closest(\'div[style]\').parentElement.remove()" style="width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.05);border:none;border-radius:50%;font-size:.9rem;cursor:pointer;color:var(--text-light);">�</button></div>'
         +'<div style="padding:1rem;font-size:.85rem;line-height:1.7;white-space:pre-wrap;color:var(--text);">'+esc(a.proposal)+'</div></div>';
     document.body.appendChild(overlay);
 }
@@ -2563,7 +2563,7 @@ function deleteGapp(appId){
             else toast(d.error||'Failed.','error');
         }).catch(()=>toast('Error.','error'));
 }
-// ── Leadership Management ───────────────────────────────────────
+// -- Leadership Management ---------------------------------------
 var _leaders=[];
 var _leaderPhotoFile=null;
 function loadLeaders(){
@@ -2578,10 +2578,10 @@ function loadLeaders(){
         var tb=document.getElementById('lead-body');
         if(!_leaders.length){tb.innerHTML='<tr><td colspan="7" class="empty">No leaders added yet. Click "+ Add Leader" to start.</td></tr>';return;}
         tb.innerHTML=_leaders.map(function(l,i){
-            var thumb=l.photo_url?'<img src="'+esc(l.photo_url)+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover;">':'<span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:var(--bg);align-items:center;justify-content:center;font-size:.9rem;">👤</span>';
+            var thumb=l.photo_url?'<img src="'+esc(l.photo_url)+'" style="width:36px;height:36px;border-radius:8px;object-fit:cover;">':'<span style="display:inline-flex;width:36px;height:36px;border-radius:8px;background:var(--bg);align-items:center;justify-content:center;font-size:.9rem;">??</span>';
             var hasBio=l.biography&&l.biography.trim()?'<span class="tag tag-active">Yes</span>':'<span class="tag tag-pending">No</span>';
             var status=l.is_active==='1'||l.is_active===1?'<span class="tag tag-active">Active</span>':'<span class="tag tag-expired">Inactive</span>';
-            return '<tr><td>'+(i+1)+'</td><td><div style="display:flex;align-items:center;gap:.5rem;">'+thumb+'<span style="font-weight:600;">'+esc(l.name)+'</span></div></td><td>'+esc(l.title)+'</td><td>'+hasBio+'</td><td>'+l.sort_order+'</td><td>'+status+'</td><td><button class="btn-xs btn-outline-xs" onclick="editLeader('+l.id+')">✏️</button> <button class="btn-xs btn-danger-xs" onclick="deleteLeader('+l.id+')">🗑️</button></td></tr>';
+            return '<tr><td>'+(i+1)+'</td><td><div style="display:flex;align-items:center;gap:.5rem;">'+thumb+'<span style="font-weight:600;">'+esc(l.name)+'</span></div></td><td>'+esc(l.title)+'</td><td>'+hasBio+'</td><td>'+l.sort_order+'</td><td>'+status+'</td><td><button class="btn-xs btn-outline-xs" onclick="editLeader('+l.id+')">??</button> <button class="btn-xs btn-danger-xs" onclick="deleteLeader('+l.id+')">???</button></td></tr>';
         }).join('');
     }).catch(function(){});
 }
@@ -2598,8 +2598,8 @@ function openLeaderModal(ld){
     document.getElementById('ld-order').value=ld?ld.sort_order:0;
     var isActive=ld?(ld.is_active==='1'||ld.is_active===1?1:0):1;
     setLeaderStatus(isActive);
-    document.getElementById('ld-form-title').textContent=ld?'✏️ Edit Leader':'➕ Add Leader';
-    document.getElementById('ld-save-text').textContent=ld?'💾 Update Leader':'💾 Save Leader';
+    document.getElementById('ld-form-title').textContent=ld?'?? Edit Leader':'? Add Leader';
+    document.getElementById('ld-save-text').textContent=ld?'?? Update Leader':'?? Save Leader';
     // Set photo preview
     if(ld&&ld.photo_url){
         showLeaderPhotoPreview(ld.photo_url);
@@ -2680,7 +2680,7 @@ function saveLeader(){
     if(!title){toast('Title / Position is required.','error');document.getElementById('ld-title').focus();return;}
     var btn=document.getElementById('ld-save-btn');
     btn.disabled=true;
-    document.getElementById('ld-save-text').textContent='⏳ Saving...';
+    document.getElementById('ld-save-text').textContent='? Saving...';
     var fd=new FormData();
     fd.append('action','save_leader');
     var id=document.getElementById('ld-edit-id').value;
@@ -2699,12 +2699,12 @@ function saveLeader(){
     fd.append('existing_photo',document.getElementById('ld-existing-photo').value);
     fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'}).then(r=>r.json()).then(d=>{
         btn.disabled=false;
-        document.getElementById('ld-save-text').textContent=id?'💾 Update Leader':'💾 Save Leader';
+        document.getElementById('ld-save-text').textContent=id?'?? Update Leader':'?? Save Leader';
         if(d.success){toast(id?'Leader updated.':'Leader added.','success');closeLeaderModal();loadLeaders();}
         else toast(d.error||'Failed.','error');
     }).catch(()=>{
         btn.disabled=false;
-        document.getElementById('ld-save-text').textContent=id?'💾 Update Leader':'💾 Save Leader';
+        document.getElementById('ld-save-text').textContent=id?'?? Update Leader':'?? Save Leader';
         toast('Network error.','error');
     });
 }
@@ -2733,7 +2733,7 @@ window.showTab=function(name){
     if(name==='sitecontent'){loadSiteStats();loadSiteMedia();}
 };
 
-/* ── BLOG MANAGEMENT ─────────────────────── */
+/* -- BLOG MANAGEMENT ----------------------- */
 var _blogPosts=[];
 function loadBlogPosts(){
     fetch('api.php?action=get_posts',{credentials:'same-origin'})
@@ -2765,7 +2765,7 @@ function renderBlogTable(){
     // Ensure newest first
     list.sort(function(a,b){ return (b.id||0)-(a.id||0); });
     var tb=document.getElementById('bp-body');
-    if(!list.length){tb.innerHTML='<tr><td colspan="6" class="empty"><div class="big">📝</div>No posts found.</td></tr>';return;}
+    if(!list.length){tb.innerHTML='<tr><td colspan="6" class="empty"><div class="big">??</div>No posts found.</td></tr>';return;}
     tb.innerHTML=list.map(function(p){
         var img=p.image||'uploads/default-blog.jpg';
         return '<tr>'
@@ -2774,7 +2774,7 @@ function renderBlogTable(){
         +'<td><span class="tag tag-conf">'+p.category+'</span></td>'
         +'<td>'+p.author+'</td>'
         +'<td>'+(p.formatted_date||p.created_at)+'</td>'
-        +'<td><button class="btn-edit" onclick="editBlogPost('+p.id+')">✏️ Edit</button> <button class="btn-danger" onclick="deleteBlogPost('+p.id+')">🗑️</button></td>'
+        +'<td><button class="btn-edit" onclick="editBlogPost('+p.id+')">?? Edit</button> <button class="btn-danger" onclick="deleteBlogPost('+p.id+')">???</button></td>'
         +'</tr>';
     }).join('');
 }
@@ -2785,7 +2785,7 @@ function openBlogModal(post){
     document.getElementById('bp-category').value=post?post.category:'General';
     document.getElementById('bp-author').value=post?post.author:'';
     document.getElementById('bp-content').value=post?post.content:'';
-    document.getElementById('bp-form-title').textContent=post?'✏️ Edit Post':'➕ New Blog Post';
+    document.getElementById('bp-form-title').textContent=post?'?? Edit Post':'? New Blog Post';
     document.getElementById('bp-img-pre').style.display='none';
     document.getElementById('bp-avatar-pre').style.display='none';
     document.getElementById('bp-img-file').value='';
@@ -2856,7 +2856,7 @@ function deleteBlogPost(id){
     }).catch(()=>toast('Error.','error'));
 }
 
-/* ── COMMENTS MANAGEMENT ─────────────────── */
+/* -- COMMENTS MANAGEMENT ------------------- */
 var _allComments=[];
 function loadBlogComments(){
     fetch('api.php?action=get_all_comments',{credentials:'same-origin'})
@@ -2883,16 +2883,16 @@ function renderCommentsTable(){
     var delAll=document.getElementById('cm-del-all');
     if(delAll)delAll.style.display=list.length>1?'inline-flex':'none';
     var tb=document.getElementById('cm-body');
-    if(!list.length){tb.innerHTML='<tr><td colspan="5" class="empty"><div class="big">💬</div>No comments found.</td></tr>';return;}
+    if(!list.length){tb.innerHTML='<tr><td colspan="5" class="empty"><div class="big">??</div>No comments found.</td></tr>';return;}
     tb.innerHTML=list.map(function(c){
         var text=(c.content||c.comment||'').substring(0,80);
-        if((c.content||c.comment||'').length>80) text+='…';
+        if((c.content||c.comment||'').length>80) text+='�';
         return '<tr>'
         +'<td><strong style="font-size:.78rem;">'+c.author+'</strong></td>'
         +'<td style="max-width:250px;"><span style="font-size:.76rem;color:#4a5568;" title="'+(c.content||c.comment||'').replace(/"/g,'&quot;')+'">'+text+'</span></td>'
         +'<td><span class="tag tag-conf" style="font-size:.62rem;">'+(c.post_title||'Unknown')+'</span></td>'
         +'<td style="font-size:.72rem;white-space:nowrap;">'+(c.formatted_date||c.created_at)+'</td>'
-        +'<td><button class="btn-danger" onclick="deleteAdminComment('+c.id+')">🗑️ Delete</button></td>'
+        +'<td><button class="btn-danger" onclick="deleteAdminComment('+c.id+')">??? Delete</button></td>'
         +'</tr>';
     }).join('');
 }
@@ -2931,7 +2931,7 @@ loadBlogPosts=function(){
 
 // Initial load handled by loadAll() above
 
-/* ── SITE CONTENT — Stats & Media Management ─────────────────────── */
+/* -- SITE CONTENT � Stats & Media Management ----------------------- */
 var _siteStats=[], _siteMedia=[];
 
 function loadSiteStats(){
@@ -2944,9 +2944,9 @@ function renderStatsTable(){
     var list=filter?_siteStats.filter(s=>s.page===filter):_siteStats;
     document.getElementById('sc-stat-count').textContent=list.length;
     var tb=document.getElementById('sc-stats-body');
-    if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty"><div class="big">📊</div>No stats found. Add your first stat!</td></tr>';return;}
+    if(!list.length){tb.innerHTML='<tr><td colspan="8" class="empty"><div class="big">??</div>No stats found. Add your first stat!</td></tr>';return;}
     tb.innerHTML=list.map(function(s,i){
-        return '<tr><td>'+(i+1)+'</td><td><code>'+esc(s.stat_key)+'</code></td><td><strong>'+esc(s.stat_value)+'</strong></td><td>'+esc(s.stat_label)+'</td><td><span class="badge">'+esc(s.page)+'</span></td><td>'+s.sort_order+'</td><td>'+(s.is_active==='1'||s.is_active===1?'✅':'⛔')+'</td><td><button class="btn-sm" onclick="editStat('+s.id+')">✏️</button> <button class="btn-sm btn-danger" onclick="deleteStat('+s.id+')">🗑️</button></td></tr>';
+        return '<tr><td>'+(i+1)+'</td><td><code>'+esc(s.stat_key)+'</code></td><td><strong>'+esc(s.stat_value)+'</strong></td><td>'+esc(s.stat_label)+'</td><td><span class="badge">'+esc(s.page)+'</span></td><td>'+s.sort_order+'</td><td>'+(s.is_active==='1'||s.is_active===1?'?':'?')+'</td><td><button class="btn-sm" onclick="editStat('+s.id+')">??</button> <button class="btn-sm btn-danger" onclick="deleteStat('+s.id+')">???</button></td></tr>';
     }).join('');
 }
 function openStatModal(st){
@@ -2957,8 +2957,8 @@ function openStatModal(st){
     document.getElementById('sc-stat-page').value=st?st.page:'membership';
     document.getElementById('sc-stat-order').value=st?st.sort_order:0;
     document.getElementById('sc-stat-active').value=st?(st.is_active==='1'||st.is_active===1?'1':'0'):'1';
-    document.getElementById('sc-stat-form-title').textContent=st?'✏️ Edit Stat':'➕ Add Stat';
-    document.getElementById('sc-stat-save-text').textContent=st?'💾 Update Stat':'💾 Save Stat';
+    document.getElementById('sc-stat-form-title').textContent=st?'?? Edit Stat':'? Add Stat';
+    document.getElementById('sc-stat-save-text').textContent=st?'?? Update Stat':'?? Save Stat';
     openModal('stat-modal');
 }
 function editStat(id){var st=_siteStats.find(s=>s.id==id);if(st)openStatModal(st);}
@@ -2988,7 +2988,7 @@ function deleteStat(id){
     }).catch(()=>toast('Error.','error'));
 }
 
-// ── Media Management ──
+// -- Media Management --
 function loadSiteMedia(){
     fetch('api.php?action=list_site_media',{credentials:'same-origin'}).then(r=>r.json()).then(d=>{
         if(d.success){_siteMedia=d.media||[];renderMediaGrid();}
@@ -2999,14 +2999,14 @@ function renderMediaGrid(){
     var list=filter?_siteMedia.filter(m=>m.category===filter):_siteMedia;
     document.getElementById('sc-media-count').textContent=list.length;
     var grid=document.getElementById('sc-media-grid');
-    if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1;text-align:center;padding:2rem;"><div class="big">🖼️</div>No media uploaded yet.</div>';return;}
+    if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1;text-align:center;padding:2rem;"><div class="big">???</div>No media uploaded yet.</div>';return;}
     grid.innerHTML=list.map(function(m){
         var isImg=m.file_type==='image';
         return '<div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--bg);">'
-            +(isImg?'<img src="'+esc(m.file_path)+'" alt="'+esc(m.title)+'" style="width:100%;height:120px;object-fit:cover;display:block;">':'<div style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📄</div>')
+            +(isImg?'<img src="'+esc(m.file_path)+'" alt="'+esc(m.title)+'" style="width:100%;height:120px;object-fit:cover;display:block;">':'<div style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2rem;">??</div>')
             +'<div style="padding:.4rem .5rem;"><div style="font-size:.72rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.title||'Untitled')+'</div>'
             +'<div style="font-size:.6rem;color:var(--text-light);display:flex;justify-content:space-between;align-items:center;margin-top:.2rem;"><span>'+esc(m.category)+'</span>'
-            +'<div><button class="btn-sm" title="Copy path" onclick="copyMediaPath(\''+esc(m.file_path)+'\')">📋</button> <button class="btn-sm btn-danger" onclick="deleteMedia('+m.id+')">🗑️</button></div>'
+            +'<div><button class="btn-sm" title="Copy path" onclick="copyMediaPath(\''+esc(m.file_path)+'\')">??</button> <button class="btn-sm btn-danger" onclick="deleteMedia('+m.id+')">???</button></div>'
             +'</div></div></div>';
     }).join('');
 }
@@ -3021,7 +3021,7 @@ function openMediaUpload(){
     document.getElementById('sc-media-category').value='general';
     document.getElementById('sc-media-files').value='';
     document.getElementById('sc-media-preview').innerHTML='';
-    document.getElementById('sc-media-upload-text').textContent='📤 Upload';
+    document.getElementById('sc-media-upload-text').textContent='?? Upload';
     openModal('media-upload-modal');
 }
 var _mediaFilesToUpload=[];
@@ -3032,15 +3032,15 @@ function previewMediaFiles(input){
         var isImg=f.type.startsWith('image/');
         if(isImg){
             var url=URL.createObjectURL(f);
-            return '<div style="position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid var(--border);"><img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"><button onclick="removeMediaFile('+i+')" style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;">✕</button></div>';
+            return '<div style="position:relative;width:60px;height:60px;border-radius:8px;overflow:hidden;border:1px solid var(--border);"><img src="'+url+'" style="width:100%;height:100%;object-fit:cover;"><button onclick="removeMediaFile('+i+')" style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;">?</button></div>';
         }
-        return '<div style="width:60px;height:60px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem;position:relative;">📄<button onclick="removeMediaFile('+i+')" style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;">✕</button></div>';
+        return '<div style="width:60px;height:60px;border-radius:8px;border:1px solid var(--border);display:flex;align-items:center;justify-content:center;font-size:1.5rem;position:relative;">??<button onclick="removeMediaFile('+i+')" style="position:absolute;top:1px;right:1px;background:rgba(0,0,0,.5);color:#fff;border:none;border-radius:50%;width:18px;height:18px;font-size:.65rem;cursor:pointer;">?</button></div>';
     }).join('');
 }
 function removeMediaFile(i){_mediaFilesToUpload.splice(i,1);var inp=document.getElementById('sc-media-files');var dt=new DataTransfer();_mediaFilesToUpload.forEach(f=>dt.items.add(f));inp.files=dt.files;previewMediaFiles(inp);}
 function uploadMedia(){
     if(!_mediaFilesToUpload.length){toast('Please select at least one file.','error');return;}
-    document.getElementById('sc-media-upload-text').textContent='⏳ Uploading...';
+    document.getElementById('sc-media-upload-text').textContent='? Uploading...';
     var title=document.getElementById('sc-media-title').value.trim();
     var desc=document.getElementById('sc-media-desc').value.trim();
     var cat=document.getElementById('sc-media-category').value;
@@ -3052,11 +3052,11 @@ function uploadMedia(){
     Promise.all(uploads).then(function(results){
         var ok=results.filter(r=>r.success).length;
         var fail=results.length-ok;
-        document.getElementById('sc-media-upload-text').textContent='📤 Upload';
+        document.getElementById('sc-media-upload-text').textContent='?? Upload';
         if(ok)toast(ok+' file(s) uploaded'+(fail?' ('+fail+' failed)':'')+'!','success');
         else toast('Upload failed: '+(results[0].error||'Unknown error'),'error');
         closeModal('media-upload-modal');loadSiteMedia();
-    }).catch(()=>{document.getElementById('sc-media-upload-text').textContent='📤 Upload';toast('Upload error.','error');});
+    }).catch(()=>{document.getElementById('sc-media-upload-text').textContent='?? Upload';toast('Upload error.','error');});
 }
 function deleteMedia(id){
     if(!confirm('Delete this media file?'))return;
