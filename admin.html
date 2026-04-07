@@ -113,6 +113,30 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 /* FORM */
 .form-grid{display:grid;grid-template-columns:1fr 1fr;gap:.9rem 1.1rem;}
 .form-grid .full{grid-column:1/-1;}
+.grid-3fr{grid-template-columns:repeat(3,1fr);}
+.grid-2cols{grid-template-columns:1fr 1fr;}
+.card-body-flush{padding:0;}
+.table-scroll{max-height:400px;overflow-y:auto;}
+.table-scroll-sm{max-height:350px;overflow-y:auto;}
+.media-grid{padding:1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;max-height:450px;overflow-y:auto;}
+.media-empty{grid-column:1/-1;text-align:center;padding:2rem;}
+.full-width{width:100%;justify-content:center;}
+.modal-small{max-width:440px;}
+.modal-medium{max-width:480px;}
+.upload-card{border:2px dashed var(--border);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;background:var(--bg);}
+.upload-card:hover{border-color:var(--secondary);}
+.upload-card-icon{font-size:2rem;}
+.upload-card-text{font-size:.82rem;color:var(--text-light);margin-top:.3rem;}
+.upload-card-note{font-size:.7rem;color:var(--gray-500);margin-top:.15rem;}
+.alert-message{padding:.55rem .8rem;border-radius:8px;font-size:.8rem;margin-bottom:.75rem;}
+.media-preview{display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;}
+.hidden{display:none !important;}
+.form-spaced{margin-top:.5rem;}
+.mb-half{margin-bottom:.75rem;}
+.mb-none{margin-bottom:0;}
+.modal-section-divider{margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);}
+.login-history-box{margin-top:.6rem;max-height:200px;overflow-y:auto;}
+
 .ff{display:flex;flex-direction:column;gap:.22rem;}
 .ff label{font-size:.69rem;font-weight:600;color:var(--text);}
 .ff label span{color:var(--primary);}
@@ -539,31 +563,31 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- Leadership Panel -->
         <div class="panel" id="panel-leadership">
             <div class="ph"><div><h1>🏛️ Leadership Biographies</h1><p>Manage About page leader profiles &amp; bios</p></div><button class="btn-primary" onclick="openLeaderModal()">+ Add Leader</button></div>
-            <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stats grid-3fr">
                 <div class="sc"><div class="s-icon">👤</div><div class="s-val" id="ld-total">0</div><div class="s-lbl">Total Leaders</div></div>
                 <div class="sc"><div class="s-icon">✅</div><div class="s-val" id="ld-active">0</div><div class="s-lbl">Active</div></div>
                 <div class="sc"><div class="s-icon">📝</div><div class="s-val" id="ld-with-bio">0</div><div class="s-lbl">With Bio</div></div>
             </div>
             <div class="card"><div class="card-hd"><h2>Leaders (<span id="lead-count">0</span>)</h2></div>
-            <div class="card-body" style="padding:0;"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Title</th><th>Bio</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
+            <div class="card-body card-body-flush"><table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Title</th><th>Bio</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
             <tbody id="lead-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table></div></div>
         </div>
 
         <!-- ===== BLOG ===== -->
         <div class="panel" id="panel-blog">
             <div class="ph"><div><h1>📝 Blog Posts</h1><p>Create and manage blog articles visible on the public Blog page.</p></div><button class="btn-primary" onclick="openBlogModal()">+ New Post</button></div>
-            <div class="stats" style="grid-template-columns:repeat(3,1fr);">
+            <div class="stats grid-3fr">
                 <div class="sc"><div class="s-icon">📄</div><div class="s-val" id="bp-total">0</div><div class="s-lbl">Total Posts</div></div>
                 <div class="sc"><div class="s-icon">📂</div><div class="s-val" id="bp-cats">0</div><div class="s-lbl">Categories</div></div>
                 <div class="sc"><div class="s-icon">💬</div><div class="s-val" id="bp-comments">0</div><div class="s-lbl">Comments</div></div>
             </div>
             <div class="card"><div class="card-hd"><h2>All Posts (<span id="bp-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="bp-cat-filter" onchange="renderBlogTable()"><option value="">All Categories</option></select></div></div>
-            <div class="card-body" style="padding:0;max-height:400px;overflow-y:auto;"><table class="tbl"><thead><tr><th>Image</th><th>Title</th><th>Category</th><th>Author</th><th>Date</th><th>Actions</th></tr></thead>
+            <div class="card-body card-body-flush table-scroll"><table class="tbl"><thead><tr><th>Image</th><th>Title</th><th>Category</th><th>Author</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody id="bp-body"><tr><td colspan="6" class="empty"><div class="big">📝</div>No posts yet. Create your first article!</td></tr></tbody></table></div></div>
 
             <!-- Comments Management -->
-            <div class="card"><div class="card-hd"><h2>💬 Comments (<span id="cm-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="cm-post-filter" onchange="renderCommentsTable()"><option value="">All Posts</option></select><button class="btn-danger" id="cm-del-all" style="display:none;" onclick="deleteAllFilteredComments()">🗑️ Delete All</button></div></div>
-            <div class="card-body" style="padding:0;max-height:350px;overflow-y:auto;"><table class="tbl"><thead><tr><th>Author</th><th>Comment</th><th>Post</th><th>Date</th><th>Actions</th></tr></thead>
+            <div class="card"><div class="card-hd"><h2>💬 Comments (<span id="cm-count">0</span>)</h2><div class="filter-toolbar"><select class="btn-sm select-sm-pad" id="cm-post-filter" onchange="renderCommentsTable()"><option value="">All Posts</option></select><button class="btn-danger hidden" id="cm-del-all" onclick="deleteAllFilteredComments()">🗑️ Delete All</button></div></div>
+            <div class="card-body card-body-flush table-scroll-sm"><table class="tbl"><thead><tr><th>Author</th><th>Comment</th><th>Post</th><th>Date</th><th>Actions</th></tr></thead>
             <tbody id="cm-body"><tr><td colspan="5" class="empty"><div class="big">💬</div>No comments yet.</td></tr></tbody></table></div></div>
         </div>
 
@@ -584,7 +608,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                         <button class="btn-primary" onclick="openStatModal()">+ Add Stat</button>
                     </div>
                 </div>
-                <div class="card-body" style="padding:0;max-height:350px;overflow-y:auto;">
+                <div class="card-body card-body-flush table-scroll-sm">
                     <table class="tbl"><thead><tr><th>#</th><th>Key</th><th>Value</th><th>Label</th><th>Page</th><th>Order</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-stats-body"><tr><td colspan="8" class="empty">Loading...</td></tr></tbody></table>
                 </div>
@@ -604,8 +628,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                         <button class="btn-primary" onclick="openMediaUpload()">+ Upload</button>
                     </div>
                 </div>
-                <div class="card-body" id="sc-media-grid" style="padding:1rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:.75rem;max-height:450px;overflow-y:auto;">
-                    <div class="empty" style="grid-column:1/-1;text-align:center;padding:2rem;">Loading...</div>
+                <div class="card-body media-grid" id="sc-media-grid">
+                    <div class="empty media-empty">Loading...</div>
                 </div>
             </div>
         </div>
@@ -641,7 +665,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                     </div>
                     <div class="img-pre" id="bp-avatar-pre"><img id="bp-avatar-thumb"><span class="img-pre-rm" onclick="clearBlogAvatar()">✕ Remove</span></div>
                 </div>
-                <div class="full" style="margin-top:.5rem;"><button class="btn-primary" style="width:100%;justify-content:center;" onclick="saveBlogPost()">📤 Publish Post</button></div>
+                <div class="full form-spaced"><button class="btn-primary full-width" onclick="saveBlogPost()">📤 Publish Post</button></div>
             </div>
         </div>
     </div>
@@ -714,7 +738,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <div class="ld-photo-placeholder" id="ld-photo-placeholder">
                             <span>📷</span>No photo
                         </div>
-                        <img id="ld-photo-img" src="" alt="" style="display:none;">
+                        <img id="ld-photo-img" src="" alt="" class="hidden">
                         <button class="ld-photo-remove" id="ld-photo-remove" type="button" onclick="removeLeaderPhoto()">✕</button>
                     </div>
                     <div class="ld-photo-controls">
@@ -723,7 +747,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                             <div class="ld-upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
                             <div class="ld-upload-hint">JPG, PNG or WebP (max 5 MB)</div>
                         </div>
-                        <input type="file" id="ld-photo-file" accept="image/jpeg,image/png,image/webp" style="display:none;" onchange="handleLeaderPhoto(this)">
+                        <input type="file" id="ld-photo-file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleLeaderPhoto(this)">
                         <div class="ld-or-divider">— or paste URL —</div>
                         <input type="text" id="ld-photo" class="ld-input" placeholder="https://example.com/photo.jpg" oninput="previewLeaderPhotoUrl(this.value)">
                     </div>
@@ -755,12 +779,12 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             </div>
 
             <!-- Sort Order & Status -->
-            <div class="ld-row ld-row-2" style="margin-bottom:1rem;">
-                <div class="ld-field" style="margin-bottom:0;">
+            <div class="ld-row ld-row-2 form-spaced">
+                <div class="ld-field mb-none">
                     <label>Sort Order</label>
                     <input type="number" id="ld-order" class="ld-input" value="0" min="0">
                 </div>
-                <div class="ld-field" style="margin-bottom:0;">
+                <div class="ld-field mb-none">
                     <label>Status</label>
                     <input type="hidden" id="ld-active" value="1">
                     <div class="ld-status-toggle">
@@ -779,14 +803,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 
 <!-- Stat Modal -->
 <div class="modal-backdrop" id="stat-modal">
-    <div class="modal-box" style="max-width:440px;">
+    <div class="modal-box modal-small">
         <div class="modal-hd"><h3 id="sc-stat-form-title">➕ Add Stat</h3><button class="modal-close" onclick="closeModal('stat-modal')">×</button></div>
         <div class="modal-body">
             <input type="hidden" id="sc-stat-edit-id">
             <div class="ff"><label>Key (unique slug) <span>*</span></label><input type="text" id="sc-stat-key" placeholder="e.g. members_count"></div>
             <div class="ff"><label>Display Value <span>*</span></label><input type="text" id="sc-stat-value" placeholder="e.g. 500+"></div>
             <div class="ff"><label>Label <span>*</span></label><input type="text" id="sc-stat-label" placeholder="e.g. Members"></div>
-            <div class="aef-grid" style="grid-template-columns:1fr 1fr;">
+            <div class="aef-grid grid-2cols">
                 <div class="ff"><label>Page</label>
                     <select id="sc-stat-page"><option value="membership">Membership</option><option value="about">About</option><option value="research">Research</option><option value="global">Global</option></select>
                 </div>
@@ -795,14 +819,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="ff"><label>Active</label>
                 <select id="sc-stat-active"><option value="1">Yes — Visible on site</option><option value="0">No — Hidden</option></select>
             </div>
-            <button class="btn-primary" style="width:100%;padding:.6rem;margin-top:.75rem;" onclick="saveStat()"><span id="sc-stat-save-text">💾 Save Stat</span></button>
+            <button class="btn-primary full-width form-spaced" onclick="saveStat()"><span id="sc-stat-save-text">💾 Save Stat</span></button>
         </div>
     </div>
 </div>
 
 <!-- Media Upload Modal -->
 <div class="modal-backdrop" id="media-upload-modal">
-    <div class="modal-box" style="max-width:480px;">
+    <div class="modal-box modal-medium">
         <div class="modal-hd"><h3>📁 Upload Media</h3><button class="modal-close" onclick="closeModal('media-upload-modal')">×</button></div>
         <div class="modal-body">
             <div class="ff"><label>Title</label><input type="text" id="sc-media-title" placeholder="Image title (optional)"></div>
@@ -812,15 +836,15 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             </div>
             <div class="ff">
                 <label>File(s) <span>*</span></label>
-                <div style="border:2px dashed var(--border);border-radius:10px;padding:1.5rem;text-align:center;cursor:pointer;transition:border-color .2s;" id="sc-media-drop" onclick="document.getElementById('sc-media-files').click()">
-                    <div style="font-size:2rem;">📁</div>
-                    <div style="font-size:.82rem;color:var(--text-light);margin-top:.3rem;"><strong>Click to upload</strong> or drag & drop</div>
-                    <div style="font-size:.7rem;color:var(--gray-500);margin-top:.15rem;">JPG, PNG, WebP, GIF, PDF — max 10 MB each</div>
+                <div class="upload-card" id="sc-media-drop" onclick="document.getElementById('sc-media-files').click()">
+                    <div class="upload-card-icon">📁</div>
+                    <div class="upload-card-text"><strong>Click to upload</strong> or drag & drop</div>
+                    <div class="upload-card-note">JPG, PNG, WebP, GIF, PDF — max 10 MB each</div>
                 </div>
-                <input type="file" id="sc-media-files" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" style="display:none;" onchange="previewMediaFiles(this)">
-                <div id="sc-media-preview" style="display:flex;flex-wrap:wrap;gap:.5rem;margin-top:.5rem;"></div>
+                <input type="file" id="sc-media-files" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" class="hidden" onchange="previewMediaFiles(this)">
+                <div id="sc-media-preview" class="media-preview"></div>
             </div>
-            <button class="btn-primary" style="width:100%;padding:.6rem;margin-top:.75rem;" onclick="uploadMedia()"><span id="sc-media-upload-text">📤 Upload</span></button>
+            <button class="btn-primary full-width form-spaced" onclick="uploadMedia()"><span id="sc-media-upload-text">📤 Upload</span></button>
         </div>
     </div>
 </div>
@@ -1072,32 +1096,32 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 
 <!-- ===== CHANGE PASSWORD MODAL ===== -->
 <div class="modal-backdrop" id="chpw-modal">
-    <div class="modal-box" style="max-width:420px;">
+    <div class="modal-box modal-small">
         <div class="modal-hd">
             <h3>🔑 Change Password</h3>
             <button class="modal-close" onclick="closeChangePassword()">✕</button>
         </div>
         <div class="modal-body">
-            <div id="chpw-msg" style="display:none;padding:.55rem .8rem;border-radius:8px;font-size:.8rem;margin-bottom:.75rem;"></div>
+            <div id="chpw-msg" class="alert-message hidden"></div>
             <form onsubmit="submitChangePassword(event)" autocomplete="off">
-                <div class="ff" style="margin-bottom:.75rem;">
+                <div class="ff mb-half">
                     <label>Current Password <span>*</span></label>
                     <input type="password" id="chpw-current" required autocomplete="current-password">
                 </div>
-                <div class="ff" style="margin-bottom:.75rem;">
+                <div class="ff mb-half">
                     <label>New Password <span>*</span></label>
                     <input type="password" id="chpw-new" required minlength="8" autocomplete="new-password">
                     <small>Min 8 chars, 1 uppercase, 1 lowercase, 1 number</small>
                 </div>
-                <div class="ff" style="margin-bottom:.75rem;">
+                <div class="ff mb-half">
                     <label>Confirm New Password <span>*</span></label>
                     <input type="password" id="chpw-confirm" required autocomplete="new-password">
                 </div>
-                <button type="submit" class="btn-primary" style="width:100%;">Update Password</button>
+                <button type="submit" class="btn-primary full-width">Update Password</button>
             </form>
-            <div style="margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);">
-                <button class="btn-sm" onclick="loadLoginHistory()" style="width:100%;justify-content:center;">📋 View Login History</button>
-                <div id="login-history" style="display:none;margin-top:.6rem;max-height:200px;overflow-y:auto;">
+            <div class="modal-section-divider">
+                <button class="btn-sm full-width" onclick="loadLoginHistory()">📋 View Login History</button>
+                <div id="login-history" class="hidden login-history-box">
                     <table class="tbl"><thead><tr><th>Time</th><th>IP</th><th>Status</th></tr></thead><tbody id="login-history-body"></tbody></table>
                 </div>
             </div>
