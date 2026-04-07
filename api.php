@@ -691,6 +691,47 @@ case 'create_post':
                 http_response_code(400); echo json_encode(['error' => 'Invalid input']); break;
             }
             $pdo->prepare("UPDATE event_registrants SET payment_status=? WHERE id=?")->execute([$status, $id]);
+            // Send email on verified — fetch row and send event registration receipt
+            if ($status === 'verified') {
+                $erRow = $pdo->prepare("SELECT full_name, email, event_title, event_date, receipt_number, receipt_token, amount, payment_method FROM event_registrants WHERE id=?");
+                $erRow->execute([$id]);
+                $er = $erRow->fetch(PDO::FETCH_ASSOC);
+                if ($er && !empty($er['email']) && filter_var($er['email'], FILTER_VALIDATE_EMAIL)) {
+                    $safeName   = htmlspecialchars($er['full_name'],   ENT_QUOTES, 'UTF-8');
+                    $safeEvent  = htmlspecialchars($er['event_title'], ENT_QUOTES, 'UTF-8');
+                    $safeDate   = htmlspecialchars($er['event_date'],  ENT_QUOTES, 'UTF-8');
+                    $safeRec    = htmlspecialchars($er['receipt_number'] ?? '', ENT_QUOTES, 'UTF-8');
+                    $safeMethod = htmlspecialchars($er['payment_method'] ?? '', ENT_QUOTES, 'UTF-8');
+                    $safeAmt    = number_format((float)($er['amount'] ?? 0), 0, '.', ',');
+                    $protocol   = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+                    $host       = preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+                    $receiptUrl = $protocol . '://' . $host . dirname($_SERVER['SCRIPT_NAME']) . '/receipt.php?token=' . urlencode($er['receipt_token'] ?? '');
+                    $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;"><h1 style="margin:0;color:#fff;font-size:20px;">HOSU — Event Registration Confirmed</h1></td></tr>
+  <tr><td style="padding:28px;">
+    <p style="color:#333;margin:0 0 12px;">Dear <strong>{$safeName}</strong>,</p>
+    <p style="color:#555;margin:0 0 20px;">Your payment for <strong>{$safeEvent}</strong> has been verified. You are now confirmed for the event.</p>
+    <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#333;">
+      <tr style="background:#f8fafc;"><td><strong>Receipt #</strong></td><td>{$safeRec}</td></tr>
+      <tr><td><strong>Event</strong></td><td>{$safeEvent}</td></tr>
+      <tr style="background:#f8fafc;"><td><strong>Date</strong></td><td>{$safeDate}</td></tr>
+      <tr><td><strong>Amount</strong></td><td>UGX {$safeAmt}</td></tr>
+      <tr style="background:#f8fafc;"><td><strong>Method</strong></td><td>{$safeMethod}</td></tr>
+      <tr><td><strong>Status</strong></td><td style="color:#27ae60;font-weight:700;">Verified ✓</td></tr>
+    </table>
+    <p style="margin:24px 0 0;text-align:center;"><a href="{$receiptUrl}" style="display:inline-block;background:#e63946;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;">View Receipt</a></p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU) &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+                    hosuMail($er['email'], "HOSU Event Registration Confirmed — {$safeEvent}", $html, 'HOSU Events');
+                }
+            }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -1018,6 +1059,24 @@ case 'create_post':
                 sendReceiptEmail($pdo, $paymentId, $receiptToken);
             }
 
+            // For membership: send pending acknowledgment to applicant + admin alert
+            if ($paymentType === 'membership') {
+                sendMembershipPendingEmail($email, $name, $memPeriod, $amount, $receiptNum);
+                $safeAdminName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+                $safeAdminEmail = htmlspecialchars($email, ENT_QUOTES, 'UTF-8');
+                notifyAdmin(
+                    "New Membership Application — {$safeAdminName}",
+                    "<p>A new membership application has been submitted.</p>"
+                    . "<table style='font-size:14px;border-collapse:collapse;'>"
+                    . "<tr><td style='padding:6px 12px;'><strong>Name</strong></td><td>{$safeAdminName}</td></tr>"
+                    . "<tr><td style='padding:6px 12px;'><strong>Email</strong></td><td><a href='mailto:{$safeAdminEmail}'>{$safeAdminEmail}</a></td></tr>"
+                    . "<tr><td style='padding:6px 12px;'><strong>Type</strong></td><td>" . htmlspecialchars($memPeriod, ENT_QUOTES, 'UTF-8') . "</td></tr>"
+                    . "<tr><td style='padding:6px 12px;'><strong>Amount</strong></td><td>UGX " . number_format($amount, 0) . "</td></tr>"
+                    . "<tr><td style='padding:6px 12px;'><strong>Receipt #</strong></td><td>" . htmlspecialchars($receiptNum, ENT_QUOTES, 'UTF-8') . "</td></tr>"
+                    . "</table>"
+                );
+            }
+
             echo json_encode(['success' => true, 'member_id' => $memberId, 'receipt_token' => $receiptToken, 'receipt_number' => $receiptNum]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
@@ -1232,6 +1291,13 @@ case 'create_post':
             if (!in_array($status, $allowed) || !$id) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); break; }
             $pdo->prepare("UPDATE members SET status=? WHERE id=?")->execute([$status, $id]);
             auditLog($pdo, 'update_member_status', 'member', $id, $status);
+            // Notify member of status change
+            $memStmt = $pdo->prepare("SELECT full_name, email FROM members WHERE id=?");
+            $memStmt->execute([$id]);
+            $memRow = $memStmt->fetch(PDO::FETCH_ASSOC);
+            if ($memRow && !empty($memRow['email'])) {
+                sendMemberStatusEmail($memRow['email'], $memRow['full_name'], $status);
+            }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
@@ -1246,9 +1312,23 @@ case 'create_post':
             $id = (int)($_POST['payment_id'] ?? 0);
             if (!in_array($status, $allowed) || !$id) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); break; }
             $pdo->prepare("UPDATE payments SET status=? WHERE id=?")->execute([$status, $id]);
-            // If verified, also set member status to active
+            // If verified, activate member and send receipt
             if ($status === 'verified') {
                 $pdo->prepare("UPDATE members m JOIN payments p ON p.member_id=m.id SET m.status='active' WHERE p.id=?")->execute([$id]);
+                // Fetch receipt token and send email
+                $payRow = $pdo->prepare("SELECT receipt_token FROM payments WHERE id=?");
+                $payRow->execute([$id]);
+                $pr = $payRow->fetch(PDO::FETCH_ASSOC);
+                if (!empty($pr['receipt_token'])) {
+                    sendDonationReceiptEmail($pdo, $id);
+                    // Also send member active notification
+                    $memRow = $pdo->prepare("SELECT m.full_name, m.email FROM members m JOIN payments p ON p.member_id=m.id WHERE p.id=?");
+                    $memRow->execute([$id]);
+                    $mr = $memRow->fetch(PDO::FETCH_ASSOC);
+                    if ($mr && !empty($mr['email'])) {
+                        sendMemberStatusEmail($mr['email'], $mr['full_name'], 'active');
+                    }
+                }
             }
             auditLog($pdo, 'verify_payment', 'payment', $id, $status);
             echo json_encode(['success' => true]);
@@ -1879,6 +1959,16 @@ case 'create_post':
 
             $stmt = $pdo->prepare("INSERT INTO grant_applications (grant_id, full_name, email, phone, institution, proposal) VALUES (?,?,?,?,?,?)");
             $stmt->execute([$grant_id, $full_name, $email, $phone, $institution, $proposal]);
+            // Send acknowledgment to applicant
+            sendGrantAckEmail($email, $full_name, $grant['title']);
+            // Notify admin
+            $safeName  = htmlspecialchars($full_name,      ENT_QUOTES, 'UTF-8');
+            $safeEmail = htmlspecialchars($email,          ENT_QUOTES, 'UTF-8');
+            $safeTitle = htmlspecialchars($grant['title'], ENT_QUOTES, 'UTF-8');
+            notifyAdmin(
+                "New Grant Application — {$safeTitle}",
+                "<p><strong>{$safeName}</strong> (<a href='mailto:{$safeEmail}'>{$safeEmail}</a>) has applied for the <strong>{$safeTitle}</strong> grant.</p>"
+            );
             echo json_encode(['success' => true, 'id' => $pdo->lastInsertId()]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -1897,8 +1987,19 @@ case 'create_post':
                 echo json_encode(['error' => 'Valid application ID and status required']);
                 break;
             }
+            // Fetch applicant + grant title before updating
+            $appStmt = $pdo->prepare(
+                "SELECT ga.full_name, ga.email, go.title FROM grant_applications ga
+                 JOIN grants_opportunities go ON go.id = ga.grant_id WHERE ga.id = ?"
+            );
+            $appStmt->execute([$id]);
+            $appRow = $appStmt->fetch(PDO::FETCH_ASSOC);
             $stmt = $pdo->prepare("UPDATE grant_applications SET status = ? WHERE id = ?");
             $stmt->execute([$status, $id]);
+            // Email applicant on approved/rejected
+            if ($appRow && !empty($appRow['email'])) {
+                sendGrantStatusEmail($appRow['email'], $appRow['full_name'], $appRow['title'] ?? 'Grant', $status);
+            }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
