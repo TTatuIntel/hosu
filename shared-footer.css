@@ -11,6 +11,7 @@ footer {
 .footer-content {
     display: grid;
     grid-template-columns: 1fr 1.2fr 1.4fr 1fr;
+    align-items: start;
     gap: 1rem;
     width: var(--section-width);
     max-width: var(--section-max-width);
