@@ -2552,8 +2552,9 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             // ── Step 2: Send payment through server proxy ──────────────
             _setStep(2);
             const methodLabel = formObject.paymentmode === 'UGMTNMOMODIR' ? 'MTN' : 'Airtel';
+            const proofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('modalMessage').textContent    = `Sending request to ${methodLabel}…`;
-            document.getElementById('modalSubMessage').textContent = 'A payment prompt will appear on your phone';
+            document.getElementById('modalSubMessage').innerHTML = 'A payment prompt will appear on your phone.<br><br>' + proofOfPaymentHtml;
 
             try {
                 const payFd = new FormData();
@@ -2577,7 +2578,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                     showSuccess(payRes.message || 'Payment successful!');
                 } else if (payRes.status === 'pending') {
                     document.getElementById('modalMessage').textContent    = '\uD83D\uDCF1 Check your phone now!';
-                    document.getElementById('modalSubMessage').textContent = payRes.message || 'Approve the payment on your phone';
+                    document.getElementById('modalSubMessage').innerHTML = (payRes.message || 'Approve the payment on your phone') + '<br><br>' + proofOfPaymentHtml;
                     if (formObject.paymentmode === 'UGAIRTELMODIR') {
                         checkAirtelStatus();
                     } else {
@@ -2608,7 +2609,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             document.getElementById('airtelCountdown').style.display = 'none';
             document.getElementById('modalMessage').textContent = message;
             document.getElementById('modalMessage').style.color = 'red';
-            document.getElementById('modalSubMessage').innerHTML = detailsHtml || '';
+            document.getElementById('modalSubMessage').innerHTML = detailsHtml || 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('closeModalButton').style.display = 'block';
             document.getElementById('processingCloseBtn').style.display = 'flex';
         }
@@ -2678,7 +2679,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             const INTERVAL  = 10000;
 
             document.getElementById('modalMessage').textContent    = 'Waiting for your approval…';
-            document.getElementById('modalSubMessage').textContent = 'Check your phone and enter your mobile money PIN';
+            document.getElementById('modalSubMessage').innerHTML = 'Check your phone and enter your mobile money PIN.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
 
             for (let i = 0; i < MAX_POLLS; i++) {
                 if (!_airtelPollActive) return;
@@ -2719,7 +2720,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             const INTERVAL  = 10000;
 
             document.getElementById('modalMessage').textContent    = 'Waiting for your approval…';
-            document.getElementById('modalSubMessage').textContent = 'Approve the MTN Mobile Money prompt on your phone';
+            document.getElementById('modalSubMessage').innerHTML = 'Approve the MTN Mobile Money prompt on your phone.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
 
             for (let i = 0; i < MAX_POLLS; i++) {
                 if (!_airtelPollActive) return;

@@ -244,7 +244,7 @@
         msg.textContent = '\u274C ' + errMsg;
         msg.style.color = '#e63946';
         if (helpHtml) sub.innerHTML = helpHtml;
-        else sub.textContent = '';
+        else sub.innerHTML = 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
         var btn = overlay.querySelector('.dfp-proc-close');
         btn.textContent = 'Close';
         btn.style.display = '';
@@ -395,9 +395,10 @@
         }
 
         // Step 2: Send payment to phone
+        var donationProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
         setStep(overlay, 1);
-        msgEl.textContent = 'Sending payment request to ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + '\u2026';
-        subEl.textContent = 'A payment prompt will appear on your phone';
+        msgEl.textContent = 'Sending payment request to ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + '…';
+        subEl.innerHTML = 'A payment prompt will appear on your phone.<br><br>' + donationProofOfPaymentHtml;
 
         try {
             var payFd = new FormData();
@@ -421,7 +422,7 @@
                 // Step 3: Poll for confirmation
                 setStep(overlay, 2);
                 msgEl.textContent = '\uD83D\uDCF1 Check your phone now!';
-                subEl.textContent = payRes.message || 'Approve the payment on your phone';
+                subEl.innerHTML = (payRes.message || 'Approve the payment on your phone') + '<br><br>' + donationProofOfPaymentHtml;
                 st.pollActive = true;
 
                 var pollAction = st.method === 'mtn' ? 'check_mtn' : 'check_airtel';

@@ -37,6 +37,7 @@ function hosuMail(string $to, string $subject, string $htmlBody, string $fromNam
         $smtpUser = getenv('SMTP_USER') ?: 'infor@hosu.or.ug';
         $smtpPass = getenv('SMTP_PASS') ?: '';
         $smtpFrom = getenv('SMTP_FROM') ?: ($smtpUser ?: 'infor@hosu.or.ug');
+        $smtpReplyTo = getenv('SMTP_REPLY_TO') ?: $smtpFrom;
         $smtpFromName = getenv('SMTP_FROM_NAME') ?: $fromName;
         $smtpEncryption = getenv('SMTP_ENCRYPTION') ?: 'tls';
 
@@ -46,6 +47,7 @@ function hosuMail(string $to, string $subject, string $htmlBody, string $fromNam
             $headers  = "MIME-Version: 1.0\r\n";
             $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
             $headers .= "From: " . $smtpFromName . " <" . $smtpFrom . ">\r\n";
+            $headers .= "Reply-To: <" . $smtpReplyTo . ">\r\n";
             return @mail($to, $subject, $htmlBody, $headers);
         }
 
@@ -68,6 +70,7 @@ function hosuMail(string $to, string $subject, string $htmlBody, string $fromNam
 
         // Recipients
         $mail->setFrom($smtpFrom, $smtpFromName);
+        $mail->addReplyTo($smtpReplyTo, $smtpFromName);
         $mail->addAddress($to);
 
         // Content

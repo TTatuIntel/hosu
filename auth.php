@@ -23,6 +23,7 @@ header('Pragma: no-cache');
 header('Expires: 0');
 
 require 'db.php';
+require_once 'mailer.php';
 
 // ── Brute-force protection constants ──
 define('MAX_LOGIN_ATTEMPTS', 5);
@@ -156,8 +157,9 @@ function seedAdmin(PDO $pdo): void {
     $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
     $stmt->execute();
     if ((int) $stmt->fetchColumn() === 0) {
-        $hash = password_hash('Admin@hosu2026', PASSWORD_BCRYPT, ['cost' => 12]);
-        $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, 'admin')");
+        $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'Admin@hosu2026';
+        $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+        $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)");
         $stmt->execute(['admin', 'infor@hosu.or.ug', '+256766529869', $hash]);
     }
 }
@@ -505,8 +507,6 @@ switch ($action) {
         $stmt = $pdo->prepare("INSERT INTO password_resets (user_id, token, reset_code, expires_at) VALUES (?, ?, ?, ?)");
         $stmt->execute([$user['id'], $token, $code, $expiresAt]);
 
-        // In production: send email/SMS with the code
-        // For this setup, we show the code masked in the response for admin self-service
         $maskedEmail = '';
         if ($user['email']) {
             $parts = explode('@', $user['email']);
@@ -517,15 +517,29 @@ switch ($action) {
             $maskedPhone = substr($user['phone'], 0, 4) . '****' . substr($user['phone'], -3);
         }
 
+        $mailSent = false;
+        if (!empty($user['email']) && filter_var($user['email'], FILTER_VALIDATE_EMAIL)) {
+            $subject = 'HOSU Admin Password Reset Code';
+            $safeName = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
+            $safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+            $safeExpiry = htmlspecialchars($expiresAt, ENT_QUOTES, 'UTF-8');
+            $htmlBody = "<p>Dear <strong>{$safeName}</strong>,</p>"
+                . "<p>Your HOSU admin password reset code is:</p>"
+                . "<p style=\"font-size:22px;font-weight:700;letter-spacing:4px;color:#0d4593;\">{$safeCode}</p>"
+                . "<p>This code expires at <strong>{$safeExpiry}</strong>.</p>"
+                . "<p>If you did not request this change, please ignore this email and review your admin account immediately.</p>";
+            $mailSent = hosuMail($user['email'], $subject, $htmlBody, 'HOSU Admin');
+        }
+
         echo json_encode([
             'success' => true,
-            'message' => 'Reset code generated. Valid for 15 minutes.',
+            'message' => $mailSent
+                ? 'A reset code has been sent to your admin email. Valid for 15 minutes.'
+                : 'Reset code generated. Please check your admin email or contact support if it does not arrive.',
             'token' => $token,
             'masked_email' => $maskedEmail,
             'masked_phone' => $maskedPhone,
-            // NOTE: In production, NEVER send the code in the response.
-            // Send via email/SMS instead. This is for local dev only.
-            'dev_code' => $code
+            'delivery' => $mailSent ? 'email' : 'pending-email'
         ]);
         break;
 
@@ -611,6 +625,13 @@ switch ($action) {
         }
         $current = $_POST['current_password'] ?? '';
         $newPass = $_POST['new_password'] ?? '';
+        $csrf = $_POST['csrf_token'] ?? '';
+
+        if (!verifyCsrfToken($csrf)) {
+            http_response_code(403);
+            echo json_encode(['error' => 'Invalid security token']);
+            exit;
+        }
 
         if ($current === '' || $newPass === '') {
             http_response_code(400);

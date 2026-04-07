@@ -1,14 +1,16 @@
 <?php
 /**
  * Database Setup Script
- * Creates the hosu_blog database, all tables, and seeds initial data.
+ * Creates the configured database, all tables, and seeds initial data.
  * Run once: php setup_db.php   (CLI)   or visit setup_db.php in the browser.
  */
 
-$host     = 'localhost';
-$username = 'root';
-$password = '';
-$dbname   = 'hosu_blog';
+require_once __DIR__ . '/env.php';
+
+$host     = getenv('DB_HOST') ?: 'localhost';
+$username = getenv('DB_USER') ?: 'root';
+$password = getenv('DB_PASS') ?: '';
+$dbname   = getenv('DB_NAME') ?: 'hosuweb_db';
 
 // -------------------------------------------------------------------
 // 1. Connect without a database so we can CREATE it
@@ -42,6 +44,7 @@ $pdo->exec("
         failed_attempts INT         NOT NULL DEFAULT 0,
         locked_until    DATETIME    DEFAULT NULL,
         last_login      DATETIME    DEFAULT NULL,
+        must_change_password TINYINT(1) NOT NULL DEFAULT 0,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ");
@@ -264,10 +267,11 @@ echo "✓ Table 'grant_applications' created.\n";
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
 $stmt->execute();
 if ((int)$stmt->fetchColumn() === 0) {
-    $hash = password_hash('Admin@hosu2026', PASSWORD_BCRYPT, ['cost' => 12]);
-    $pdo->prepare("INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, 'admin')")
-        ->execute(['admin', 'infor@hosu.or.ug', '+256766529869', $hash]);
-    echo "✓ Admin user seeded (admin / Admin@hosu2026).\n";
+    $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'ad@hosu256';
+    $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+    $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 0)")
+        ->execute(['admin', 'admin@hosu.or.ug', '+256766529869', $hash]);
+    echo "✓ Admin user seeded (admin@hosu.or.ug / {$adminSeedPassword}).\n";
 } else {
     echo "– Admin user already exists, skipping.\n";
 }
@@ -402,6 +406,15 @@ Dr. Ddungu is active in research and has been a principal investigator and co-in
     echo "– Leaders already exist, skipping seed.\n";
 }
 
+try {
+    $cleanup = $pdo->prepare("DELETE FROM leaders WHERE LOWER(name) LIKE ? OR LOWER(biography) LIKE ?");
+    $cleanup->execute(['%shakib%', '%shakib%']);
+    $removed = (int)$cleanup->rowCount();
+    echo $removed > 0 ? "✓ Removed {$removed} legacy Shakib leadership entrie(s).\n" : "– No Shakib leadership entry found.\n";
+} catch (\Exception $e) {
+    echo "– Shakib cleanup skipped: " . $e->getMessage() . "\n";
+}
+
 echo "– No sample events, posts, or comments seeded (use Admin panel to add content).\n";
 
 // -------------------------------------------------------------------
@@ -416,5 +429,5 @@ if (file_exists(__DIR__ . '/generate_js.php')) {
 
 echo "\n══════════════════════════════════════════\n";
 echo "  Setup complete!\n";
-echo "  Admin login: admin / Admin@hosu2026\n";
+echo "  Admin login: admin / use ADMIN_SEED_PASSWORD from .env\n";
 echo "══════════════════════════════════════════\n";

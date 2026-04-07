@@ -211,9 +211,6 @@
                     _resetToken = d.token || null;
                     msg.style.background = '#f0fdf4'; msg.style.color = '#166534';
                     msg.innerHTML = escHtml(d.message || 'Reset code sent.');
-                    if (d.dev_code) {
-                        msg.innerHTML += '<br><strong style="font-size:1rem;letter-spacing:0.15rem;">' + escHtml(String(d.dev_code)) + '</strong><br><span style="font-size:0.68rem;color:#92400e;">Dev mode: code shown here. In production sent via email/SMS.</span>';
-                    }
                     document.getElementById('rst-step1').style.display = 'none';
                     document.getElementById('rst-step2').style.display = 'block';
                 } else {

@@ -32,7 +32,7 @@ define('FLW_BASE', 'https://api.flutterwave.com/v3');
 define('FLW_SECRET_KEY', getenv('FLW_SECRET_KEY') ?: '');
 define('FLW_PUBLIC_KEY', getenv('FLW_PUBLIC_KEY') ?: '');
 
-// Local dev test mode — simulates payment flow without hitting Flutterwave
+// Live payment mode — keep `PAYMENT_TEST_MODE=false` in .env for real Flutterwave processing only
 define('PAYMENT_TEST_MODE', filter_var(getenv('PAYMENT_TEST_MODE') ?: 'false', FILTER_VALIDATE_BOOLEAN));
 
 /**
@@ -341,9 +341,9 @@ switch ($action) {
                 echo json_encode(['error' => 'Invalid payment amount.']);
                 break;
             }
-            if (empty(FLW_SECRET_KEY) && !PAYMENT_TEST_MODE) {
+            if (empty(FLW_SECRET_KEY)) {
                 http_response_code(500);
-                echo json_encode(['error' => 'Payment gateway not configured. Please set FLW_SECRET_KEY in .env or enable PAYMENT_TEST_MODE.']);
+                echo json_encode(['error' => 'Payment gateway not configured. Please set your live Flutterwave key in .env to enable real-time payments.']);
                 break;
             }
 
@@ -361,22 +361,6 @@ switch ($action) {
                 }
             }
 
-            // ── TEST MODE: simulate pending response ──
-            if (PAYMENT_TEST_MODE) {
-                $testFlwId = 'TEST-' . time() . '-' . rand(100000, 999999);
-                if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([$testFlwId, $regId]);
-                if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([$testFlwId, $payId]);
-                // Store poll count in session for simulated status progression
-                $_SESSION['_test_poll_' . $testFlwId] = 0;
-                echo json_encode([
-                    'success' => true,
-                    'status'  => 'pending',
-                    'message' => '[TEST MODE] MTN payment prompt simulated. Will auto-approve on next status check.',
-                    'txn_ref' => $txnRef,
-                    'txn_id'  => $testFlwId,
-                ]);
-                break;
-            }
 
             $result = flwRequest('POST', '/charges?type=mobile_money_uganda', [
                 'tx_ref'       => $txnRef,
@@ -439,9 +423,9 @@ switch ($action) {
                 echo json_encode(['error' => 'Invalid payment amount.']);
                 break;
             }
-            if (empty(FLW_SECRET_KEY) && !PAYMENT_TEST_MODE) {
+            if (empty(FLW_SECRET_KEY)) {
                 http_response_code(500);
-                echo json_encode(['error' => 'Payment gateway not configured. Please set FLW_SECRET_KEY in .env or enable PAYMENT_TEST_MODE.']);
+                echo json_encode(['error' => 'Payment gateway not configured. Please set your live Flutterwave key in .env to enable real-time payments.']);
                 break;
             }
 
@@ -459,21 +443,6 @@ switch ($action) {
                 }
             }
 
-            // ── TEST MODE: simulate pending response ──
-            if (PAYMENT_TEST_MODE) {
-                $testFlwId = 'TEST-' . time() . '-' . rand(100000, 999999);
-                if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([$testFlwId, $regId]);
-                if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([$testFlwId, $payId]);
-                $_SESSION['_test_poll_' . $testFlwId] = 0;
-                echo json_encode([
-                    'success' => true,
-                    'status'  => 'pending',
-                    'message' => '[TEST MODE] Airtel payment prompt simulated. Will auto-approve on next status check.',
-                    'txn_ref' => $txnRef,
-                    'txn_id'  => $testFlwId,
-                ]);
-                break;
-            }
 
             $result = flwRequest('POST', '/charges?type=mobile_money_uganda', [
                 'tx_ref'       => $txnRef,
@@ -530,20 +499,6 @@ switch ($action) {
                 break;
             }
 
-            // ── TEST MODE: auto-approve on 2nd poll ──
-            if (PAYMENT_TEST_MODE) {
-                $pollKey = '_test_poll_' . $txnId;
-                $polls = ($_SESSION[$pollKey] ?? 0) + 1;
-                $_SESSION[$pollKey] = $polls;
-                if ($polls >= 2) {
-                    unset($_SESSION[$pollKey]);
-                    markPaymentVerified($pdo, $regId, $payId, '', $txnId);
-                    echo json_encode(['success' => true, 'status' => 'completed', 'message' => '[TEST] Payment confirmed!']);
-                } else {
-                    echo json_encode(['success' => true, 'status' => 'pending', 'message' => '[TEST] Waiting for approval... (will confirm on next check)']);
-                }
-                break;
-            }
 
             $result = flwRequest('GET', '/transactions/' . urlencode($txnId) . '/verify');
 
@@ -573,21 +528,6 @@ switch ($action) {
             $regId  = (int)($_GET['registrant_id'] ?? $_POST['registrant_id'] ?? 0);
             $payId  = (int)($_GET['payment_id'] ?? $_POST['payment_id'] ?? 0);
 
-            // ── TEST MODE: auto-approve on 2nd poll ──
-            if (PAYMENT_TEST_MODE) {
-                $lookupId = $txnId ?: $txnRef;
-                $pollKey = '_test_poll_' . $lookupId;
-                $polls = ($_SESSION[$pollKey] ?? 0) + 1;
-                $_SESSION[$pollKey] = $polls;
-                if ($polls >= 2) {
-                    unset($_SESSION[$pollKey]);
-                    markPaymentVerified($pdo, $regId, $payId, $txnRef, $txnId);
-                    echo json_encode(['success' => true, 'status' => 'completed', 'message' => '[TEST] Payment confirmed!']);
-                } else {
-                    echo json_encode(['success' => true, 'status' => 'pending', 'message' => '[TEST] Waiting for approval... (will confirm on next check)']);
-                }
-                break;
-            }
 
             // Try by Flutterwave ID first, then by tx_ref
             if ($txnId) {
