@@ -77,7 +77,7 @@ if ((int) $stmt->fetchColumn() === 0) {
         ],
         [
             'HOSU Annual Conference 2026 — Call for Abstracts',
-            '<p>We are pleased to announce that abstract submissions are now open for the 7th HOSU Annual Scientific Conference to be held 15–17 July 2026 at the Kampala Serena Hotel.</p><p>Abstracts should be submitted via email to <strong>info@hosu.org</strong> by 30 May 2026. Categories include: Hematology, Medical Oncology, Surgical Oncology, Radiation Oncology, Pediatric Oncology, Palliative Care, and Laboratory Sciences.</p>',
+            '<p>We are pleased to announce that abstract submissions are now open for the 7th HOSU Annual Scientific Conference to be held 15–17 July 2026 at the Kampala Serena Hotel.</p><p>Abstracts should be submitted via email to <strong>infor@hosu.or.ug</strong> by 30 May 2026. Categories include: Hematology, Medical Oncology, Surgical Oncology, Radiation Oncology, Pediatric Oncology, Palliative Care, and Laboratory Sciences.</p>',
             'Events', 'Dr. Odhiambo Clara', 'uploads/default-blog.jpg', 'uploads/default-avatar.jpg'
         ],
         [

@@ -1749,7 +1749,7 @@
             <p>No: 9030025235214</p>
             <p>Bank: Stanbic Bank</p>
             <p>Branch: Mulago</p>
-            <p>Please transfer UGX 100,000 to the account above and contact us to confirm.</p>
+            <p>Please transfer UGX 100,000 to the account above and provide your proof of payment on <a href="mailto:infor@hosu.or.ug">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener">WhatsApp +256 709 752107</a>.</p>
             <button onclick="closeBankDetails()" class="modal-btn-full">Close</button>
         </div>
     </div>
@@ -2559,7 +2559,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 const payFd = new FormData();
                 payFd.append('phone', formObject.contact);
                 payFd.append('amount', formObject.amount);
-                payFd.append('email', formObject.email || 'info@hosu.org');
+                payFd.append('email', formObject.email || 'infor@hosu.or.ug');
                 payFd.append('payment_id', _paymentId || 0);
 
                 const payAction = formObject.paymentmode === 'UGMTNMOMODIR' ? 'pay_mtn' : 'pay_airtel';
@@ -2602,13 +2602,13 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             });
         }
 
-        function showError(message) {
+        function showError(message, detailsHtml) {
             _airtelPollActive = false;
             document.getElementById('modalSpinner').style.display = 'none';
             document.getElementById('airtelCountdown').style.display = 'none';
             document.getElementById('modalMessage').textContent = message;
             document.getElementById('modalMessage').style.color = 'red';
-            document.getElementById('modalSubMessage').textContent = '';
+            document.getElementById('modalSubMessage').innerHTML = detailsHtml || '';
             document.getElementById('closeModalButton').style.display = 'block';
             document.getElementById('processingCloseBtn').style.display = 'flex';
         }
@@ -2709,7 +2709,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 }
             }
             _airtelPollActive = false;
-            showError('Payment timed out. The transaction has been cancelled. If money was deducted, please contact HOSU support.');
+            showError('Payment timed out. The transaction has been cancelled.', 'If money was deducted, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
         }
 
         /* ── MTN status polling via server proxy ───────────────────── */
@@ -2751,7 +2751,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 }
             }
             _airtelPollActive = false;
-            showError('Payment timed out. The transaction has been cancelled. If money was deducted, please contact HOSU support.');
+            showError('Payment timed out. The transaction has been cancelled.', 'If money was deducted, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
         }
 
         function resetForm() {
@@ -2831,7 +2831,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
 </style>
 
 <script src="intl-phone.js?v=2026040404"></script>
-<script src="shared-components.js?v=2026040404"></script>
+<script src="shared-components.js?v=2026040701"></script>
 <script src="shared-login.js?v=2026040404"></script>
 <script src="donate-float.js?v=2026040404"></script>
 </body>

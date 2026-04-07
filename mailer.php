@@ -34,9 +34,9 @@ function hosuMail(string $to, string $subject, string $htmlBody, string $fromNam
         // SMTP configuration from environment
         $smtpHost = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
         $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
-        $smtpUser = getenv('SMTP_USER') ?: '';
+        $smtpUser = getenv('SMTP_USER') ?: 'infor@hosu.or.ug';
         $smtpPass = getenv('SMTP_PASS') ?: '';
-        $smtpFrom = getenv('SMTP_FROM') ?: $smtpUser;
+        $smtpFrom = getenv('SMTP_FROM') ?: ($smtpUser ?: 'infor@hosu.or.ug');
         $smtpFromName = getenv('SMTP_FROM_NAME') ?: $fromName;
         $smtpEncryption = getenv('SMTP_ENCRYPTION') ?: 'tls';
 

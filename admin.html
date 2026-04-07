@@ -2050,7 +2050,7 @@ function openInvoice(payId){
     var invNo='INV-'+String(payId).padStart(5,'0');
     var today=new Date().toISOString().substring(0,10);
     document.getElementById('inv-modal-body').innerHTML='<div class="invoice">'
-        +'<div class="invoice-header"><div><div class="invoice-logo">🏥 HOSU</div><div style="font-size:.72rem;color:var(--text-light);">Hematology & Oncology Society of Uganda<br>Kampala, Uganda · info@hosu.org<br>+256 766 529869 / +256 709 752107</div></div>'
+        +'<div class="invoice-header"><div><div class="invoice-logo">🏥 HOSU</div><div style="font-size:.72rem;color:var(--text-light);">Hematology & Oncology Society of Uganda<br>Kampala, Uganda · infor@hosu.or.ug · www.hosu.or.ug<br>+256 766 529869 / +256 709 752107</div></div>'
         +'<div class="invoice-no"><div style="font-size:.85rem;font-weight:700;">INVOICE</div><div>'+invNo+'</div><div>Date: '+today+'</div></div></div>'
         +'<div style="margin-bottom:.75rem;font-size:.8rem;"><strong>Billed to:</strong><br>'+esc(p.full_name)+'<br>'+esc(p.email)+'</div>'
         +'<div class="invoice-row"><span>Annual Membership Fee</span><span>–</span></div>'

@@ -162,6 +162,7 @@ function sendEventReceiptEmail(PDO $pdo, int $regId): bool
   </td></tr>
   <tr><td style="background:#f8fafc;padding:16px 28px;font-size:12px;color:#888;text-align:center;">
     Haematology &amp; Oncology Society of Uganda (HOSU)<br>
+    Contact: <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;text-decoration:none;">infor@hosu.or.ug</a> &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a><br>
     This is an auto-generated receipt. Please do not reply to this email.
   </td></tr>
 </table>
@@ -261,7 +262,9 @@ function sendDonationReceiptEmail(PDO $pdo, int $paymentId): bool
     </p>
   </td></tr>
   <tr><td style="background:#f8fafc;padding:16px 28px;font-size:12px;color:#888;text-align:center;">
-    Haematology &amp; Oncology Society of Uganda (HOSU)<br>This is an auto-generated receipt.
+    Haematology &amp; Oncology Society of Uganda (HOSU)<br>
+    Contact: <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;text-decoration:none;">infor@hosu.or.ug</a> &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a><br>
+    This is an auto-generated receipt.
   </td></tr>
 </table></body></html>
 HTML;
@@ -326,7 +329,7 @@ switch ($action) {
             $amount = (int)($_POST['amount'] ?? 0);
             $regId  = (int)($_POST['registrant_id'] ?? 0);
             $payId  = (int)($_POST['payment_id'] ?? 0);
-            $email  = trim($_POST['email'] ?? 'info@hosu.org');
+            $email  = trim($_POST['email'] ?? 'infor@hosu.or.ug');
 
             if (!$phone || strlen($phone) < 7) {
                 http_response_code(400);
@@ -348,7 +351,7 @@ switch ($action) {
             saveTxnRef($pdo, $regId, $payId, $txnRef, 'MTN Mobile Money');
 
             // Lookup email from DB if not passed
-            if ($email === 'info@hosu.org') {
+            if ($email === 'infor@hosu.or.ug') {
                 if ($payId) {
                     $r = $pdo->prepare("SELECT m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
                     $r->execute([$payId]); $row = $r->fetch(); if ($row) $email = $row['email'];
@@ -424,7 +427,7 @@ switch ($action) {
             $amount = (int)($_POST['amount'] ?? 0);
             $regId  = (int)($_POST['registrant_id'] ?? 0);
             $payId  = (int)($_POST['payment_id'] ?? 0);
-            $email  = trim($_POST['email'] ?? 'info@hosu.org');
+            $email  = trim($_POST['email'] ?? 'infor@hosu.or.ug');
 
             if (!$phone || strlen($phone) < 7) {
                 http_response_code(400);
@@ -446,7 +449,7 @@ switch ($action) {
             saveTxnRef($pdo, $regId, $payId, $txnRef, 'Airtel Money');
 
             // Lookup email from DB if not passed
-            if ($email === 'info@hosu.org') {
+            if ($email === 'infor@hosu.or.ug') {
                 if ($payId) {
                     $r = $pdo->prepare("SELECT m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
                     $r->execute([$payId]); $row = $r->fetch(); if ($row) $email = $row['email'];

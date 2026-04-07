@@ -174,7 +174,7 @@
             + '<div id="rst-msg" style="display:none;font-size:0.75rem;border-radius:5px;padding:0.35rem 0.6rem;margin-bottom:0.5rem;"></div>'
             + '<div id="rst-step1">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Email</label>'
-            + '<input type="email" id="rst-email" placeholder="admin@hosu.org" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<input type="email" id="rst-email" placeholder="infor@hosu.or.ug" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Or Phone Number</label>'
             + '<input type=\"tel\" id=\"rst-phone\" placeholder=\"Phone number with country code\" style=\"width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;\">'
             + '<button onclick="requestReset()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Send Reset Code</button>'

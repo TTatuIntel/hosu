@@ -266,7 +266,7 @@ $stmt->execute();
 if ((int)$stmt->fetchColumn() === 0) {
     $hash = password_hash('Admin@hosu2026', PASSWORD_BCRYPT, ['cost' => 12]);
     $pdo->prepare("INSERT INTO users (username, email, phone, password, role) VALUES (?, ?, ?, ?, 'admin')")
-        ->execute(['admin', 'admin@hosu.org', '+256766529869', $hash]);
+        ->execute(['admin', 'infor@hosu.or.ug', '+256766529869', $hash]);
     echo "✓ Admin user seeded (admin / Admin@hosu2026).\n";
 } else {
     echo "– Admin user already exists, skipping.\n";

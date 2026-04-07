@@ -236,13 +236,15 @@
         });
     }
 
-    function showError(overlay, errMsg) {
+    function showError(overlay, errMsg, helpHtml) {
         overlay.querySelector('.dfp-proc-spinner').style.display = 'none';
         overlay.querySelector('.dfp-proc-countdown').style.display = 'none';
         var msg = overlay.querySelector('.dfp-proc-msg');
+        var sub = overlay.querySelector('.dfp-proc-sub');
         msg.textContent = '\u274C ' + errMsg;
         msg.style.color = '#e63946';
-        overlay.querySelector('.dfp-proc-sub').textContent = '';
+        if (helpHtml) sub.innerHTML = helpHtml;
+        else sub.textContent = '';
         var btn = overlay.querySelector('.dfp-proc-close');
         btn.textContent = 'Close';
         btn.style.display = '';
@@ -327,7 +329,7 @@
             setStep(overlay, 1);
             msgEl.textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
             msgEl.style.color = '';
-            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Contact us after transferring.';
+            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             closeBtnEl.textContent = 'Close';
             closeBtnEl.style.display = '';
             closeBtnEl.onclick = function () { overlay.style.display = 'none'; };
@@ -456,7 +458,7 @@
                     } catch (e) { /* continue polling */ }
                 }
                 st.pollActive = false;
-                showError(overlay, 'Payment timed out. If money was deducted, please contact HOSU support.');
+                showError(overlay, 'Payment timed out.', 'If money was deducted, provide your proof of payment on <a href="mailto:infor@hosu.or.ug" style="color:#0d4593;font-weight:700;">infor@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
             } else {
                 showError(overlay, payRes.message || 'Payment failed. Please try again.');
             }

@@ -24,9 +24,10 @@
                 '<address>' +
                     'HOSU Headquarters<br>' +
                     'Kampala, Uganda<br>' +
-                    '<a href="tel:+256766529869">+256 766 529869</a><br>' +
-                    '<a href="tel:+256709752107">+256 709 752107</a><br>' +
-                    '<a href="mailto:info@hosu.org">info@hosu.org</a>' +
+                    '<a href="tel:+256766529869">Call: +256 766 529869</a><br>' +
+                    '<a href="https://wa.me/256709752107" target="_blank" rel="noopener">WhatsApp: +256 709 752107</a><br>' +
+                    '<a href="mailto:infor@hosu.or.ug">infor@hosu.or.ug</a><br>' +
+                    '<a href="https://hosu.or.ug" target="_blank" rel="noopener">www.hosu.or.ug</a>' +
                 '</address>' +
             '</div>' +
             '<div class="footer-section">' +
@@ -40,10 +41,10 @@
                 '</div>' +
             '</div>' +
             '<div class="footer-section">' +
-                '<h4>Developer</h4>' +
-                '<p class="footer-dev-name">TattuIntel</p>' +
-                '<p class="footer-dev-contact"><a href="tel:+256770495837">+256 770 495837</a></p>' +
-                '<p class="footer-dev-contact"><a href="mailto:tattuintel@gmail.com">tattuintel@gmail.com</a></p>' +
+                '<h4>Support</h4>' +
+                '<p class="footer-dev-name">Official HOSU Support</p>' +
+                '<p class="footer-dev-contact"><a href="mailto:infor@hosu.or.ug">Email: infor@hosu.or.ug</a></p>' +
+                '<p class="footer-dev-contact"><a href="https://wa.me/256709752107" target="_blank" rel="noopener">WhatsApp: +256 709 752107</a></p>' +
             '</div>' +
         '</div>' +
         '<div class="copyright">' +
