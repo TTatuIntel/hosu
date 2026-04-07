@@ -167,7 +167,8 @@ function sendEventReceiptEmail(PDO $pdo, int $regId): bool
 HTML;
 
         return hosuMail($email, $subject, $htmlBody);
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
+        error_log('sendEventReceiptEmail: ' . $e->getMessage());
         return false;
     }
 }
@@ -274,7 +275,8 @@ HTML;
             } catch (Exception $e) { /* ignore if column missing */ }
         }
         return $sent;
-    } catch (Exception $e) {
+    } catch (\Throwable $e) {
+        error_log('sendDonationReceiptEmail: ' . $e->getMessage());
         return false;
     }
 }
