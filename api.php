@@ -1125,6 +1125,21 @@ HTML;
                 FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
+            // Live schema migration — add new columns to existing tables if missing
+            $existingCols = array_column($pdo->query("DESCRIBE payments")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+            $newCols = [
+                'transaction_id'        => "ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(100) DEFAULT '' AFTER transaction_ref",
+                'payment_type'          => "ALTER TABLE payments ADD COLUMN payment_type ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership' AFTER notes",
+                'membership_period'     => "ALTER TABLE payments ADD COLUMN membership_period VARCHAR(20) DEFAULT '1_year' AFTER payment_type",
+                'membership_expires_at' => "ALTER TABLE payments ADD COLUMN membership_expires_at DATE NULL DEFAULT NULL AFTER membership_period",
+                'event_id'              => "ALTER TABLE payments ADD COLUMN event_id VARCHAR(100) DEFAULT '' AFTER membership_expires_at",
+                'event_title'           => "ALTER TABLE payments ADD COLUMN event_title VARCHAR(255) DEFAULT '' AFTER event_id",
+                'event_date'            => "ALTER TABLE payments ADD COLUMN event_date VARCHAR(100) DEFAULT '' AFTER event_title",
+            ];
+            foreach ($newCols as $col => $sql) {
+                if (!in_array($col, $existingCols)) { try { $pdo->exec($sql); } catch (Exception $_e) {} }
+            }
+
             $name        = trim($_POST['fullName']         ?? '');
             $email       = trim($_POST['email']            ?? '');
             $paymentType = trim($_POST['paymentType']      ?? 'membership');
