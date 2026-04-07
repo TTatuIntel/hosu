@@ -41,7 +41,7 @@
                     '<a href="#" aria-label="Facebook"><svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M16 8.049c0-4.446-3.582-8.05-8-8.05C3.58 0-.002 3.603-.002 8.05c0 4.017 2.926 7.347 6.75 7.951v-5.625h-2.03V8.05H6.75V6.275c0-2.017 1.195-3.131 3.022-3.131.876 0 1.791.157 1.791.157v1.98h-1.009c-.993 0-1.303.621-1.303 1.258v1.51h2.218l-.354 2.326H9.25V16c3.824-.604 6.75-3.934 6.75-7.951z"/></svg></a>' +
                     '<a href="#" aria-label="YouTube"><svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16"><path d="M8.051 1.999h.089c.822.003 4.987.033 6.11.335a2.01 2.01 0 0 1 1.415 1.42c.101.38.172.883.22 1.402l.01.104.022.26.008.104c.065.914.073 1.77.074 1.957v.075c-.001.194-.01 1.108-.082 2.06l-.008.105-.009.104c-.05.572-.124 1.14-.235 1.558a2.007 2.007 0 0 1-1.415 1.42c-1.16.312-5.569.334-6.18.335h-.142c-.309 0-1.587-.006-2.927-.052l-.17-.006-.087-.004-.171-.007-.171-.007c-1.11-.049-2.167-.128-2.654-.26a2.007 2.007 0 0 1-1.415-1.419c-.111-.417-.185-.986-.235-1.558L.09 9.82l-.008-.104A31.4 31.4 0 0 1 0 7.68v-.123c.002-.215.01-.958.064-1.778l.007-.103.003-.052.008-.104.022-.26.01-.104c.048-.519.119-1.023.22-1.402a2.007 2.007 0 0 1 1.415-1.42c.487-.13 1.544-.21 2.654-.26l.17-.007.172-.006.086-.003.171-.007A99.788 99.788 0 0 1 7.858 2h.193zM6.4 5.209v4.818l4.157-2.408L6.4 5.209z"/></svg></a>' +
                 '</div>' +
-                '<p style="margin-top:0.5rem;font-size:0.8rem;"><a href="https://x.com/Hem0nc_Uganda" target="_blank" rel="noopener" style="color:var(--text-light);">Twitter: @Hem0nc_Uganda</a></p>' +
+
             '</div>' +
             '<div class="footer-section">' +
                 '<h4>Support</h4>' +
@@ -111,4 +111,53 @@
             }
         });
     }
+
+    /* ── Public-page idle redirect (15 min) ──────────────────── */
+    (function () {
+        var IDLE_MS = 15 * 60 * 1000;   // 15 minutes
+        var WARN_MS = 60 * 1000;         // warn 60 s before
+        var HOME    = 'index.html';
+        var _idleT  = null, _warnT = null, _ticker = null, _warned = false;
+
+        function resetPublicIdle() {
+            clearTimeout(_idleT);
+            clearTimeout(_warnT);
+            clearInterval(_ticker);
+            _warned = false;
+            var bar = document.getElementById('_pub-idle-bar');
+            if (bar) bar.style.display = 'none';
+
+            _warnT = setTimeout(showPublicWarn, IDLE_MS - WARN_MS);
+            _idleT = setTimeout(function () { window.location.replace(HOME); }, IDLE_MS);
+        }
+
+        function showPublicWarn() {
+            if (_warned) return;
+            _warned = true;
+            var bar = document.getElementById('_pub-idle-bar');
+            if (!bar) {
+                bar = document.createElement('div');
+                bar.id = '_pub-idle-bar';
+                bar.style.cssText = 'position:fixed;top:0;left:0;right:0;z-index:99999;background:#fef3c7;border-bottom:2px solid #f59e0b;padding:.55rem 1.25rem;display:flex;align-items:center;justify-content:space-between;font-family:Inter,sans-serif;font-size:.82rem;color:#92400e;gap:.5rem;';
+                bar.innerHTML = '<span>Redirecting to home in <strong id="_pub-idle-secs">60</strong>s due to inactivity.</span>'
+                    + '<button id="_pub-idle-stay" style="padding:.3rem .8rem;border-radius:6px;border:1.5px solid #d97706;background:#fff;color:#92400e;font-weight:600;cursor:pointer;font-size:.75rem;font-family:inherit;">Stay on Page</button>';
+                document.body.appendChild(bar);
+                document.getElementById('_pub-idle-stay').addEventListener('click', resetPublicIdle);
+            }
+            bar.style.display = 'flex';
+            var secs = 60;
+            document.getElementById('_pub-idle-secs').textContent = secs;
+            _ticker = setInterval(function () {
+                secs--;
+                var s = document.getElementById('_pub-idle-secs');
+                if (s) s.textContent = secs;
+                if (secs <= 0) { clearInterval(_ticker); window.location.replace(HOME); }
+            }, 1000);
+        }
+
+        ['mousemove', 'keydown', 'click', 'scroll', 'touchstart'].forEach(function (e) {
+            document.addEventListener(e, resetPublicIdle, { passive: true });
+        });
+        resetPublicIdle();
+    }());
 })();

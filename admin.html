@@ -1269,7 +1269,7 @@ function doLogout(){
 }
 
 /* -- SECURITY: Idle timeout + tab close + heartbeat -- */
-var _idleTimer=null, _heartbeatTimer=null, _idleTimeout=1800;
+var _idleTimer=null, _heartbeatTimer=null, _idleTimeout=600;
 var _idleCountdown=null, _idleWarnShown=false;
 
 function startSecurityMonitor(){
