@@ -296,15 +296,17 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 /* Payment table helpers */
 .pay-name{font-weight:600;}
 .pay-email{font-size:.7rem;color:var(--text-light);}
-.td-type{white-space:nowrap;font-size:.76rem;}
-.td-plan{font-size:.75rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.pay-badge-row{display:flex;flex-wrap:wrap;gap:.25rem;margin-top:.25rem;}
 .td-amt{font-weight:700;white-space:nowrap;}
-.td-txid{font-size:.72rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
-/* Pay modal helpers */
-.no-proof-msg{font-size:.82rem;color:var(--text-light);}
-.ev-date-sub{color:var(--text-light);font-size:.78rem;}
-.tbl-mt{margin-top:.5rem;}
-.pay-actions{margin-top:1rem;display:flex;gap:.5rem;}
+.td-txid{font-size:.73rem;max-width:150px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;cursor:default;font-family:monospace;}
+.td-expires{font-size:.72rem;white-space:nowrap;}
+/* Pay edit modal helpers */
+.pem-summary{background:var(--bg);border-radius:8px;padding:.65rem .9rem;border:1px solid var(--border);}
+.pem-name{font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
+.pem-sub{font-size:.76rem;color:var(--text-light);margin-top:.25rem;}
+.pem-proof-wrap{border:1px dashed var(--border);border-radius:8px;padding:.75rem;text-align:center;background:var(--bg);margin:.3rem 0;min-height:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.pem-proof-img{max-width:100%;max-height:200px;border-radius:6px;border:1px solid var(--border);}
+.pay-actions{margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap;}
 /* Invoice helpers */
 .inv-org-sub{font-size:.72rem;color:var(--text-light);}
 .inv-title{font-size:.85rem;font-weight:700;}
@@ -482,8 +484,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
             <div class="card">
                 <div class="card-hd"><h2>Payments (<span id="pay-count">0</span>)</h2></div>
                 <div class="card-body card-body-flush">
-                    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Type</th><th>Plan / Event</th><th>Amount</th><th>Tx ID</th><th>Method</th><th>Status</th><th>Valid Until</th><th>Date</th><th>Actions</th></tr></thead>
-                    <tbody id="pay-body"><tr><td colspan="11" class="empty"><div class="big">💳</div>Loading payments…</td></tr></tbody></table>
+                    <table class="tbl"><thead><tr><th>#</th><th>Payer</th><th>Amount</th><th>Transaction ID</th><th>Status</th><th>Expires · Paid</th><th>Actions</th></tr></thead>
+                    <tbody id="pay-body"><tr><td colspan="7" class="empty"><div class="big">💳</div>Loading payments…</td></tr></tbody></table>
                 </div>
             </div>
         </div>
@@ -939,11 +941,32 @@ textarea.ld-input{resize:vertical;min-height:100px;}
     </div>
 </div>
 
-<!-- Payment Detail Modal -->
-<div class="modal-backdrop" id="pay-modal">
+<!-- Payment Edit Modal -->
+<div class="modal-backdrop" id="pay-edit-modal">
     <div class="modal-box">
-        <div class="modal-hd"><h3>💳 Payment Detail</h3><button class="modal-close" onclick="closeModal('pay-modal')">×</button></div>
-        <div class="modal-body" id="pay-modal-body"></div>
+        <div class="modal-hd"><h3>✏️ Edit Payment</h3><button class="modal-close" onclick="closeModal('pay-edit-modal')">×</button></div>
+        <div class="modal-body">
+            <div id="pem-info"></div>
+            <div style="margin-top:.85rem;">
+                <label class="form-label">Transaction ID</label>
+                <input type="text" id="pem-txid" class="form-input" placeholder="e.g. MoMo transaction ID">
+            </div>
+            <div style="margin-top:.6rem;">
+                <label class="form-label">Transaction Reference</label>
+                <input type="text" id="pem-txref" class="form-input" placeholder="Reference / receipt number">
+            </div>
+            <div style="margin-top:.6rem;">
+                <label class="form-label">Payment Proof</label>
+                <div id="pem-proof-preview" class="pem-proof-wrap"></div>
+                <input type="file" id="pem-proof-file" accept="image/*,.pdf" style="margin-top:.4rem;font-size:.78rem;width:100%;">
+                <div style="font-size:.7rem;color:var(--text-light);margin-top:.2rem;">Upload screenshot or PDF of MoMo/payment confirmation</div>
+            </div>
+            <div id="pem-verify-actions"></div>
+            <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+                <button class="btn-primary btn-sm" onclick="savePaymentEdit()">💾 Save Changes</button>
+                <button class="btn-sm btn-outline-xs" onclick="closeModal('pay-edit-modal')">Cancel</button>
+            </div>
+        </div>
     </div>
 </div>
 
@@ -1972,35 +1995,44 @@ function renderPayments(){
     _filteredPay=filterArr(base,document.getElementById('pay-search').value,'full_name','email','transaction_ref','transaction_id','event_title');
     document.getElementById('pay-count').textContent=_filteredPay.length;
     var html='';
-    if(!_filteredPay.length){html='<tr><td colspan="11" class="empty"><div class="big">💳</div>No payments found.</td></tr>';}
+    if(!_filteredPay.length){html='<tr><td colspan="7" class="empty"><div class="big">💳</div>No payments found.</td></tr>';}
     else _filteredPay.forEach((p,i)=>{
         var ptype=p.payment_type||'membership';
         var ptypeLabel=_PAY_TYPE_LABELS[ptype]||ptype;
-        var planCell=ptype==='membership'?esc(_PERIOD_LABELS[p.membership_period]||p.membership_period||'1 Year')
-            :ptype==='event_registration'?esc(p.event_title||'—'):'—';
-        var txDisplay=esc(p.transaction_id||p.transaction_ref||'—');
-        var validUntil=ptype==='membership'?(p.membership_period==='lifetime'?'<span style="color:#0d4593;font-weight:700;">5+ Yrs Premium</span>':(p.membership_expires_at?esc(p.membership_expires_at.substring(0,10)):'—')):'—';
+        var planLbl=ptype==='membership'?esc(_PERIOD_LABELS[p.membership_period]||p.membership_period||'1 Year')
+            :ptype==='event_registration'?esc(p.event_title||'')
+            :ptype==='donation'?'':esc(p.event_title||'');
+        var txFull=p.transaction_id||p.transaction_ref||'';
+        var txDisplay=txFull?esc(txFull):'<span style="color:var(--text-light);font-style:italic;font-size:.7rem;">not set</span>';
+        var payerCell='<div class="pay-name">'+esc(p.full_name)+'</div>'
+            +'<div class="pay-email">'+esc(p.email)+'</div>'
+            +'<div class="pay-badge-row"><span class="tag" style="font-size:.6rem;padding:.08rem .38rem;">'+ptypeLabel+'</span>'
+            +(planLbl?'<span class="tag" style="font-size:.6rem;padding:.08rem .38rem;background:#e8f0fe;color:#1a56db;">'+planLbl+'</span>':'')
+            +(p.payment_method?'<span class="tag" style="font-size:.6rem;padding:.08rem .38rem;background:#f3f4f6;color:#475569;">'+esc(p.payment_method)+'</span>':'')
+            +'</div>';
+        var validUntil=ptype==='membership'?(p.membership_period==='lifetime'
+            ?'<div style="color:#0d4593;font-weight:700;font-size:.7rem;">Lifetime</div>'
+            :(p.membership_expires_at?'<div style="font-size:.72rem;">'+esc(p.membership_expires_at.substring(0,10))+'</div>':'<div style="color:var(--text-light);font-size:.7rem;">—</div>'))
+            :'<div style="color:var(--text-light);font-size:.7rem;">—</div>';
+        var paidDate='<div style="font-size:.69rem;color:var(--text-light);">'+esc(p.paid_at?p.paid_at.substring(0,10):'—')+'</div>';
         var isEvReg=p.source==='event_registrants';
         var invBtn=isEvReg?'':( +p.invoice_sent
-            ?'<span class="tag tag-active" style="font-size:.65rem;">✓ Sent</span>'
-            :'<button class="btn-sm btn-amber" onclick="openInvoice('+p.payment_id+')">📄 Invoice</button>');
-        var receiptBtn=p.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(p.receipt_token)+'" target="_blank">🧾</a>':'';
+            ?'<span class="tag tag-active" style="font-size:.6rem;">✓ Invoice</span>'
+            :'<button class="btn-sm btn-amber" onclick="openInvoice('+p.payment_id+')" title="View Invoice">📄</button>');
+        var receiptBtn=p.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(p.receipt_token)+'" target="_blank" title="View Receipt">🧾</a>':'';
         var verifyAttr=isEvReg?'verifyEvPay('+p.registrant_id:'verifyPay('+p.payment_id;
-        html+='<tr><td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
-            +'<td style="font-size:.8rem;"><div style="font-weight:600;">'+esc(p.full_name)+'</div><div style="font-size:.7rem;color:var(--text-light);">'+esc(p.email)+'</div></td>'
-            +'<td style="white-space:nowrap;font-size:.76rem;">'+ptypeLabel+'</td>'
-            +'<td style="font-size:.75rem;max-width:110px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+esc(planCell)+'">'+planCell+'</td>'
-            +'<td style="font-weight:700;white-space:nowrap;">'+esc(p.currency)+' '+parseFloat(p.amount||0).toLocaleString()+'</td>'
-            +'<td style="font-size:.72rem;max-width:90px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;" title="'+txDisplay+'">'+txDisplay+'</td>'
-            +'<td style="font-size:.74rem;">'+esc(p.payment_method||'—')+'</td>'
+        var editBtn='<button class="btn-sm btn-outline-xs" style="padding:.28rem .55rem;" onclick="openPayEditModal('+p.payment_id+',\''+esc(p.source)+'\')" title="Edit Transaction ID / Upload Proof">✏️</button>';
+        html+='<tr>'
+            +'<td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
+            +'<td>'+payerCell+'</td>'
+            +'<td class="td-amt">'+esc(p.currency||'UGX')+' '+parseFloat(p.amount||0).toLocaleString()+'</td>'
+            +'<td class="td-txid" title="'+esc(txFull)+'">'+txDisplay+'</td>'
             +'<td><span class="tag tag-'+esc(p.payment_status)+'">'+esc(p.payment_status)+'</span></td>'
-            +'<td style="font-size:.74rem;white-space:nowrap;">'+validUntil+'</td>'
-            +'<td style="font-size:.74rem;white-space:nowrap;">'+esc(p.paid_at?p.paid_at.substring(0,10):'—')+'</td>'
-            +'<td style="white-space:nowrap;">'
-            +(p.payment_status!=='verified'?'<button class="btn-green btn-sm" onclick="'+verifyAttr+',\'verified\')">✅</button> ':'')
-            +(p.payment_status==='pending'?'<button class="btn-danger" onclick="'+verifyAttr+',\'rejected\')">✖</button> ':'')
-            +receiptBtn+' '+invBtn
-            +(p.proof_file&&!isEvReg?' <button class="btn-sm" onclick="openPayModal('+p.member_id+')">👁</button>':'')
+            +'<td>'+validUntil+paidDate+'</td>'
+            +'<td style="white-space:nowrap;display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">'
+            +(p.payment_status!=='verified'?'<button class="btn-green btn-sm" style="padding:.28rem .55rem;" onclick="'+verifyAttr+',\'verified\')" title="Verify">✅</button>':'')
+            +(p.payment_status==='pending'?'<button class="btn-danger" style="padding:.28rem .5rem;" onclick="'+verifyAttr+',\'rejected\')" title="Reject">✖</button>':'')
+            +editBtn+receiptBtn+invBtn
             +'</td></tr>';
     });
     document.getElementById('pay-body').innerHTML=html;
@@ -2022,25 +2054,64 @@ function verifyEvPay(regId,status){
         .then(r=>r.json()).then(d=>{if(d.success){toast('Payment '+status+'.','success');loadPayments();}else toast(d.error||'Failed.','error');})
         .catch(()=>toast('Error.','error'));
 }
-function openPayModal(memberId){
-    var m=_members.find(x=>x.id==memberId);
-    if(!m)return;
-    var proof=m.proof_file?'<img class="proof-img" src="'+esc(m.proof_file)+'" alt="Payment proof" onerror="this.outerHTML=\'<p style=font-size:.8rem>Proof file: <a href=&quot;'+esc(m.proof_file)+'&quot; target=_blank>View file</a></p>\'">'
-        :'<p style="font-size:.82rem;color:var(--text-light);">No payment proof uploaded.</p>';
-    var eventRow='';
-    if(m.event_title){
-        eventRow='<tr><th>Event</th><td><strong>'+esc(m.event_title)+'</strong>'+(m.event_date?' <span style="color:var(--text-light);font-size:.78rem;">'+esc(m.event_date)+'</span>':'')+'</td></tr>';
+var _editingPay=null;
+function openPayEditModal(paymentId,source){
+    _editingPay=_payments.find(p=>p.payment_id==paymentId&&p.source===source);
+    if(!_editingPay)return;
+    var p=_editingPay;
+    // Summary info
+    document.getElementById('pem-info').innerHTML='<div class="pem-summary">'
+        +'<div class="pem-name">'+esc(p.full_name)+' <span class="tag tag-'+esc(p.payment_status)+'">'+esc(p.payment_status)+'</span></div>'
+        +'<div class="pem-sub">'+esc(p.email)
+        +(p.payment_method?' &nbsp;·&nbsp; <strong>'+esc(p.payment_method)+'</strong>':'')
+        +' &nbsp;·&nbsp; <strong>'+esc(p.currency||'UGX')+' '+parseFloat(p.amount||0).toLocaleString()+'</strong>'
+        +(p.event_title?' &nbsp;·&nbsp; '+esc(p.event_title):'')
+        +'</div></div>';
+    // Fields
+    document.getElementById('pem-txid').value=p.transaction_id||'';
+    document.getElementById('pem-txref').value=p.transaction_ref||'';
+    document.getElementById('pem-proof-file').value='';
+    // Proof preview
+    var ph='';
+    if(p.proof_file){
+        var ext=(p.proof_file.split('.').pop()||'').toLowerCase();
+        if(['jpg','jpeg','png','gif','webp'].includes(ext)){
+            ph='<img class="pem-proof-img" src="'+esc(p.proof_file)+'" alt="Payment proof" onerror="this.replaceWith(Object.assign(document.createElement(\'a\'),{href:\''+esc(p.proof_file)+'\',target:\'_blank\',textContent:\'📎 View file\'}))">';
+        } else {
+            ph='<a href="'+esc(p.proof_file)+'" target="_blank" style="font-size:.82rem;">📎 View uploaded proof</a>';
+        }
+    } else {ph='<span style="font-size:.78rem;color:var(--text-light);">No proof uploaded yet</span>';}
+    document.getElementById('pem-proof-preview').innerHTML=ph;
+    // Verify / Reject actions
+    var va='';
+    if(p.payment_status!=='verified'){
+        var isEvReg=p.source==='event_registrants';
+        var vfn=isEvReg?'verifyEvPay('+p.registrant_id:'verifyPay('+p.payment_id;
+        va='<div class="pay-actions">'
+            +'<button class="btn-green btn-sm" onclick="'+vfn+',\'verified\');closeModal(\'pay-edit-modal\')">✅ Verify Payment</button>'
+            +(p.payment_status==='pending'?'<button class="btn-danger btn-sm" onclick="'+vfn+',\'rejected\');closeModal(\'pay-edit-modal\')">✖ Reject</button>':'')
+            +'</div>';
     }
-    document.getElementById('pay-modal-body').innerHTML=proof
-        +'<table class="tbl" style="margin-top:.5rem;"><tr><th>Member</th><td>'+esc(m.full_name)+'</td></tr>'
-        +'<tr><th>Email</th><td>'+esc(m.email)+'</td></tr>'
-        +eventRow
-        +'<tr><th>Amount</th><td>'+esc(m.currency)+' '+parseFloat(m.amount||0).toLocaleString()+'</td></tr>'
-        +'<tr><th>Method</th><td>'+esc(m.payment_method||'–')+'</td></tr>'
-        +'<tr><th>Reference</th><td>'+esc(m.transaction_ref||'–')+'</td></tr>'
-        +'<tr><th>Status</th><td><span class="tag tag-'+esc(m.payment_status)+'">'+esc(m.payment_status)+'</span></td></tr></table>'
-        +(m.payment_id&&m.payment_status!=='verified'?'<div style="margin-top:1rem;display:flex;gap:.5rem;"><button class="btn-green btn-sm" onclick="verifyPay('+m.payment_id+',\'verified\');closeModal(\'pay-modal\')">✅ Verify</button><button class="btn-danger" onclick="verifyPay('+m.payment_id+',\'rejected\');closeModal(\'pay-modal\')">✖ Reject</button></div>':'');
-    openModal('pay-modal');
+    document.getElementById('pem-verify-actions').innerHTML=va;
+    openModal('pay-edit-modal');
+}
+function savePaymentEdit(){
+    if(!_editingPay)return;
+    var txid=document.getElementById('pem-txid').value.trim();
+    var txref=document.getElementById('pem-txref').value.trim();
+    var fd=new FormData();
+    fd.append('action','update_payment');
+    fd.append('payment_id',_editingPay.payment_id);
+    fd.append('source',_editingPay.source);
+    fd.append('transaction_id',txid);
+    fd.append('transaction_ref',txref);
+    var file=document.getElementById('pem-proof-file').files[0];
+    if(file) fd.append('proof_file',file);
+    fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'})
+        .then(r=>r.json()).then(d=>{
+            if(d.success){toast('Payment updated.','success');closeModal('pay-edit-modal');loadPayments();}
+            else toast(d.error||'Failed to save.','error');
+        }).catch(()=>toast('Connection error.','error'));
 }
 
 /* ── INVOICE ──────────────────────────────── */

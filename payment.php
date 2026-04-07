@@ -32,9 +32,6 @@ define('FLW_BASE', 'https://api.flutterwave.com/v3');
 define('FLW_SECRET_KEY', getenv('FLW_SECRET_KEY') ?: '');
 define('FLW_PUBLIC_KEY', getenv('FLW_PUBLIC_KEY') ?: '');
 
-// Live payment mode — keep `PAYMENT_TEST_MODE=false` in .env for real Flutterwave processing only
-define('PAYMENT_TEST_MODE', filter_var(getenv('PAYMENT_TEST_MODE') ?: 'false', FILTER_VALIDATE_BOOLEAN));
-
 /**
  * Make an authenticated request to Flutterwave API.
  */

@@ -406,16 +406,7 @@ Dr. Ddungu is active in research and has been a principal investigator and co-in
     echo "– Leaders already exist, skipping seed.\n";
 }
 
-try {
-    $cleanup = $pdo->prepare("DELETE FROM leaders WHERE LOWER(name) LIKE ? OR LOWER(biography) LIKE ?");
-    $cleanup->execute(['%shakib%', '%shakib%']);
-    $removed = (int)$cleanup->rowCount();
-    echo $removed > 0 ? "✓ Removed {$removed} legacy Shakib leadership entrie(s).\n" : "– No Shakib leadership entry found.\n";
-} catch (\Exception $e) {
-    echo "– Shakib cleanup skipped: " . $e->getMessage() . "\n";
-}
-
-echo "– No sample events, posts, or comments seeded (use Admin panel to add content).\n";
+echo "– System running with real data only. Use the Admin panel to add content.\n";
 
 // -------------------------------------------------------------------
 // 6. Regenerate data.js from the database (if script exists)

@@ -1130,6 +1130,40 @@ case 'create_post':
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
+    case 'update_payment':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $payId  = (int)($_POST['payment_id'] ?? 0);
+            $source = $_POST['source'] ?? 'payments';
+            $txId   = trim($_POST['transaction_id'] ?? '');
+            $txRef  = trim($_POST['transaction_ref'] ?? '');
+
+            if (!$payId) { http_response_code(400); echo json_encode(['error' => 'payment_id required']); break; }
+            if (!in_array($source, ['payments', 'event_registrants', 'grant_application'])) {
+                $source = 'payments';
+            }
+            // Normalise grant_application source → payments table
+            $table = ($source === 'event_registrants') ? 'event_registrants' : 'payments';
+
+            $proofPath = null;
+            if (isset($_FILES['proof_file']) && $_FILES['proof_file']['error'] === UPLOAD_ERR_OK) {
+                $uploaded = secureUpload($_FILES['proof_file'], 'uploads/payments/', true);
+                if ($uploaded) $proofPath = $uploaded;
+            }
+
+            $sql  = "UPDATE $table SET transaction_id=?, transaction_ref=?";
+            $vals = [$txId, $txRef];
+            if ($proofPath !== null) { $sql .= ', proof_file=?'; $vals[] = $proofPath; }
+            $sql .= ' WHERE id=?';
+            $vals[] = $payId;
+            $pdo->prepare($sql)->execute($vals);
+            auditLog($pdo, 'update_payment', $table, $payId, "tx_id=$txId tx_ref=$txRef");
+            echo json_encode(['success' => true, 'proof_file' => $proofPath]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
     case 'export_csv':
         if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
             http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
