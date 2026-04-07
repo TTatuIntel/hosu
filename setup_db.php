@@ -204,7 +204,7 @@ $pdo->exec("
         receipt_token  VARCHAR(64)  DEFAULT '',
         qr_scanned    TINYINT(1)   NOT NULL DEFAULT 0,
         scanned_at    TIMESTAMP    NULL DEFAULT NULL,
-        notes          TEXT         DEFAULT '',
+        notes          TEXT,
         registered_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ");
@@ -235,7 +235,7 @@ $pdo->exec("
         currency    VARCHAR(10)  NOT NULL DEFAULT 'UGX',
         deadline    VARCHAR(100) DEFAULT '',
         status      VARCHAR(50)  NOT NULL DEFAULT 'open',
-        description TEXT         DEFAULT '',
+        description TEXT,
         apply_link  VARCHAR(500) DEFAULT '',
         sort_order  INT          NOT NULL DEFAULT 0,
         created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
@@ -252,7 +252,7 @@ $pdo->exec("
         email       VARCHAR(150) NOT NULL,
         phone       VARCHAR(30)  DEFAULT '',
         institution VARCHAR(200) DEFAULT '',
-        proposal    TEXT         DEFAULT '',
+        proposal    TEXT,
         status      ENUM('pending','approved','rejected') NOT NULL DEFAULT 'pending',
         payment_id  INT          DEFAULT NULL,
         created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP,
@@ -283,7 +283,7 @@ $pdo->exec("
         name         VARCHAR(150) NOT NULL,
         title        VARCHAR(150) NOT NULL DEFAULT '',
         qualifications VARCHAR(300) DEFAULT '',
-        biography    TEXT DEFAULT '',
+        biography    TEXT,
         photo_url    VARCHAR(500) DEFAULT '',
         sort_order   INT NOT NULL DEFAULT 0,
         is_active    TINYINT(1) NOT NULL DEFAULT 1,
@@ -334,7 +334,7 @@ $pdo->exec("
     CREATE TABLE IF NOT EXISTS site_media (
         id          INT AUTO_INCREMENT PRIMARY KEY,
         title       VARCHAR(255) NOT NULL DEFAULT '',
-        description TEXT         DEFAULT '',
+        description TEXT,
         file_path   VARCHAR(500) NOT NULL,
         file_type   VARCHAR(50)  NOT NULL DEFAULT 'image',
         file_size   INT          NOT NULL DEFAULT 0,
