@@ -167,7 +167,7 @@ $pdo->exec("
         receipt_token   VARCHAR(64)  DEFAULT '',
         qr_scanned      TINYINT(1)  NOT NULL DEFAULT 0,
         scanned_at      TIMESTAMP   NULL DEFAULT NULL,
-        notes           TEXT         DEFAULT '',
+        notes           TEXT,
         payment_type    ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership',
         membership_period VARCHAR(20) DEFAULT '1_year',
         membership_expires_at DATE  NULL DEFAULT NULL,
