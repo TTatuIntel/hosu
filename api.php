@@ -74,6 +74,143 @@ function auditLog($pdo, $action, $entityType = null, $entityId = null, $details 
     }
 }
 
+// ── Admin notification email ──────────────────────────────────────────
+function notifyAdmin(string $subject, string $htmlBody): void {
+    hosuMail('info@hosu.or.ug', $subject, $htmlBody, 'HOSU Website');
+}
+
+// ── Membership pending acknowledgment ────────────────────────────────
+function sendMembershipPendingEmail(string $toEmail, string $name, string $membershipType, float $amount, string $receiptNum): void {
+    $safeName    = htmlspecialchars($name,           ENT_QUOTES, 'UTF-8');
+    $safeType    = htmlspecialchars($membershipType, ENT_QUOTES, 'UTF-8');
+    $safeReceipt = htmlspecialchars($receiptNum,     ENT_QUOTES, 'UTF-8');
+    $safeAmount  = number_format($amount, 0, '.', ',');
+    $subject = "HOSU Membership Application Received — $safeReceipt";
+    $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">HOSU — Application Received</h1>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <p style="color:#333;margin:0 0 12px;">Dear <strong>{$safeName}</strong>,</p>
+    <p style="color:#555;margin:0 0 20px;">Thank you for applying for HOSU membership. Your application has been received and is currently under review. You will be notified once your payment is verified.</p>
+    <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#333;">
+      <tr style="background:#f8fafc;"><td><strong>Reference #</strong></td><td>{$safeReceipt}</td></tr>
+      <tr><td><strong>Membership Type</strong></td><td>{$safeType}</td></tr>
+      <tr style="background:#f8fafc;"><td><strong>Amount</strong></td><td>UGX {$safeAmount}</td></tr>
+      <tr><td><strong>Status</strong></td><td style="color:#d97706;font-weight:700;">Pending Verification</td></tr>
+    </table>
+    <p style="color:#555;margin:20px 0 0;font-size:13px;">If you have questions, contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;">info@hosu.or.ug</a>.</p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU) &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+    hosuMail($toEmail, $subject, $html, 'HOSU Membership');
+}
+
+// ── Member status change notification ────────────────────────────────
+function sendMemberStatusEmail(string $toEmail, string $name, string $status): void {
+    $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
+    if ($status === 'active') {
+        $subject   = 'HOSU Membership Approved — Welcome!';
+        $statusHtml = '<td style="color:#27ae60;font-weight:700;">Active ✓</td>';
+        $bodyMsg    = 'We are pleased to inform you that your HOSU membership has been <strong>approved and activated</strong>. Welcome to the Haematology &amp; Oncology Society of Uganda!';
+    } elseif ($status === 'rejected') {
+        $subject   = 'HOSU Membership Application Update';
+        $statusHtml = '<td style="color:#e63946;font-weight:700;">Not Approved</td>';
+        $bodyMsg    = 'After review, we are unable to approve your membership application at this time. Please contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;">info@hosu.or.ug</a> for more information.';
+    } elseif ($status === 'expired') {
+        $subject   = 'HOSU Membership Expired — Renewal Needed';
+        $statusHtml = '<td style="color:#d97706;font-weight:700;">Expired</td>';
+        $bodyMsg    = 'Your HOSU membership has expired. Please renew your membership to continue enjoying HOSU benefits. Visit <a href="https://hosu.or.ug/membership.html" style="color:#0d4593;">hosu.or.ug/membership.html</a> to renew.';
+    } else {
+        return; // No email for other statuses
+    }
+    $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">HOSU — Membership Update</h1>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <p style="color:#333;margin:0 0 12px;">Dear <strong>{$safeName}</strong>,</p>
+    <p style="color:#555;margin:0 0 20px;">{$bodyMsg}</p>
+    <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#333;">
+      <tr style="background:#f8fafc;"><td><strong>Membership Status</strong></td>{$statusHtml}</tr>
+    </table>
+    <p style="color:#555;margin:20px 0 0;font-size:13px;">Questions? Email <a href="mailto:info@hosu.or.ug" style="color:#0d4593;">info@hosu.or.ug</a></p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU) &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+    hosuMail($toEmail, $subject, $html, 'HOSU Membership');
+}
+
+// ── Grant application acknowledgment ─────────────────────────────────
+function sendGrantAckEmail(string $toEmail, string $name, string $grantTitle): void {
+    $safeName  = htmlspecialchars($name,       ENT_QUOTES, 'UTF-8');
+    $safeGrant = htmlspecialchars($grantTitle, ENT_QUOTES, 'UTF-8');
+    $subject   = "HOSU Grant Application Received — {$safeGrant}";
+    $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">HOSU — Grant Application Received</h1>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <p style="color:#333;margin:0 0 12px;">Dear <strong>{$safeName}</strong>,</p>
+    <p style="color:#555;margin:0 0 20px;">Thank you for applying for the <strong>{$safeGrant}</strong> grant opportunity. Your application has been received and will be reviewed by the HOSU team. You will be notified of the outcome by email.</p>
+    <p style="color:#555;font-size:13px;">Questions? Email <a href="mailto:info@hosu.or.ug" style="color:#0d4593;">info@hosu.or.ug</a></p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU) &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+    hosuMail($toEmail, $subject, $html, 'HOSU Grants');
+}
+
+// ── Grant application status update ──────────────────────────────────
+function sendGrantStatusEmail(string $toEmail, string $name, string $grantTitle, string $status): void {
+    $safeName  = htmlspecialchars($name,       ENT_QUOTES, 'UTF-8');
+    $safeGrant = htmlspecialchars($grantTitle, ENT_QUOTES, 'UTF-8');
+    if ($status === 'approved') {
+        $subject = "HOSU Grant Application Approved — {$safeGrant}";
+        $msg     = "Congratulations! Your application for the <strong>{$safeGrant}</strong> grant has been <strong style=\"color:#27ae60;\">approved</strong>. The HOSU team will contact you with next steps.";
+    } elseif ($status === 'rejected') {
+        $subject = "HOSU Grant Application Update — {$safeGrant}";
+        $msg     = "After careful review, we regret to inform you that your application for the <strong>{$safeGrant}</strong> grant was not successful at this time. We encourage you to apply for future opportunities.";
+    } else {
+        return;
+    }
+    $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">HOSU — Grant Application Update</h1>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <p style="color:#333;margin:0 0 12px;">Dear <strong>{$safeName}</strong>,</p>
+    <p style="color:#555;margin:0 0 20px;">{$msg}</p>
+    <p style="color:#555;font-size:13px;">Questions? Email <a href="mailto:info@hosu.or.ug" style="color:#0d4593;">info@hosu.or.ug</a></p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU) &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+    hosuMail($toEmail, $subject, $html, 'HOSU Grants');
+}
+
 // ── Email receipt helper ──────────────────────────────────────────────
 function sendReceiptEmail($pdo, $paymentId, $receiptToken) {
     try {
