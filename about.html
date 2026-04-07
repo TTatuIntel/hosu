@@ -1171,14 +1171,14 @@
         document.addEventListener('keydown', function(e) { if (e.key === 'Escape') closeAllBioPopups(); });
 </script>
 <script>
-// Load dynamic stats from DB for about page
-fetch('api.php?action=get_site_stats&page=about').then(function(r){return r.json();}).then(function(d){
+// Load live stats from DB for about page
+fetch('api.php?action=get_about_stats').then(function(r){return r.json();}).then(function(d){
     if(d.success && d.stats && d.stats.length){
         d.stats.forEach(function(s,i){
             var v=document.getElementById('ab-stat-'+i+'-val');
             var l=document.getElementById('ab-stat-'+i+'-lbl');
-            if(v)v.textContent=s.stat_value;
-            if(l)l.textContent=s.stat_label;
+            if(v)v.textContent=s.value;
+            if(l)l.textContent=s.label;
         });
     }
 }).catch(function(){});

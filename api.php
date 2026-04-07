@@ -1919,6 +1919,23 @@ case 'create_post':
         }
         break;
 
+    // ── About Page Stats — live from DB (Public) ──────────────────────
+    case 'get_about_stats':
+        try {
+            $memberCount = (int)$pdo->query("SELECT COUNT(*) FROM members WHERE membership_type != 'event_registration' AND status IN ('active','pending')")->fetchColumn();
+            $eventCount  = (int)$pdo->query("SELECT COUNT(*) FROM events")->fetchColumn();
+            $foundedYear = (int)$pdo->query("SELECT YEAR(MIN(created_at)) FROM members")->fetchColumn();
+            if (!$foundedYear || $foundedYear < 2015) $foundedYear = 2019;
+            echo json_encode(['success' => true, 'stats' => [
+                ['value' => ($memberCount > 0 ? $memberCount . '+' : '150+'), 'label' => 'Members'],
+                ['value' => (string)$foundedYear,                             'label' => 'Founded'],
+                ['value' => ($eventCount  > 0 ? $eventCount  . '+' : '50+'), 'label' => 'Events'],
+            ]]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
     // ── Membership Stats (Public) ─────────────────────────────────────
     case 'get_membership_stats':
         try {
