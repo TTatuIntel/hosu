@@ -672,10 +672,6 @@ section {
 /* ══════════════════════════════════════════════════════════════════
    Featured Hero Slides (Admin-controlled dynamic content)
    ══════════════════════════════════════════════════════════════════ */
-.hero-slide.featured-hero-slide {
-    /* Inherits standard hero styling */
-}
-
 .hero-slide.featured-hero-slide h1 {
     /* Match regular hero h1 styling */
     font-size: clamp(1.25rem, 2.4vw, 1.65rem);
@@ -703,12 +699,6 @@ section {
     margin-bottom: 1rem;
     color: var(--text-light);
     line-height: 1.6;
-}
-
-.hero-slide[data-slide="featured-event"],
-.hero-slide[data-slide="featured-publication"],
-.hero-slide[data-slide="featured-grant"] {
-    /* Same base styling as other hero slides */
 }
 
 .hero-slide .featured-label {
@@ -1156,6 +1146,7 @@ section {
     line-height: 1.4;
     display: -webkit-box;
     -webkit-line-clamp: 3;
+    line-clamp: 3;
     -webkit-box-orient: vertical;
     overflow: hidden;
     text-overflow: ellipsis;

@@ -305,6 +305,11 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .pem-name{font-weight:700;font-size:.88rem;display:flex;align-items:center;gap:.5rem;flex-wrap:wrap;}
 .pem-sub{font-size:.76rem;color:var(--text-light);margin-top:.25rem;}
 .pem-proof-wrap{border:1px dashed var(--border);border-radius:8px;padding:.75rem;text-align:center;background:var(--bg);margin:.3rem 0;min-height:60px;display:flex;align-items:center;justify-content:center;flex-direction:column;}
+.pem-gap-lg{margin-top:.85rem;}
+.pem-gap-sm{margin-top:.6rem;}
+.pem-file-input{margin-top:.4rem;font-size:.78rem;width:100%;}
+.pem-file-hint{font-size:.7rem;color:var(--text-light);margin-top:.2rem;}
+.pem-btn-row{margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;}
 .pem-proof-img{max-width:100%;max-height:200px;border-radius:6px;border:1px solid var(--border);}
 .pay-actions{margin-top:.75rem;padding-top:.75rem;border-top:1px solid var(--border);display:flex;gap:.5rem;flex-wrap:wrap;}
 /* Invoice helpers */
@@ -947,22 +952,22 @@ textarea.ld-input{resize:vertical;min-height:100px;}
         <div class="modal-hd"><h3>?? Edit Payment</h3><button class="modal-close" onclick="closeModal('pay-edit-modal')">�</button></div>
         <div class="modal-body">
             <div id="pem-info"></div>
-            <div style="margin-top:.85rem;">
+            <div class="pem-gap-lg">
                 <label class="form-label">Transaction ID</label>
                 <input type="text" id="pem-txid" class="form-input" placeholder="e.g. MoMo transaction ID">
             </div>
-            <div style="margin-top:.6rem;">
+            <div class="pem-gap-sm">
                 <label class="form-label">Transaction Reference</label>
                 <input type="text" id="pem-txref" class="form-input" placeholder="Reference / receipt number">
             </div>
-            <div style="margin-top:.6rem;">
+            <div class="pem-gap-sm">
                 <label class="form-label">Payment Proof</label>
                 <div id="pem-proof-preview" class="pem-proof-wrap"></div>
-                <input type="file" id="pem-proof-file" accept="image/*,.pdf" style="margin-top:.4rem;font-size:.78rem;width:100%;">
-                <div style="font-size:.7rem;color:var(--text-light);margin-top:.2rem;">Upload screenshot or PDF of MoMo/payment confirmation</div>
+                <input type="file" id="pem-proof-file" accept="image/*,.pdf" class="pem-file-input">
+                <div class="pem-file-hint">Upload screenshot or PDF of MoMo/payment confirmation</div>
             </div>
             <div id="pem-verify-actions"></div>
-            <div style="margin-top:1rem;display:flex;gap:.5rem;flex-wrap:wrap;">
+            <div class="pem-btn-row">
                 <button class="btn-primary btn-sm" onclick="savePaymentEdit()">?? Save Changes</button>
                 <button class="btn-sm btn-outline-xs" onclick="closeModal('pay-edit-modal')">Cancel</button>
             </div>
