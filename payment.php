@@ -133,17 +133,17 @@ function generateTxnRef(string $prefix = 'TXN'): string
 function sanitizePhone(string $phone): string
 {
     $digits = preg_replace('/\D/', '', $phone);
-    // If already has a valid country code prefix (3+ digits for most countries)
-    if (strlen($digits) >= 10) {
-        return $digits;
+    // Already has country code (10+ digits, not 0-prefixed) — e.g. 256776543210 → +256776543210
+    if (strlen($digits) >= 10 && !str_starts_with($digits, '0')) {
+        return '+' . $digits;
     }
-    // Handle 0-prefix (assume Uganda if no country code and starts with 0)
+    // Uganda 0-prefix (e.g. 0776543210 → +256776543210)
     if (str_starts_with($digits, '0') && strlen($digits) >= 9) {
-        return '256' . substr($digits, 1);
+        return '+256' . substr($digits, 1);
     }
-    // Short number without country code — assume Uganda
-    if (strlen($digits) >= 7 && strlen($digits) <= 9) {
-        return '256' . $digits;
+    // Short number without country code — assume Uganda (+256XXXXXXX)
+    if (strlen($digits) >= 7) {
+        return '+256' . $digits;
     }
     return $digits;
 }

@@ -2088,14 +2088,21 @@ function selectPayment(method) {
         document.getElementById('bankDetailsModal').style.display = 'flex';
     } else if (method === 'banktobank') {
         document.getElementById('bankToBankModal').style.display = 'flex';
-    } else if (method === 'mtn') {
-        const pd = document.getElementById('paymentDetails');
+    } else if (method === 'mtn' || method === 'airtel') {
+        const pd       = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
-        pd.innerHTML = '<i class="fas fa-mobile-alt"></i> A <strong>MTN Mobile Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
-    } else if (method === 'airtel') {
-        const pd = document.getElementById('paymentDetails');
-        pd.classList.remove('hidden');
-        pd.innerHTML = '<i class="fas fa-mobile-alt"></i> An <strong>Airtel Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
+        const _net     = method === 'mtn' ? 'MTN Mobile Money' : 'Airtel Money';
+        const _pApi    = window.intlPhone ? window.intlPhone.get('contact') : null;
+        const _pDigits = _pApi ? _pApi.getDigitsOnly() : document.getElementById('contact').value.replace(/\D/g,'');
+        const _pE164   = _pDigits && _pDigits.length >= 7
+            ? (_pDigits.length >= 11 && !_pDigits.startsWith('0') ? '+' + _pDigits
+               : _pDigits.startsWith('0') ? '+256' + _pDigits.slice(1) : '+256' + _pDigits)
+            : '';
+        pd.innerHTML = '<div style="display:flex;align-items:flex-start;gap:8px;">'
+            + '<i class="fas fa-mobile-alt" style="margin-top:3px;color:#0d4593;font-size:0.9rem;flex-shrink:0;"></i>'
+            + '<div><div style="font-size:0.82rem;font-weight:600;margin-bottom:3px;">A <strong>' + _net + '</strong> prompt will be sent'
+            + (_pE164 ? ' to <strong style="color:#0d4593;">' + _pE164 + '</strong>' : ' to your phone') + '.</div>'
+            + '<div style="font-size:0.75rem;color:#475569;line-height:1.4;">\uD83D\uDCCC <em>The number above is the one that will be charged.</em> Just enter your mobile money PIN to confirm.</div></div></div>';
     } else if (method === 'visa') {
         const pd = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
@@ -2273,6 +2280,64 @@ async function initiateRealBankTransfer(transferDetails) {
             });
         }
 
+        /* Embed PesaPal payment page as a full-screen inline overlay — no full-page redirect */
+        function showMemberPesapalIframe(redirectUrl, phoneDisplay, amount, trackingId, payId, receiptToken) {
+            _airtelPollActive = false;
+            var ifrWrap = document.createElement('div');
+            ifrWrap.id  = '_hosuPpIframe';
+            ifrWrap.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;display:flex;flex-direction:column;background:#fff;';
+            ifrWrap.innerHTML =
+                '<div style="background:#0d4593;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+                + '<div><strong style="font-size:0.9rem;">Complete Your Payment \u2014 HOSU</strong><br>'
+                + '<span style="font-size:0.72rem;opacity:0.88;">\uD83D\uDCF1 ' + String(phoneDisplay).replace(/</g,'&lt;') + ' &middot; UGX ' + Number(amount).toLocaleString() + '</span></div>'
+                + '<button id="_hosuPpClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;line-height:1;">\u00D7</button>'
+                + '</div>'
+                + '<div style="background:#f0f4ff;padding:5px 14px;font-size:0.75rem;color:#0d4593;font-weight:600;border-bottom:1px solid #dce8ff;flex-shrink:0;">'
+                + '\u2705 Your phone number is pre-filled. Click Proceed, then enter your PIN to approve.'
+                + '</div>'
+                + '<iframe src="' + redirectUrl.replace(/"/g,'&quot;') + '" style="flex:1;width:100%;border:none;background:#fff;" allowpaymentrequest></iframe>';
+            document.body.appendChild(ifrWrap);
+            var _ifrActive = true;
+            var _ifrPolls  = 0;
+            var _ifrTimer  = setInterval(async function () {
+                if (!_ifrActive) { clearInterval(_ifrTimer); return; }
+                _ifrPolls++;
+                if (_ifrPolls > 22) {
+                    clearInterval(_ifrTimer); _ifrActive = false;
+                    if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                    showError('Payment timed out. If money was deducted, please contact us at info@hosu.or.ug.');
+                    return;
+                }
+                try {
+                    const res = await fetch('payment.php?action=check_mobile&tracking_id=' + encodeURIComponent(trackingId) + '&payment_id=' + payId).then(r => r.json());
+                    if (res.status === 'completed') {
+                        clearInterval(_ifrTimer); _ifrActive = false;
+                        if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                        _setStep(3);
+                        document.getElementById('airtelCountdown').style.display = 'none';
+                        document.getElementById('modalSpinner').style.display    = 'none';
+                        document.getElementById('modalMessage').textContent      = '\u2705 Payment confirmed!';
+                        document.getElementById('modalMessage').style.color      = '#27ae60';
+                        document.getElementById('modalSubMessage').innerHTML     = 'A receipt has been sent to your email.<br><br>'
+                            + '<a href="receipt.php?token=' + encodeURIComponent(res.receipt_token || receiptToken)
+                            + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>';
+                        document.getElementById('closeModalButton').style.display   = 'block';
+                        document.getElementById('processingCloseBtn').style.display = 'flex';
+                        resetForm();
+                    } else if (res.status === 'failed') {
+                        clearInterval(_ifrTimer); _ifrActive = false;
+                        if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                        showError(res.message || 'Payment was declined. Please try again.');
+                    }
+                } catch(e) { /* network hiccup — continue polling */ }
+            }, 8000);
+            document.getElementById('_hosuPpClose').addEventListener('click', function () {
+                _ifrActive = false; clearInterval(_ifrTimer);
+                if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                showError('Payment cancelled. Please try again.');
+            });
+        }
+
         // Gateway calls now go through payment.php server proxy
 
         async function payNow() {
@@ -2374,13 +2439,20 @@ async function initiateRealBankTransfer(transferDetails) {
 
                     if (payRes.error) { showError(payRes.error); return; }
 
-                    // Fallback: PesaPal returned a redirect_url instead of direct USSD push
+                    // Fallback: PesaPal wants hosted page — embed inline, no full-page redirect
                     if (payRes.redirect_url) {
-                        _setStep(3);
-                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
-                        document.getElementById('modalSubMessage').textContent = 'Complete your payment on the PesaPal page.';
-                        await new Promise(r => setTimeout(r, 600));
-                        window.location.href = payRes.redirect_url;
+                        const _ifrTkId  = payRes.tracking_id || '';
+                        const _ifrPhone = formObject.contact.length >= 11 && !formObject.contact.startsWith('0')
+                            ? '+' + formObject.contact
+                            : formObject.contact.startsWith('0') ? '+256' + formObject.contact.slice(1) : '+256' + formObject.contact;
+                        _setStep(2);
+                        document.getElementById('modalMessage').textContent    = '\uD83D\uDCF1 Complete payment below\u2026';
+                        document.getElementById('modalSubMessage').textContent = 'Enter your PIN when prompted.';
+                        document.getElementById('modalSpinner').style.display  = 'none';
+                        showMemberPesapalIframe(
+                            payRes.redirect_url, _ifrPhone, formObject.amount,
+                            _ifrTkId, _paymentId || 0, _receiptToken || ''
+                        );
                         return;
                     }
 

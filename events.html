@@ -2105,6 +2105,63 @@ footer {
             document.getElementById('reg-proc-close').style.display = '';
         }
 
+        /* Embed PesaPal payment page inline — no full-page redirect for mobile money */
+        function _regShowPesapalIframe(redirectUrl, phoneDisplay, amount, trackingId, payId, receiptToken) {
+            _regPollActive = false;
+            var ifrWrap = document.createElement('div');
+            ifrWrap.id  = '_regPpIframe';
+            ifrWrap.style.cssText = 'position:fixed;top:0;left:0;width:100vw;height:100vh;z-index:9999;display:flex;flex-direction:column;background:#fff;';
+            ifrWrap.innerHTML =
+                '<div style="background:#0d4593;color:#fff;padding:10px 16px;display:flex;align-items:center;justify-content:space-between;flex-shrink:0;">'
+                + '<div><strong style="font-size:0.9rem;">Complete Your Payment \u2014 HOSU</strong><br>'
+                + '<span style="font-size:0.72rem;opacity:0.88;">\uD83D\uDCF1 ' + String(phoneDisplay).replace(/</g,'&lt;') + ' &middot; UGX ' + Number(amount).toLocaleString() + '</span></div>'
+                + '<button id="_regPpClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;line-height:1;">\u00D7</button>'
+                + '</div>'
+                + '<div style="background:#f0f4ff;padding:5px 14px;font-size:0.75rem;color:#0d4593;font-weight:600;border-bottom:1px solid #dce8ff;flex-shrink:0;">'
+                + '\u2705 Your phone number is pre-filled. Click Proceed, then enter your PIN to approve.'
+                + '</div>'
+                + '<iframe src="' + redirectUrl.replace(/"/g,'&quot;') + '" style="flex:1;width:100%;border:none;background:#fff;" allowpaymentrequest></iframe>';
+            document.body.appendChild(ifrWrap);
+            var _ifrActive = true;
+            var _ifrPolls  = 0;
+            var _ifrTimer  = setInterval(async function () {
+                if (!_ifrActive) { clearInterval(_ifrTimer); return; }
+                _ifrPolls++;
+                if (_ifrPolls > 22) {
+                    clearInterval(_ifrTimer); _ifrActive = false;
+                    if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                    _regShowError('Payment timed out. If money was deducted, please contact us at info@hosu.or.ug.');
+                    return;
+                }
+                try {
+                    var params = 'action=check_mobile&tracking_id=' + encodeURIComponent(trackingId) + '&payment_id=' + payId;
+                    var result = await fetch('payment.php?' + params).then(function(r){ return r.json(); });
+                    if (result.status === 'completed') {
+                        clearInterval(_ifrTimer); _ifrActive = false;
+                        if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                        _regSetStep(3);
+                        document.getElementById('reg-countdown').style.display   = 'none';
+                        document.getElementById('reg-spinner').style.display     = 'none';
+                        document.getElementById('reg-proc-msg').textContent      = '\u2705 Payment confirmed!';
+                        document.getElementById('reg-proc-msg').style.color      = '#27ae60';
+                        document.getElementById('reg-proc-sub').innerHTML        = 'A receipt has been sent to your email.<br><br>'
+                            + '<a href="receipt.php?token=' + encodeURIComponent(result.receipt_token || receiptToken)
+                            + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>';
+                        document.getElementById('reg-proc-close').style.display  = '';
+                    } else if (result.status === 'failed') {
+                        clearInterval(_ifrTimer); _ifrActive = false;
+                        if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                        _regShowError(result.message || 'Payment was declined. Please try again.');
+                    }
+                } catch(e) { /* network hiccup — continue polling */ }
+            }, 8000);
+            document.getElementById('_regPpClose').addEventListener('click', function () {
+                _ifrActive = false; clearInterval(_ifrTimer);
+                if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                _regShowError('Payment cancelled. Please try again.');
+            });
+        }
+
         async function _regShowSuccess(ev) {
             _regPollActive = false;
             _regSetStep(3);
@@ -2338,12 +2395,20 @@ footer {
 
                 if (payRes.error) { _regShowError(payRes.error); return; }
 
-                // Fallback: PesaPal returned redirect instead of direct push
+                // Fallback: PesaPal wants hosted page — embed inline, no full-page redirect
                 if (payRes.redirect_url) {
-                    _regSetStep(3);
-                    document.getElementById('reg-proc-msg').textContent = 'Redirecting to PesaPal…';
-                    await new Promise(function(r){ setTimeout(r,600); });
-                    window.location.href = payRes.redirect_url;
+                    var _ifrTkId  = payRes.tracking_id || '';
+                    var _ifrPhone = phone.length >= 11 && !phone.startsWith('0')
+                        ? '+' + phone
+                        : phone.startsWith('0') ? '+256' + phone.slice(1) : '+256' + phone;
+                    _regSetStep(2);
+                    document.getElementById('reg-proc-msg').textContent = '\uD83D\uDCF1 Complete payment below\u2026';
+                    document.getElementById('reg-proc-sub').textContent = 'Enter your PIN when prompted.';
+                    document.getElementById('reg-spinner').style.display = 'none';
+                    _regShowPesapalIframe(
+                        payRes.redirect_url, _ifrPhone, amount,
+                        _ifrTkId, _regPaymentId || 0, _regReceiptToken || ''
+                    );
                     return;
                 }
 
