@@ -400,7 +400,7 @@
             var secs = Math.max(0, (MAX - _pollCount + 1) * (INT / 1000));
             _cd('Time remaining: ' + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's');
             if (_pollCount > MAX) {
-                _showErr('Payment timed out (2 minutes). The request was cancelled.',
+                _showErr('Payment timed out (15 minutes). The request was cancelled.',
                     'If money was deducted, contact us at ' +
                     '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
                     ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
@@ -590,16 +590,8 @@
             catch (e) { _showErr('Network error. Please try again.'); return; }
             if (mRes.error) { _showErr(mRes.error); return; }
 
-            /* Fallback: PesaPal redirect (some account configurations) */
-            if (mRes.redirect_url) {
-                _msg('Redirecting to PesaPal\u2026');
-                _openIfr({
-                    redirectUrl: mRes.redirect_url, phone: opts.phone, amount: opts.amount,
-                    trackingId: mRes.tracking_id, payId: paymentId, registrantId: registrantId,
-                    receiptToken: receiptToken, purpose: purpose
-                });
-                return;
-            }
+            /* PesaPal may return redirect_url — ignore it for MoMo; USSD push is already sent */
+            /* (redirect_url is only used for card payments via init_pesapal) */
 
             /* USSD push sent — show clear info about what they're paying for */
             _step(2);
@@ -613,7 +605,7 @@
             _startPoll({
                 trackingId: mRes.tracking_id || '', payId: paymentId,
                 registrantId: registrantId, receiptToken: receiptToken,
-                maxPolls: 15, interval: 8000
+                maxPolls: 112, interval: 8000
             });
             return;
         }
