@@ -2084,10 +2084,11 @@ function selectPayment(method) {
     document.getElementById('paymentDetails').classList.add('hidden');
     document.getElementById('paymentDetails').innerHTML = '';
 
-    if (method === 'bank') {
-        document.getElementById('bankDetailsModal').style.display = 'flex';
-    } else if (method === 'banktobank') {
-        document.getElementById('bankToBankModal').style.display = 'flex';
+    if (method === 'bank' || method === 'banktobank') {
+        const pd = document.getElementById('paymentDetails');
+        pd.classList.remove('hidden');
+        const _bLabel = method === 'banktobank' ? 'Bank to Bank Transfer' : 'Bank Transfer';
+        pd.innerHTML = '<i class="fas fa-university" style="color:#0d4593;"></i> You will be directed to the PesaPal secure page to complete your ' + _bLabel + '.';
     } else if (method === 'mtn' || method === 'airtel') {
         const pd       = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
@@ -2351,18 +2352,6 @@ async function initiateRealBankTransfer(transferDetails) {
                 return;
             }
 
-            if (selectedMethod === 'bank') {
-                showProcessingModal();
-                document.getElementById('modalMessage').textContent      = 'Please follow bank transfer instructions.';
-                document.getElementById('modalSpinner').style.display    = 'none';
-                document.getElementById('closeModalButton').style.display = 'block';
-                return;
-            }
-            if (selectedMethod === 'banktobank') {
-                document.getElementById('bankToBankModal').style.display = 'flex';
-                return;
-            }
-
             // ── Collect form data ──────────────────────────────────
             const formData   = new FormData(membershipForm);
             const formObject = {
@@ -2379,7 +2368,7 @@ async function initiateRealBankTransfer(transferDetails) {
 
             const isMobile = (selectedMethod === 'mtn' || selectedMethod === 'airtel');
             const channel  = selectedMethod === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
-            const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
+            const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : (selectedMethod === 'bank' || selectedMethod === 'banktobank') ? 'Bank Transfer' : 'Visa/Mastercard';
 
             // ── Step 1: Pre-register ───────────────────────────────
             showProcessingModal();
@@ -2529,10 +2518,20 @@ async function initiateRealBankTransfer(transferDetails) {
 
                     if (payRes.redirect_url) {
                         _setStep(3);
-                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
-                        document.getElementById('modalSubMessage').textContent = 'You will complete payment on the PesaPal secure page.';
-                        await new Promise(r => setTimeout(r, 600));
-                        window.location.href = payRes.redirect_url;
+                        if (selectedMethod === 'visa') {
+                            document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
+                            document.getElementById('modalSubMessage').textContent = 'You will complete payment on the PesaPal secure page.';
+                            await new Promise(r => setTimeout(r, 600));
+                            window.location.href = payRes.redirect_url;
+                        } else {
+                            document.getElementById('modalMessage').textContent    = '🏦 Complete payment below…';
+                            document.getElementById('modalSubMessage').textContent = '';
+                            document.getElementById('modalSpinner').style.display  = 'none';
+                            showMemberPesapalIframe(
+                                payRes.redirect_url, formObject.contact, formObject.amount,
+                                payRes.tracking_id || '', _paymentId || 0, _receiptToken || ''
+                            );
+                        }
                     } else {
                         showError('Could not get a payment link. Please try again.');
                     }

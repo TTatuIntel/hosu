@@ -2073,7 +2073,7 @@ footer {
             var chip = document.querySelector('.reg-pay-chip[data-method="' + method + '"]');
             if (chip) chip.classList.add('selected');
             var bi = document.getElementById('reg-bank-info');
-            if (bi) bi.style.display = method === 'bank' ? 'block' : 'none';
+            if (bi) bi.style.display = 'none';
         };
 
         window._regBackToForm = function() {
@@ -2273,20 +2273,8 @@ footer {
             // --- PAID events: require payment method ---
             if (!_regSelectedPay) { alert('Please select a payment method.'); return; }
 
-            // Bank — show details
-            if (_regSelectedPay === 'bank') {
-                document.getElementById('reg-form-area').style.display = 'none';
-                document.getElementById('reg-process').style.display = '';
-                _regSetStep(1);
-                document.getElementById('reg-spinner').style.display = 'none';
-                document.getElementById('reg-proc-msg').textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
-                document.getElementById('reg-proc-sub').innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-                document.getElementById('reg-proc-close').style.display = '';
-                return;
-            }
-
-            // Visa — PesaPal hosted redirect
-            if (_regSelectedPay === 'visa') {
+            // Visa/Bank — PesaPal hosted redirect/iframe
+            if (_regSelectedPay === 'visa' || _regSelectedPay === 'bank') {
                 document.getElementById('reg-form-area').style.display = 'none';
                 document.getElementById('reg-process').style.display = '';
                 _regSetStep(1);
@@ -2300,7 +2288,7 @@ footer {
                     vFd.append('fullName', fullName); vFd.append('email', email); vFd.append('phone', phone);
                     vFd.append('profession', document.getElementById('reg-position').value.trim() || 'Attendee');
                     vFd.append('institution', document.getElementById('reg-institution').value.trim());
-                    vFd.append('paymentMethod', 'Visa/Mastercard');
+                    vFd.append('paymentMethod', _regSelectedPay === 'bank' ? 'Bank Transfer' : 'Visa/Mastercard');
                     vFd.append('paymentType', 'event_registration');
                     vFd.append('eventId', ev.id || ''); vFd.append('eventTitle', ev.title || ''); vFd.append('eventDate', ev.date || '');
                     vFd.append('amount', amount);
@@ -2325,9 +2313,19 @@ footer {
                     if (vPay.error) { _regShowError(vPay.error); return; }
                     if (vPay.redirect_url) {
                         _regSetStep(3);
-                        document.getElementById('reg-proc-msg').textContent = 'Redirecting to PesaPal…';
-                        await new Promise(function(r){ setTimeout(r,600); });
-                        window.location.href = vPay.redirect_url;
+                        if (_regSelectedPay === 'visa') {
+                            document.getElementById('reg-proc-msg').textContent = 'Redirecting to PesaPal…';
+                            await new Promise(function(r){ setTimeout(r,600); });
+                            window.location.href = vPay.redirect_url;
+                        } else {
+                            document.getElementById('reg-proc-msg').textContent = '🏦 Complete payment below…';
+                            document.getElementById('reg-proc-sub').textContent = '';
+                            document.getElementById('reg-spinner').style.display = 'none';
+                            _regShowPesapalIframe(
+                                vPay.redirect_url, phone, amount,
+                                vPay.tracking_id || '', 0, _regReceiptToken || ''
+                            );
+                        }
                     } else { _regShowError('Could not get payment link. Please try again.'); }
                 } catch(e) { _regShowError('Network error.'); }
                 return;

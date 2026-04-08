@@ -128,7 +128,7 @@
                 chip.classList.add('selected');
                 st.method = chip.getAttribute('data-method');
                 var bi = popup.querySelector('.dfp-bank-info');
-                if (bi) bi.style.display = (st.method === 'bank' || st.method === 'banktobank') ? 'block' : 'none';
+                if (bi) bi.style.display = 'none';
                 validate(popup);
                 dfpUpdateBillingNotice(popup);
             });
@@ -353,17 +353,18 @@
             + '<button id="_dfpIfrClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;line-height:1;">\u00D7</button>'
             + '</div>'
             + '<div style="background:#f0f4ff;padding:5px 14px;font-size:0.75rem;color:#0d4593;font-weight:600;border-bottom:1px solid #dce8ff;flex-shrink:0;">'
-            + '\u2705 Your phone number is pre-filled below. Click Proceed and enter your PIN to confirm.'
+            + '\uD83D\uDD12 Complete your payment securely below. Your billing details are pre-filled.'
             + '</div>'
             + '<iframe src="' + redirectUrl.replace(/"/g,'&quot;') + '" style="flex:1;width:100%;border:none;background:#fff;" allowpaymentrequest></iframe>';
         document.body.appendChild(ifrWrap);
         pSt.pollActive = true;
         var _dfpIfrPolls = 0;
         var _dfpIfrTimer = setInterval(function () {
-            if (!pSt.pollActive) { clearInterval(_dfpIfrTimer); return; }
+            if (!pSt.pollActive) { clearInterval(_dfpIfrTimer); window.removeEventListener('message', _dfpMsgHandler); return; }
             _dfpIfrPolls++;
             if (_dfpIfrPolls > 22) {
                 clearInterval(_dfpIfrTimer); pSt.pollActive = false;
+                window.removeEventListener('message', _dfpMsgHandler);
                 if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                 showError(overlay, 'Payment timed out. If money was deducted, contact us at info@hosu.or.ug.');
                 return;
@@ -373,6 +374,7 @@
                 .then(function(result) {
                     if (result.status === 'completed') {
                         clearInterval(_dfpIfrTimer); pSt.pollActive = false;
+                        window.removeEventListener('message', _dfpMsgHandler);
                         if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                         overlay.querySelector('.dfp-proc-spinner').style.display = 'none';
                         overlay.querySelector('.dfp-proc-countdown').style.display = 'none';
@@ -382,20 +384,48 @@
                         msg.textContent = '\u2705 Payment confirmed!';
                         msg.style.color = '#27ae60';
                         var tok = result.receipt_token || receiptToken;
-                        sub.innerHTML = 'Thank you for your donation! A receipt has been sent to your email.'
+                        sub.innerHTML = 'Thank you! A receipt has been sent to your email.'
                             + (tok ? '<br><br><a href="receipt.php?token=' + encodeURIComponent(tok)
                               + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>' : '');
                         btn.textContent = 'Close'; btn.style.display = '';
                         btn.onclick = function () { overlay.style.display = 'none'; closePopup(popup); };
                     } else if (result.status === 'failed') {
                         clearInterval(_dfpIfrTimer); pSt.pollActive = false;
+                        window.removeEventListener('message', _dfpMsgHandler);
                         if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                         showError(overlay, result.message || 'Payment was declined. Please try again.');
                     }
                 }).catch(function () { /* network hiccup — continue polling */ });
         }, 8000);
+        // Instant completion via postMessage from pesapal_callback.php when inside iframe
+        var _dfpMsgHandler = function(event) {
+            if (!event || !event.data || event.data.type !== 'hosu_payment') return;
+            window.removeEventListener('message', _dfpMsgHandler);
+            clearInterval(_dfpIfrTimer);
+            pSt.pollActive = false;
+            if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+            if (event.data.status === 'success') {
+                overlay.querySelector('.dfp-proc-spinner').style.display = 'none';
+                overlay.querySelector('.dfp-proc-countdown').style.display = 'none';
+                var pmMsg = overlay.querySelector('.dfp-proc-msg');
+                var pmSub = overlay.querySelector('.dfp-proc-sub');
+                var pmBtn = overlay.querySelector('.dfp-proc-close');
+                pmMsg.textContent = '\u2705 Payment confirmed!';
+                pmMsg.style.color = '#27ae60';
+                var pmTok = (event.data.receiptToken) || receiptToken;
+                pmSub.innerHTML = 'Thank you! A receipt has been sent to your email.'
+                    + (pmTok ? '<br><br><a href="receipt.php?token=' + encodeURIComponent(pmTok)
+                      + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>' : '');
+                pmBtn.textContent = 'Close'; pmBtn.style.display = '';
+                pmBtn.onclick = function () { overlay.style.display = 'none'; closePopup(popup); };
+            } else {
+                showError(overlay, (event.data && event.data.message) || 'Payment was not completed. Please try again.');
+            }
+        };
+        window.addEventListener('message', _dfpMsgHandler);
         ifrWrap.querySelector('#_dfpIfrClose').addEventListener('click', function () {
             pSt.pollActive = false; clearInterval(_dfpIfrTimer);
+            window.removeEventListener('message', _dfpMsgHandler);
             if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
             showError(overlay, 'Payment cancelled. Please try again if needed.');
         });
@@ -427,18 +457,68 @@
         var countdownEl = overlay.querySelector('.dfp-proc-countdown');
         var closeBtnEl = overlay.querySelector('.dfp-proc-close');
 
-        // Bank / Bank-to-Bank
+        // Bank / Bank-to-Bank — route through PesaPal hosted page
         if (st.method === 'bank' || st.method === 'banktobank') {
             overlay.style.display = 'flex';
-            spinner.style.display = 'none';
+            spinner.style.display = '';
+            closeBtnEl.style.display = 'none';
             countdownEl.style.display = 'none';
-            setStep(overlay, 1);
-            msgEl.textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
+            setStep(overlay, 0);
+            msgEl.textContent = 'Preparing donation\u2026';
             msgEl.style.color = '';
-            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-            closeBtnEl.textContent = 'Close';
-            closeBtnEl.style.display = '';
-            closeBtnEl.onclick = function () { overlay.style.display = 'none'; };
+            subEl.textContent = '';
+            st.receiptToken = null;
+            st.paymentId = null;
+
+            try {
+                var bPreFd = new FormData();
+                bPreFd.append('fullName', name);
+                bPreFd.append('email', email);
+                bPreFd.append('phone', phone);
+                bPreFd.append('profession', 'Donor');
+                bPreFd.append('institution', '');
+                bPreFd.append('paymentMethod', 'Bank Transfer');
+                bPreFd.append('paymentType', 'donation');
+                bPreFd.append('membershipPeriod', '');
+                bPreFd.append('amount', amount);
+                bPreFd.append('transactionId', '');
+                bPreFd.append('transactionRef', '');
+                var bPreRes = await fetch('api.php?action=pre_register', { method: 'POST', body: bPreFd }).then(function(r){ return r.json(); });
+                if (bPreRes.success) {
+                    st.receiptToken = bPreRes.receipt_token;
+                    st.paymentId    = bPreRes.payment_id;
+                } else {
+                    showError(overlay, bPreRes.error || 'Registration failed.');
+                    return;
+                }
+            } catch(e) { showError(overlay, 'Connection error.'); return; }
+
+            setStep(overlay, 1);
+            msgEl.textContent = 'Connecting to payment gateway\u2026';
+            try {
+                var bPayFd = new FormData();
+                bPayFd.append('payment_id',    st.paymentId || 0);
+                bPayFd.append('receipt_token', st.receiptToken || '');
+                bPayFd.append('amount',        amount);
+                bPayFd.append('email',         email);
+                bPayFd.append('name',          name);
+                bPayFd.append('phone',         phone);
+                bPayFd.append('type',          'donation');
+                var bPayRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: bPayFd }).then(function(r){ return r.json(); });
+                if (bPayRes.error) { showError(overlay, bPayRes.error); return; }
+                if (bPayRes.redirect_url) {
+                    setStep(overlay, 2);
+                    msgEl.textContent = '\uD83C\uDFE6 Complete payment below\u2026';
+                    subEl.textContent = '';
+                    spinner.style.display = 'none';
+                    closeBtnEl.style.display = 'none';
+                    dfpShowPesapalIframe(
+                        bPayRes.redirect_url, phone, amount,
+                        bPayRes.tracking_id || '', st.paymentId || 0, st.receiptToken || '',
+                        overlay, popup
+                    );
+                } else { showError(overlay, 'Could not get payment link. Please try again.'); }
+            } catch(e) { showError(overlay, 'Network error.'); }
             return;
         }
         // Visa — PesaPal hosted redirect
@@ -494,9 +574,15 @@
                 if (vPayRes.error) { showError(overlay, vPayRes.error); return; }
                 if (vPayRes.redirect_url) {
                     setStep(overlay, 2);
-                    msgEl.textContent = 'Redirecting to PesaPal…';
-                    await new Promise(function(r){ setTimeout(r, 600); });
-                    window.location.href = vPayRes.redirect_url;
+                    msgEl.textContent = '\uD83D\uDCB3 Complete payment below\u2026';
+                    subEl.textContent = '';
+                    spinner.style.display = 'none';
+                    closeBtnEl.style.display = 'none';
+                    dfpShowPesapalIframe(
+                        vPayRes.redirect_url, phone, amount,
+                        vPayRes.tracking_id || '', st.paymentId || 0, st.receiptToken || '',
+                        overlay, popup
+                    );
                 } else { showError(overlay, 'Could not get payment link. Please try again.'); }
             } catch(e) { showError(overlay, 'Network error.'); }
             return;

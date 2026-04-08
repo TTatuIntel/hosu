@@ -65,7 +65,7 @@ function pesapalGetToken(): string
 }
 
 // ── Output helper ─────────────────────────────────────────────────────
-function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593'): void
+function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593', array $pmData = []): void
 {
     echo <<<HTML
 <!DOCTYPE html>
@@ -96,6 +96,12 @@ function renderPage(string $title, string $icon, string $heading, string $body, 
   <p>{$body}</p>
   <a href="{$btnHref}" class="btn">{$btnLabel}</a>
 </div>
+HTML;
+    if (!empty($pmData)) {
+        $pm = json_encode($pmData, JSON_HEX_TAG | JSON_HEX_AMP);
+        echo "<script>try{window.parent.postMessage($pm,'*');}catch(e){}</script>\n";
+    }
+    echo <<<HTML
 </body>
 </html>
 HTML;
@@ -198,14 +204,29 @@ try {
             } catch (\Throwable $e) { error_log('Callback pay email: ' . $e->getMessage()); }
         }
 
-        // Redirect to receipt
-        if ($receiptToken) {
-            header('Location: receipt.php?token=' . urlencode($receiptToken));
-            exit;
-        }
-        renderPage('Payment Confirmed', '✅', 'Payment Confirmed!',
-            "Your payment has been received and confirmed. Confirmation code: <strong>$confCode</strong>.",
-            'Return to Home', 'index.html', '#27ae60');
+        // Notify parent window if inside iframe, then redirect/render
+        $jsToken  = json_encode($receiptToken);
+        $safeHref = htmlspecialchars(
+            $receiptToken ? 'receipt.php?token=' . urlencode($receiptToken) : 'index.html',
+            ENT_QUOTES, 'UTF-8'
+        );
+        echo <<<HTML
+<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Payment Confirmed \u2014 HOSU</title>
+<style>body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;}
+.card{background:#fff;border-radius:12px;box-shadow:0 3px 16px rgba(0,0,0,.10);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
+.icon{font-size:2rem;margin-bottom:8px;}h1{margin:0 0 8px;font-size:1.15rem;color:#27ae60;}
+p{color:#555;font-size:0.88rem;line-height:1.55;margin:0;}</style></head>
+<body><div class="card"><div class="icon">&#x2705;</div><h1>Payment Confirmed!</h1><p>Completing&hellip;</p></div>
+<script>
+(function(){
+  var tok=$jsToken;
+  try{window.parent.postMessage({type:'hosu_payment',status:'success',receiptToken:tok},'*');}catch(e){}
+  try{if(window.self===window.top){window.location.href='$safeHref';}}catch(e){window.location.href='$safeHref';}
+})();
+</script></body></html>
+HTML;
+        exit;
 
     } elseif ($statusCode === 2) {
         // FAILED
