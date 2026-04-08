@@ -581,10 +581,23 @@
             catch (e) { _showErr('Network error. Please try again.'); return; }
             if (mRes.error) { _showErr(mRes.error); return; }
 
-            /* PesaPal may return redirect_url — ignore it for MoMo; USSD push is already sent */
-            /* (redirect_url is only used for card payments via init_pesapal) */
+            // If PesaPal returns a redirect_url, open the iframe for the user to complete payment
+            if (mRes.redirect_url) {
+                _msg('Redirecting to PesaPal\u2026');
+                _openIfr({
+                    redirectUrl: mRes.redirect_url,
+                    phone: opts.phone,
+                    amount: opts.amount,
+                    trackingId: mRes.tracking_id,
+                    payId: paymentId,
+                    registrantId: registrantId,
+                    receiptToken: receiptToken,
+                    purpose: purpose
+                });
+                return;
+            }
 
-            /* USSD push sent — show clear info about what they're paying for */
+            // Otherwise, direct USSD push (API MoMo push)
             _step(2);
             _msg('\uD83D\uDCF1 Check your ' + netName + ' phone!');
             _sub(
@@ -596,7 +609,7 @@
             _startPoll({
                 trackingId: mRes.tracking_id || '', payId: paymentId,
                 registrantId: registrantId, receiptToken: receiptToken,
-                maxPolls: 15, interval: 8000 // 2 minutes
+                maxPolls: 15, interval: 8000
             });
             return;
         }
