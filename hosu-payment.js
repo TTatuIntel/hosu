@@ -233,7 +233,7 @@
         _cd('');
         _msg('\u274C ' + (msg || 'Payment could not be completed.'), '#dc2626');
         _sub(detail ||
-            'If you need help, contact us at ' +
+            'If you completed payment by mobile money, provide your proof of payment on ' +
             '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
             ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
             'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.');

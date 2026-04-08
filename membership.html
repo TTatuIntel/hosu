@@ -2309,7 +2309,10 @@ async function initiateRealBankTransfer(transferDetails) {
                 preFd.append('transactionRef',   '');
                 const preResp = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd });
                 let preRes;
-                try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response. Please try again.' }; }
+                try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response (HTTP ' + preResp.status + '). Please try again.' }; }
+                if (preRes.error && preRes.csrf_error) {
+                    preRes.error = 'Session expired. Please refresh the page and try again.';
+                }
                 if (preRes.success) {
                     _receiptToken = preRes.receipt_token;
                     _paymentId    = preRes.payment_id;

@@ -233,7 +233,7 @@
         _cd('');
         _msg('\u274C ' + (msg || 'Payment could not be completed.'), '#dc2626');
         _sub(detail ||
-            'If you need help, contact us at ' +
+            'If you completed payment by mobile money, provide your proof of payment on ' +
             '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
             ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
             'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.');
@@ -725,7 +725,10 @@
             preFd.append('transactionRef',   '');
             var preResp = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd });
             var preRes;
-            try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response. Please try again.' }; }
+            try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response (HTTP ' + preResp.status + '). Please try again.' }; }
+            if (preRes.error && preRes.csrf_error) {
+                preRes.error = 'Session expired. Please refresh the page and try again.';
+            }
             if (preRes.success) {
                 st.receiptToken = preRes.receipt_token;
                 st.paymentId    = preRes.payment_id;

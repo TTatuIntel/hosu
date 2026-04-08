@@ -51,13 +51,16 @@ function pesapalGetToken(): string
     if (is_file($cache)) {
         $c = json_decode(file_get_contents($cache), true);
         if ($c && !empty($c['token']) && !empty($c['exp']) && time() < $c['exp']) return $c['token'];
+        @unlink($cache);
     }
     $res = pesapalRequest('POST', '/api/Auth/RequestToken', [
         'consumer_key'    => PESAPAL_CONSUMER_KEY,
         'consumer_secret' => PESAPAL_CONSUMER_SECRET,
     ], '');
     if (($res['status'] ?? '') !== '200' || empty($res['token'])) {
-        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? json_encode($res)));
+        @unlink($cache);
+        error_log('PesaPal auth failed (IPN): ' . json_encode($res));
+        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? 'Invalid credentials or service unavailable'));
     }
     file_put_contents($cache, json_encode(['token' => $res['token'], 'exp' => time() + 240]));
     return $res['token'];

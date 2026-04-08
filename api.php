@@ -58,7 +58,7 @@ $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 // ── CSRF protection for all mutation (POST) requests ──
 // Exempt actions that don't require authentication (public submissions)
-$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant'];
+$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant', 'pre_register', 'confirm_payment', 'pre_register_event', 'confirm_event_payment'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $csrfExemptActions)) {
     if (!empty($_SESSION['user_id'])) {
         $csrfToken = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';

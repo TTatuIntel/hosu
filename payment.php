@@ -89,13 +89,22 @@ function pesapalGetToken(): string
         if ($c && !empty($c['token']) && !empty($c['exp']) && time() < $c['exp']) {
             return $c['token'];
         }
+        // Cache expired or invalid — delete it
+        @unlink($cache);
+    }
+    if (empty(PESAPAL_CONSUMER_KEY) || empty(PESAPAL_CONSUMER_SECRET)) {
+        throw new RuntimeException('PesaPal credentials not configured. Check .env file.');
     }
     $res = pesapalRequest('POST', '/api/Auth/RequestToken', [
         'consumer_key'    => PESAPAL_CONSUMER_KEY,
         'consumer_secret' => PESAPAL_CONSUMER_SECRET,
     ], '');
     if (($res['status'] ?? '') !== '200' || empty($res['token'])) {
-        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? json_encode($res)));
+        // Clear any stale cache on failure
+        @unlink($cache);
+        @unlink(sys_get_temp_dir() . '/hosu_pp_ipn.json');
+        error_log('PesaPal auth failed: ' . json_encode($res));
+        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? 'Invalid credentials or service unavailable'));
     }
     file_put_contents($cache, json_encode(['token' => $res['token'], 'exp' => time() + 240]));
     return $res['token'];
@@ -871,6 +880,47 @@ switch ($action) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to query PesaPal: ' . $e->getMessage()]);
         }
+        break;
+
+    // ──────────────────────────────────────────────────────────────────
+    // Health check — diagnose payment gateway + DB from the server
+    // Usage: payment.php?action=health (no auth required)
+    // ──────────────────────────────────────────────────────────────────
+    case 'health':
+        $checks = [];
+        // 1. DB
+        try { $pdo->query("SELECT 1"); $checks['database'] = 'ok'; }
+        catch (\Throwable $e) { $checks['database'] = 'FAIL: ' . $e->getMessage(); }
+        // 2. PesaPal credentials in env
+        $checks['pesapal_key_set']    = !empty(PESAPAL_CONSUMER_KEY)    ? 'yes' : 'MISSING';
+        $checks['pesapal_secret_set'] = !empty(PESAPAL_CONSUMER_SECRET) ? 'yes' : 'MISSING';
+        $checks['pesapal_env']        = PESAPAL_ENV;
+        $checks['pesapal_base']       = PESAPAL_BASE;
+        // 3. PesaPal auth test
+        try {
+            // Clear cache to force a fresh auth
+            @unlink(sys_get_temp_dir() . '/hosu_pp_token.json');
+            $tok = pesapalGetToken();
+            $checks['pesapal_auth'] = $tok ? 'ok (token obtained)' : 'FAIL: empty token';
+        } catch (\Throwable $e) { $checks['pesapal_auth'] = 'FAIL: ' . $e->getMessage(); }
+        // 4. IPN registration
+        try {
+            if (!empty($tok)) {
+                $ipnId = pesapalGetIpnId($tok);
+                $checks['pesapal_ipn'] = $ipnId ? 'ok (ipn_id: ' . $ipnId . ')' : 'FAIL: no IPN ID';
+            } else { $checks['pesapal_ipn'] = 'SKIPPED (no auth token)'; }
+        } catch (\Throwable $e) { $checks['pesapal_ipn'] = 'FAIL: ' . $e->getMessage(); }
+        // 5. PHP extensions
+        $checks['curl']    = extension_loaded('curl')    ? 'ok' : 'MISSING';
+        $checks['openssl'] = extension_loaded('openssl') ? 'ok' : 'MISSING';
+        $checks['pdo']     = extension_loaded('pdo')     ? 'ok' : 'MISSING';
+        // 6. Temp dir writable
+        $checks['tmp_writable'] = is_writable(sys_get_temp_dir()) ? 'ok' : 'NOT WRITABLE';
+        // 7. .env loaded
+        $checks['env_loaded']   = getenv('PESAPAL_CONSUMER_KEY') ? 'yes' : 'NOT LOADED';
+        $checks['server_time']  = date('Y-m-d H:i:s T');
+        $checks['php_version']  = PHP_VERSION;
+        echo json_encode($checks, JSON_PRETTY_PRINT);
         break;
 
     default:
