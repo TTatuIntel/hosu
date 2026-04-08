@@ -13,6 +13,15 @@
     <link rel="stylesheet" href="donate-float.css?v=2026040404">
     <link rel="stylesheet" href="shared-footer.css?v=2026040404">
     <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <script>
+    // Ensure hosu-payment.js is loaded for unified payment overlay
+    (function() {
+        if (window.HosuPay || document.querySelector('script[src*="hosu-payment"]')) return;
+        var s = document.createElement('script');
+        s.src = 'hosu-payment.js?v=2026040801';
+        document.head.appendChild(s);
+    })();
+    </script>
     <style>
         :root {
             --primary-color: #e63946;
@@ -1700,7 +1709,7 @@
                         <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
                     </button>
                     <button type="button" class="pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')" style="border-color:#1a6dd5;">
-                        <i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> Card / Bank
+                        <i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> Card / Bank (PesaPal)
                         <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
                     </button>
                 </div>
@@ -1709,21 +1718,6 @@
 
                 <button type="button" onclick="payNow()" id="submitButton" disabled>Process Payment</button>
             </form>
-        </div>
-    </div>
-
-    <div class="bank-details-modal" id="bankDetailsModal">
-        <div class="bank-details-content">
-            <button class="bank-details-close" onclick="closeBankDetails()">
-                <i class="fas fa-times"></i>
-            </button>
-            <h3>Bank Transfer Details</h3>
-            <p>Account: HOSU Limited</p>
-            <p>No: 9030025235214</p>
-            <p>Bank: Stanbic Bank</p>
-            <p>Branch: Mulago</p>
-            <p>Please transfer UGX 100,000 to the account above and provide your proof of payment on <a href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener">WhatsApp +256 709 752107</a>.</p>
-            <button onclick="closeBankDetails()" class="modal-btn-full">Close</button>
         </div>
     </div>
 
@@ -1766,31 +1760,7 @@
     </style>
 
     <!-- Bank-to-Bank Transfer Modal -->
-<div class="bank-details-modal" id="bankToBankModal">
-    <div class="bank-details-content">
-        <button class="close-modal" id="closeBankToBankModal" aria-label="Close bank transfer">
-            <i class="fas fa-times"></i>
-        </button>
-        <h3>Bank-to-Bank Transfer</h3>
-        <div class="form-group">
-            <label for="sourceBank">Your Bank</label>
-            <select id="sourceBank" required>
-                <option value="">Select your bank</option>
-                <option value="stanbic">Stanbic Bank</option>
-                <option value="centenary">Centenary Bank</option>
-                <option value="dfcu">DFCU Bank</option>
-                <option value="equity">Equity Bank</option>
-                <option value="absa">Absa Bank</option>
-            </select>
-        </div>
-        <div class="form-group">
-            <label for="accountNumber">Your Account Number</label>
-            <input type="text" id="accountNumber" required>
-        </div>
-        <p>We'll redirect you to your bank's secure portal to complete the transfer</p>
-        <button onclick="initiateBankTransfer()">Proceed to Bank Portal</button>
-    </div>
-</div>
+
 
 <!-- Visa Processing Modal removed: Visa payments now handled via PesaPal -->
 
@@ -2076,11 +2046,7 @@ function selectPayment(method) {
     document.getElementById('paymentDetails').classList.add('hidden');
     document.getElementById('paymentDetails').innerHTML = '';
 
-    if (method === 'bank') {
-        document.getElementById('bankDetailsModal').style.display = 'flex';
-    } else if (method === 'banktobank') {
-        document.getElementById('bankToBankModal').style.display = 'flex';
-    } else if (method === 'mtn') {
+    if (method === 'mtn') {
         const pd = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
         pd.innerHTML = '<i class="fas fa-mobile-alt"></i> A <strong>MTN Mobile Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
@@ -2091,7 +2057,7 @@ function selectPayment(method) {
     } else if (method === 'visa') {
         const pd = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
-        pd.innerHTML = '<i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> You will be redirected to the PesaPal secure page to complete your Visa/Mastercard payment.';
+        pd.innerHTML = '<i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> You will be redirected to the PesaPal secure page to complete your Visa/Mastercard or Bank payment.';
     }
     document.getElementById('submitButton').disabled = false;
 }
