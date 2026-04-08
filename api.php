@@ -45,7 +45,7 @@ $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 // ── CSRF protection for all mutation (POST) requests ──
 // Exempt actions that don't require authentication (public submissions)
-$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant'];
+$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant', 'pre_register'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $csrfExemptActions)) {
     if (!empty($_SESSION['user_id'])) {
         $csrfToken = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
@@ -1087,57 +1087,62 @@ HTML;
     // ── Pre-register: save member+payment as PENDING before gateway call ─
     case 'pre_register':
         try {
-            // Ensure tables + columns exist (same migration as register_member)
-            $pdo->exec("CREATE TABLE IF NOT EXISTS members (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                full_name VARCHAR(150) NOT NULL,
-                email VARCHAR(150) NOT NULL,
-                phone VARCHAR(30) DEFAULT '',
-                profession VARCHAR(100) DEFAULT '',
-                institution VARCHAR(200) DEFAULT '',
-                membership_type VARCHAR(50) NOT NULL DEFAULT 'annual',
-                status ENUM('pending','active','expired','rejected') NOT NULL DEFAULT 'pending',
-                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            $pdo->exec("CREATE TABLE IF NOT EXISTS payments (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                member_id INT NOT NULL,
-                amount DECIMAL(12,2) NOT NULL DEFAULT 0,
-                currency VARCHAR(10) NOT NULL DEFAULT 'UGX',
-                payment_method VARCHAR(50) DEFAULT 'unknown',
-                transaction_ref VARCHAR(100) DEFAULT '',
-                transaction_id VARCHAR(100) DEFAULT '',
-                proof_file VARCHAR(255) DEFAULT '',
-                status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
-                invoice_sent TINYINT(1) NOT NULL DEFAULT 0,
-                receipt_number VARCHAR(30) DEFAULT '',
-                receipt_token VARCHAR(64) DEFAULT '',
-                qr_scanned TINYINT(1) NOT NULL DEFAULT 0,
-                scanned_at TIMESTAMP NULL DEFAULT NULL,
-                notes TEXT DEFAULT '',
-                payment_type ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership',
-                membership_period VARCHAR(20) DEFAULT '1_year',
-                membership_expires_at DATE NULL DEFAULT NULL,
-                event_id VARCHAR(100) DEFAULT '',
-                event_title VARCHAR(255) DEFAULT '',
-                event_date VARCHAR(100) DEFAULT '',
-                paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            // Ensure tables + columns exist (wrapped in separate try/catch so DDL failures don't block payment)
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS members (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    full_name VARCHAR(150) NOT NULL,
+                    email VARCHAR(150) NOT NULL,
+                    phone VARCHAR(30) DEFAULT '',
+                    profession VARCHAR(100) DEFAULT '',
+                    institution VARCHAR(200) DEFAULT '',
+                    membership_type VARCHAR(50) NOT NULL DEFAULT 'annual',
+                    status ENUM('pending','active','expired','rejected') NOT NULL DEFAULT 'pending',
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+                $pdo->exec("CREATE TABLE IF NOT EXISTS payments (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    member_id INT NOT NULL,
+                    amount DECIMAL(12,2) NOT NULL DEFAULT 0,
+                    currency VARCHAR(10) NOT NULL DEFAULT 'UGX',
+                    payment_method VARCHAR(50) DEFAULT 'unknown',
+                    transaction_ref VARCHAR(100) DEFAULT '',
+                    transaction_id VARCHAR(100) DEFAULT '',
+                    proof_file VARCHAR(255) DEFAULT '',
+                    status ENUM('pending','verified','rejected') NOT NULL DEFAULT 'pending',
+                    invoice_sent TINYINT(1) NOT NULL DEFAULT 0,
+                    receipt_number VARCHAR(30) DEFAULT '',
+                    receipt_token VARCHAR(64) DEFAULT '',
+                    qr_scanned TINYINT(1) NOT NULL DEFAULT 0,
+                    scanned_at TIMESTAMP NULL DEFAULT NULL,
+                    notes TEXT DEFAULT '',
+                    payment_type ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership',
+                    membership_period VARCHAR(20) DEFAULT '1_year',
+                    membership_expires_at DATE NULL DEFAULT NULL,
+                    event_id VARCHAR(100) DEFAULT '',
+                    event_title VARCHAR(255) DEFAULT '',
+                    event_date VARCHAR(100) DEFAULT '',
+                    paid_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
 
-            // Live schema migration — add new columns to existing tables if missing
-            $existingCols = array_column($pdo->query("DESCRIBE payments")->fetchAll(PDO::FETCH_ASSOC), 'Field');
-            $newCols = [
-                'transaction_id'        => "ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(100) DEFAULT '' AFTER transaction_ref",
-                'payment_type'          => "ALTER TABLE payments ADD COLUMN payment_type ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership' AFTER notes",
-                'membership_period'     => "ALTER TABLE payments ADD COLUMN membership_period VARCHAR(20) DEFAULT '1_year' AFTER payment_type",
-                'membership_expires_at' => "ALTER TABLE payments ADD COLUMN membership_expires_at DATE NULL DEFAULT NULL AFTER membership_period",
-                'event_id'              => "ALTER TABLE payments ADD COLUMN event_id VARCHAR(100) DEFAULT '' AFTER membership_expires_at",
-                'event_title'           => "ALTER TABLE payments ADD COLUMN event_title VARCHAR(255) DEFAULT '' AFTER event_id",
-                'event_date'            => "ALTER TABLE payments ADD COLUMN event_date VARCHAR(100) DEFAULT '' AFTER event_title",
-            ];
-            foreach ($newCols as $col => $sql) {
-                if (!in_array($col, $existingCols)) { try { $pdo->exec($sql); } catch (Exception $_e) {} }
+                // Live schema migration — add new columns to existing tables if missing
+                $existingCols = array_column($pdo->query("DESCRIBE payments")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+                $newCols = [
+                    'transaction_id'        => "ALTER TABLE payments ADD COLUMN transaction_id VARCHAR(100) DEFAULT '' AFTER transaction_ref",
+                    'payment_type'          => "ALTER TABLE payments ADD COLUMN payment_type ENUM('membership','event_registration','donation') NOT NULL DEFAULT 'membership' AFTER notes",
+                    'membership_period'     => "ALTER TABLE payments ADD COLUMN membership_period VARCHAR(20) DEFAULT '1_year' AFTER payment_type",
+                    'membership_expires_at' => "ALTER TABLE payments ADD COLUMN membership_expires_at DATE NULL DEFAULT NULL AFTER membership_period",
+                    'event_id'              => "ALTER TABLE payments ADD COLUMN event_id VARCHAR(100) DEFAULT '' AFTER membership_expires_at",
+                    'event_title'           => "ALTER TABLE payments ADD COLUMN event_title VARCHAR(255) DEFAULT '' AFTER event_id",
+                    'event_date'            => "ALTER TABLE payments ADD COLUMN event_date VARCHAR(100) DEFAULT '' AFTER event_title",
+                ];
+                foreach ($newCols as $col => $sql) {
+                    if (!in_array($col, $existingCols)) { try { $pdo->exec($sql); } catch (Exception $_e) {} }
+                }
+            } catch (Exception $ddlErr) {
+                error_log('pre_register DDL migration: ' . $ddlErr->getMessage());
+                // Continue — tables likely already exist on production
             }
 
             $name        = trim($_POST['fullName']         ?? '');
@@ -1223,7 +1228,9 @@ HTML;
             echo json_encode(['success' => true, 'payment_id' => $paymentId, 'member_id' => $memberId, 'receipt_token' => $receiptToken, 'receipt_number' => $receiptNum]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+            error_log('pre_register error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ':' . $e->getLine());
+            http_response_code(500);
+            echo json_encode(['error' => 'Payment setup failed. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 

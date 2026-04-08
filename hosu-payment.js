@@ -456,7 +456,10 @@
 
         var preRes;
         try {
-            preRes = await (await fetch(preUrl, { method: 'POST', body: fd })).json();
+            var preRaw = await fetch(preUrl, { method: 'POST', body: fd });
+            var preText = await preRaw.text();
+            try { preRes = JSON.parse(preText); }
+            catch (_) { _showErr('Server returned an unexpected response.', 'This may be a temporary server issue. Please try again in a moment or contact <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>.'); console.error('Pre-register non-JSON:', preText.substring(0, 500)); return; }
         } catch (e) { _showErr('Connection error', 'Please check your internet and try again.'); return; }
         if (!preRes.success) { _showErr(preRes.error || 'Registration failed'); return; }
 
