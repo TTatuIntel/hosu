@@ -354,7 +354,7 @@
         if (opts.trackingId) {
             _pollCount = 0;
             _pollTimer = setInterval(async function () {
-                if (++_pollCount > 22) {
+                if (++_pollCount > 23) {
                     _showErr('Payment timed out. Your pending payment has been cancelled.');
                     return;
                 }
@@ -588,7 +588,7 @@
             _startPoll({
                 trackingId: mRes.tracking_id || '', payId: paymentId,
                 registrantId: registrantId, receiptToken: receiptToken,
-                maxPolls: 112, interval: 8000
+                maxPolls: 23, interval: 8000
             });
             return;
         }

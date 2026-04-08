@@ -40,10 +40,12 @@ if (!empty($_SESSION['user_id']) && !empty($_SESSION['last_activity'])) {
     $_SESSION['last_activity'] = time();
 }
 
-// ── Auto-purge stale pending payments (older than 15 minutes) ──
+// ── Auto-purge stale pending payments (older than 1 day) ──
+// Front-end auto-cancels immediately on timeout/fail/close.
+// This is a safety net for any records that slip through.
 try {
-    $pdo->exec("DELETE FROM payments WHERE status = 'pending' AND paid_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
-    $pdo->exec("DELETE FROM event_registrants WHERE payment_status = 'pending' AND registered_at < DATE_SUB(NOW(), INTERVAL 15 MINUTE)");
+    $pdo->exec("DELETE FROM payments WHERE status = 'pending' AND paid_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
+    $pdo->exec("DELETE FROM event_registrants WHERE payment_status = 'pending' AND registered_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
 } catch (Exception $e) {
     error_log('Auto-purge error: ' . $e->getMessage());
 }
