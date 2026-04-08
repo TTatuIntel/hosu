@@ -474,6 +474,7 @@ switch ($action) {
     // channel = UGMTNMOMODIR or UGAIRTELMODIR
     // ──────────────────────────────────────────────────────────────────
     case 'pay_mobile':
+
         try {
             $phone   = trim($_POST['phone']          ?? '');
             $amount  = (float)($_POST['amount']      ?? 0);
@@ -485,6 +486,20 @@ switch ($action) {
             $type    = trim($_POST['type']           ?? 'membership');
             $tok     = trim($_POST['receipt_token']  ?? '');
             $purpose = trim($_POST['purpose']        ?? '');
+
+            // Debug logging: log every mobile money payment attempt and PesaPal response
+            file_put_contents(
+                __DIR__ . '/pesapal_debug.log',
+                date('c') . "\n" .
+                'Request: ' . json_encode([
+                    'phone' => $phone,
+                    'amount' => $amount,
+                    'channel' => $channel,
+                    'callbackUrl' => $callbackUrl ?? null,
+                    'merchantRef' => $merchantRef ?? null
+                ]) . "\n",
+                FILE_APPEND
+            );
 
             if (!in_array($channel, ['UGMTNMOMODIR', 'UGAIRTELMODIR'], true)) {
                 http_response_code(400);
@@ -561,6 +576,13 @@ switch ($action) {
                     'last_name'     => $lastName,
                 ],
             ], $ppToken);
+
+            // Log the response
+            file_put_contents(
+                __DIR__ . '/pesapal_debug.log',
+                'Response: ' . json_encode($result) . "\n\n",
+                FILE_APPEND
+            );
 
             $trackingId = $result['order_tracking_id'] ?? '';
             if ($trackingId) {

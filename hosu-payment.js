@@ -538,6 +538,14 @@
         } catch (e) { _showErr('Connection error', 'Please check your internet and try again.'); return; }
         if (!preRes.success) { _showErr(preRes.error || 'Registration failed'); return; }
 
+
+        // Strict phone number validation (Uganda format: 2567XXXXXXXX)
+        var phone = (opts.phone || '').replace(/\D/g, '');
+        if (!/^2567\d{8}$/.test(phone)) {
+            _showErr('Please enter a valid Ugandan phone number in the format 07XXXXXXXX or 2567XXXXXXXX.');
+            return;
+        }
+
         var paymentId    = preRes.payment_id    || 0;
         var registrantId = preRes.registrant_id || 0;
         var receiptToken = preRes.receipt_token || '';
@@ -588,7 +596,7 @@
             _startPoll({
                 trackingId: mRes.tracking_id || '', payId: paymentId,
                 registrantId: registrantId, receiptToken: receiptToken,
-                maxPolls: 23, interval: 8000
+                maxPolls: 15, interval: 8000 // 2 minutes
             });
             return;
         }
