@@ -1,234 +1,254 @@
-<?php
-/**
- * pesapal_callback.php — PesaPal payment redirect handler
- *
- * PesaPal redirects the user here after they complete (or cancel) payment.
- * URL params from PesaPal: OrderTrackingId, OrderMerchantReference
- * Our params (passed in the callback_url we gave PesaPal): payment_id,
- * registrant_id, receipt_token, type
- */
+/* ============================================================
+   SHARED NAVBAR STYLES — navbar.css
+   Single-row: Logo left, nav links right
+   Include in ALL pages for a uniform navigation look.
+   ============================================================ */
 
-require_once __DIR__ . '/env.php';
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/mailer.php';
-
-// ── Re-use PesaPal helpers from payment.php ───────────────────────────
-define('PESAPAL_ENV',             getenv('PESAPAL_ENV') ?: 'production');
-define('PESAPAL_BASE',            PESAPAL_ENV === 'sandbox'
-    ? 'https://cybqa.pesapal.com/pesapalv3'
-    : 'https://pay.pesapal.com/v3');
-define('PESAPAL_CONSUMER_KEY',    getenv('PESAPAL_CONSUMER_KEY') ?: '');
-define('PESAPAL_CONSUMER_SECRET', getenv('PESAPAL_CONSUMER_SECRET') ?: '');
-
-function pesapalRequest(string $method, string $endpoint, ?array $body, string $token = ''): array
-{
-    $url     = PESAPAL_BASE . $endpoint;
-    $headers = ['Content-Type: application/json', 'Accept: application/json'];
-    if ($token) $headers[] = 'Authorization: Bearer ' . $token;
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 30,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_HTTPHEADER     => $headers,
-    ]);
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body ?? new stdClass()));
-    }
-    $resp     = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err      = curl_error($ch);
-    curl_close($ch);
-    if ($err) throw new RuntimeException('PesaPal connection error: ' . $err);
-    $data = json_decode($resp, true);
-    if (!is_array($data)) throw new RuntimeException("PesaPal invalid response (HTTP $httpCode)");
-    return $data;
+/* Navbar */
+.navbar {
+    background: rgba(247, 250, 252, 0.65) !important;
+    -webkit-backdrop-filter: blur(18px) !important;
+    backdrop-filter: blur(18px) !important;
+    padding: 0 3% !important;
+    display: flex !important;
+    justify-content: center !important;
+    align-items: center !important;
+    position: fixed !important;
+    width: 100% !important;
+    top: 0 !important;
+    z-index: 3000 !important;
+    height: 90px !important;
+    transition: all 0.3s ease !important;
+    border-bottom: none !important;
+    box-shadow: none !important;
 }
 
-function pesapalGetToken(): string
-{
-    $cache = sys_get_temp_dir() . '/hosu_pp_token.json';
-    if (is_file($cache)) {
-        $c = json_decode(file_get_contents($cache), true);
-        if ($c && !empty($c['token']) && !empty($c['exp']) && time() < $c['exp']) return $c['token'];
-    }
-    $res = pesapalRequest('POST', '/api/Auth/RequestToken', [
-        'consumer_key'    => PESAPAL_CONSUMER_KEY,
-        'consumer_secret' => PESAPAL_CONSUMER_SECRET,
-    ], '');
-    if (($res['status'] ?? '') !== '200' || empty($res['token'])) {
-        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? json_encode($res)));
-    }
-    file_put_contents($cache, json_encode(['token' => $res['token'], 'exp' => time() + 240]));
-    return $res['token'];
+.navbar.scrolled {
+    background: rgba(255, 255, 255, 0.92) !important;
+    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06) !important;
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
 }
 
-// ── Output helper ─────────────────────────────────────────────────────
-function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593'): void
-{
-    echo <<<HTML
-<!DOCTYPE html>
-<html lang="en">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{$title} — HOSU</title>
-<style>
-  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-  .card{background:#fff;border-radius:12px;box-shadow:0 3px 16px rgba(0,0,0,.10);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
-  .icon{font-size:2rem;margin-bottom:8px;}
-  h1{margin:0 0 8px;font-size:1.15rem;color:{$color};}
-  p{color:#555;line-height:1.55;margin:0 0 18px;font-size:0.88rem;}
-  a.btn{display:inline-block;padding:9px 26px;background:{$color};color:#fff;border-radius:7px;text-decoration:none;font-weight:700;font-size:0.88rem;}
-  a.btn:hover{opacity:.9;}
-  .logo{margin-bottom:14px;}
-  .logo img{height:34px;}
-  a.contact-link{color:{$color};font-weight:600;text-decoration:none;white-space:nowrap;}
-  a.contact-link:hover{text-decoration:underline;}
-</style>
-</head>
-<body>
-<div class="card">
-  <div class="logo"><img src="img/hosu-logo.png" alt="HOSU" onerror="this.style.display='none'"></div>
-  <div class="icon">{$icon}</div>
-  <h1>{$heading}</h1>
-  <p>{$body}</p>
-  <a href="{$btnHref}" class="btn">{$btnLabel}</a>
-</div>
-</body>
-</html>
-HTML;
-    exit;
+.navbar .navbar-container {
+    display: flex !important;
+    flex-direction: row !important;
+    justify-content: space-between !important;
+    align-items: center !important;
+    width: 100% !important;
+    max-width: 1400px !important;
+    margin: 0 auto !important;
+    padding: 0 !important;
 }
 
-// ── Read parameters ───────────────────────────────────────────────────
-$orderTrackingId = trim($_GET['OrderTrackingId'] ?? '');
-$payId           = (int)($_GET['payment_id']    ?? 0);
-$regId           = (int)($_GET['registrant_id'] ?? 0);
-$receiptToken    = trim($_GET['receipt_token']  ?? '');
-$type            = trim($_GET['type']           ?? 'membership');
-
-// Guard: no tracking ID means PesaPal never processed
-if (!$orderTrackingId) {
-    renderPage('Payment Error', '⚠️', 'Missing Payment Reference',
-        'We could not find a valid payment reference. If you completed a payment, contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-        'Return to Home', 'index.html', '#e63946');
+/* Logo */
+.navbar .logo {
+    display: flex !important;
+    align-items: center !important;
+    flex-shrink: 0 !important;
 }
 
-// ── Verify with PesaPal API ───────────────────────────────────────────
-try {
-    $ppToken = pesapalGetToken();
-    $status  = pesapalRequest('GET',
-        '/api/Transactions/GetTransactionStatus?orderTrackingId=' . urlencode($orderTrackingId),
-        null, $ppToken);
+.navbar .logo a {
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+}
 
-    $statusCode  = (int)($status['status_code'] ?? -1);
-    $paymentDesc = htmlspecialchars($status['payment_status_description'] ?? '', ENT_QUOTES, 'UTF-8');
-    $confCode    = htmlspecialchars($status['confirmation_code']          ?? '', ENT_QUOTES, 'UTF-8');
-    $merchantRef = $status['merchant_reference'] ?? '';
+.navbar .logo img {
+    height: 80px !important;
+    width: auto !important;
+    object-fit: contain !important;
+    transition: transform 0.3s ease !important;
+}
 
-    if ($statusCode === 1) {
-        // ── COMPLETED ────────────────────────────────────────────────
-        // Mark verified in DB
-        if ($regId) {
-            $sets   = ["payment_status = 'verified'", "transaction_id = ?"];
-            $params = [$orderTrackingId, $regId];
-            $pdo->prepare("UPDATE event_registrants SET " . implode(', ', $sets) . " WHERE id = ?")
-                ->execute($params);
-        }
-        if ($payId) {
-            $pdo->beginTransaction();
-            $row = $pdo->prepare("SELECT id, member_id, status FROM payments WHERE id = ? FOR UPDATE");
-            $row->execute([$payId]);
-            $pay = $row->fetch(PDO::FETCH_ASSOC);
-            if ($pay && $pay['status'] !== 'verified') {
-                $pdo->prepare("UPDATE payments SET status='verified', paid_at=NOW(), transaction_id=? WHERE id=?")
-                    ->execute([$orderTrackingId, $payId]);
-                if ($pay['member_id']) {
-                    $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
-                }
-            }
-            $pdo->commit();
-        }
+/* Nav Links */
+.navbar .nav-links {
+    display: flex !important;
+    gap: 1.75rem !important;
+    align-items: center !important;
+    list-style: none !important;
+    margin: 0 !important;
+    padding: 0 !important;
+}
 
-        // Send receipt email
-        if ($regId) {
-            try {
-                // Inline minimal receipt email for events
-                $r = $pdo->prepare("SELECT * FROM event_registrants WHERE id = ?");
-                $r->execute([$regId]);
-                $row = $r->fetch(PDO::FETCH_ASSOC);
-                if ($row && !empty($row['email'])) {
-                    $name    = htmlspecialchars($row['full_name'],    ENT_QUOTES, 'UTF-8');
-                    $receipt = htmlspecialchars($row['receipt_number'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $evTitle = htmlspecialchars($row['event_title']   ?? '', ENT_QUOTES, 'UTF-8');
-                    $amount  = number_format((float)$row['amount'], 0, '.', ',');
-                    $recUrl  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                             . '://' . preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost')
-                             . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')
-                             . '/receipt.php?token=' . urlencode($receiptToken);
-                    hosuMail($row['email'], "HOSU Event Receipt — $receipt",
-                        "<p>Dear $name,</p><p>Your payment of UGX $amount for <strong>$evTitle</strong> has been confirmed (Receipt: $receipt).</p>"
-                        . "<p><a href='$recUrl'>View your receipt</a></p>");
-                }
-            } catch (\Throwable $e) { error_log('Callback event email: ' . $e->getMessage()); }
-        }
-        if ($payId) {
-            try {
-                $r = $pdo->prepare("SELECT p.*, m.full_name, m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
-                $r->execute([$payId]);
-                $row = $r->fetch(PDO::FETCH_ASSOC);
-                if ($row && !empty($row['email'])) {
-                    $name    = htmlspecialchars($row['full_name']     ?? '', ENT_QUOTES, 'UTF-8');
-                    $receipt = htmlspecialchars($row['receipt_number'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $amount  = number_format((float)$row['amount'], 0, '.', ',');
-                    $ptype   = $row['payment_type'] ?? 'payment';
-                    $labels  = ['membership'=>'Membership','donation'=>'Donation','event_registration'=>'Event'];
-                    $label   = $labels[$ptype] ?? 'Payment';
-                    $recUrl  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                             . '://' . preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost')
-                             . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')
-                             . '/receipt.php?token=' . urlencode($receiptToken);
-                    hosuMail($row['email'], "HOSU Receipt — $receipt",
-                        "<p>Dear $name,</p><p>Your $label payment of UGX $amount has been confirmed (Receipt: $receipt).</p>"
-                        . "<p><a href='$recUrl'>View your receipt</a></p>");
-                    $pdo->prepare("UPDATE payments SET invoice_sent=1 WHERE id=?")->execute([$payId]);
-                }
-            } catch (\Throwable $e) { error_log('Callback pay email: ' . $e->getMessage()); }
-        }
+.navbar .nav-links a {
+    text-decoration: none !important;
+    color: #12294a !important;
+    font-weight: 400 !important;
+    font-size: 0.88rem !important;
+    transition: color 0.3s ease !important;
+    position: relative !important;
+    padding: 0.4rem 0.15rem !important;
+    white-space: nowrap !important;
+}
 
-        // Redirect to receipt
-        if ($receiptToken) {
-            header('Location: receipt.php?token=' . urlencode($receiptToken));
-            exit;
-        }
-        renderPage('Payment Confirmed', '✅', 'Payment Confirmed!',
-            "Your payment has been received and confirmed. Confirmation code: <strong>$confCode</strong>.",
-            'Return to Home', 'index.html', '#27ae60');
+.navbar .nav-links a:not(.cta-button)::after {
+    content: '' !important;
+    position: absolute !important;
+    width: 0 !important;
+    height: 2.5px !important;
+    bottom: -3px !important;
+    left: 0 !important;
+    background-color: #e63946 !important;
+    transition: width 0.3s ease !important;
+    border-radius: 2px !important;
+}
 
-    } elseif ($statusCode === 2) {
-        // FAILED
-        renderPage('Payment Failed', '❌', 'Payment Failed',
-            'Your payment was not completed. Please try again or contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Try Again', 'membership.html', '#e63946');
+.navbar .nav-links a:not(.cta-button):hover::after {
+    width: 100% !important;
+}
 
-    } elseif ($statusCode === 3) {
-        // REVERSED
-        renderPage('Payment Reversed', '↩️', 'Payment Reversed',
-            'Your payment was reversed. Please contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Contact Us', 'contact.html', '#e63946');
+.navbar .nav-links a:not(.cta-button):hover {
+    color: #e63946 !important;
+}
 
-    } else {
-        // PENDING — user may have cancelled or payment is still processing
-        renderPage('Payment Pending', '⏳', 'Payment Pending',
-            "Your payment is still being processed (status: $paymentDesc). If you completed payment, your receipt will be sent to your email. Contact us at <a class='contact-link' href='mailto:info@hosu.or.ug'>info@hosu.or.ug</a> or <a class='contact-link' href='https://wa.me/256709752107'>WhatsApp +256 709 752107</a> if you need help.",
-            'Return to Home', 'index.html', '#f39c12');
+.navbar .nav-links .cta-button {
+    background: #e63946 !important;
+    color: #ffffff !important;
+    padding: 0.6rem 1.4rem !important;
+    border-radius: 30px !important;
+    font-weight: 700 !important;
+    font-size: 0.95rem !important;
+    display: inline-flex !important;
+    align-items: center !important;
+    justify-content: center !important;
+    box-shadow: 0 2px 8px rgba(230, 57, 70, 0.25) !important;
+    border: none !important;
+    transition: all 0.3s ease !important;
+    white-space: nowrap !important;
+}
+
+.navbar .nav-links .cta-button:hover {
+    background: #c81d2a !important;
+    transform: translateY(-2px) !important;
+    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.35) !important;
+}
+
+.navbar .nav-links .cta-button::after {
+    display: none !important;
+}
+
+/* Menu Toggle */
+.navbar .menu-toggle {
+    display: none !important;
+    cursor: pointer !important;
+    font-size: 1.5rem !important;
+    width: 44px !important;
+    height: 44px !important;
+    align-items: center !important;
+    justify-content: center !important;
+    border-radius: 8px !important;
+    transition: background-color 0.3s ease !important;
+    color: #12294a !important;
+    background: transparent !important;
+    border: none !important;
+    flex-shrink: 0 !important;
+}
+
+.navbar .menu-toggle:hover {
+    background-color: #edf2f7 !important;
+}
+
+/* ============================================================
+   RESPONSIVE
+   ============================================================ */
+@media (max-width: 1100px) {
+    .navbar .nav-links {
+        gap: 1.25rem !important;
     }
 
-} catch (\Throwable $e) {
-    error_log('PesaPal callback error: ' . $e->getMessage());
-    renderPage('Payment Error', '⚠️', 'Server Error',
-        'We could not verify your payment at this time. If money was deducted, provide proof of payment to <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-        'Return to Home', 'index.html', '#e63946');
+    .navbar .nav-links a {
+        font-size: 0.92rem !important;
+    }
+
+    .navbar .logo img {
+        height: 62px !important;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        height: 80px !important;
+        padding: 0 1rem !important;
+    }
+
+    .navbar .logo img {
+        height: 58px !important;
+    }
+
+    .navbar .nav-links {
+        position: fixed !important;
+        top: 80px !important;
+        left: 0 !important;
+        width: 100% !important;
+        background: #ffffff !important;
+        flex-direction: column !important;
+        padding: 0.5rem 0 !important;
+        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
+        z-index: 3000 !important;
+        opacity: 0 !important;
+        visibility: hidden !important;
+        transform: translateY(-10px) !important;
+        transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease !important;
+        gap: 0 !important;
+        border-top: 1px solid #edf2f7 !important;
+        display: flex !important;
+    }
+
+    .navbar .nav-links.active {
+        opacity: 1 !important;
+        visibility: visible !important;
+        transform: translateY(0) !important;
+    }
+
+    .navbar .nav-links a {
+        font-size: 1rem !important;
+        padding: 0.85rem 1.5rem !important;
+        width: 100% !important;
+        text-align: center !important;
+        border-bottom: 1px solid #edf2f7 !important;
+    }
+
+    .navbar .nav-links a:last-child {
+        border-bottom: none !important;
+    }
+
+    .navbar .nav-links a:not(.cta-button)::after {
+        display: none !important;
+    }
+
+    .navbar .nav-links a:not(.cta-button):hover {
+        background-color: #f7fafc !important;
+    }
+
+    .navbar .nav-links .cta-button {
+        margin: 0.5rem 1.5rem !important;
+        width: calc(100% - 3rem) !important;
+        text-align: center !important;
+        justify-content: center !important;
+    }
+
+    .navbar .menu-toggle {
+        display: flex !important;
+    }
+}
+
+@media (max-width: 480px) {
+    .navbar {
+        height: 64px !important;
+        padding: 0 0.75rem !important;
+    }
+
+    .navbar .logo img {
+        width: 150px !important;
+        height: 50px !important;
+    }
+
+    .navbar .nav-links {
+        top: 64px !important;
+    }
+
+    .navbar .nav-links a {
+        font-size: 0.9rem !important;
+        padding: 0.75rem 1.25rem !important;
+    }
 }

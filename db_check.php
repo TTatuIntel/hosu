@@ -1,613 +1,250 @@
-/* ============================================================
-   UNIFIED DONATE / SUPPORT — donate-float.js
-   Single source of truth for ALL donate/support popups.
-   Include on ALL pages alongside donate-float.css.
-   ============================================================ */
-(function () {
-    'use strict';
+<?php
+/**
+ * HOSU Database Connection Diagnostics
+ * ---------------------------------------------------
+ * Visit this page ONCE to diagnose and fix the DB issue.
+ * DELETE or password-protect this file after use.
+ *
+ * Usage: https://hosu.or.ug/db_check.php?key=HOSU_DIAG_2026
+ */
 
-    /* ── AUTO-INJECT CSRF TOKEN INTO ALL POST REQUESTS ── */
-    if (!window._hosuFetchPatched) {
-        var _origFetch = window.fetch;
-        window.fetch = function (url, opts) {
-            if (opts && opts.method && opts.method.toUpperCase() === 'POST' && opts.body instanceof FormData) {
-                if (window._hosuCsrfToken && !opts.body.has('csrf_token')) {
-                    opts.body.append('csrf_token', window._hosuCsrfToken);
-                }
-            }
-            return _origFetch.apply(this, arguments);
-        };
-        window._hosuFetchPatched = true;
+// Simple access key — prevents public access
+if (($_GET['key'] ?? '') !== 'HOSU_DIAG_2026') {
+    http_response_code(403);
+    die('403 Forbidden. Append ?key=HOSU_DIAG_2026 to the URL.');
+}
+
+require_once __DIR__ . '/env.php';
+
+$host   = getenv('DB_HOST') ?: 'localhost';
+$dbname = getenv('DB_NAME') ?: 'hosuweb_db';
+$user   = getenv('DB_USER') ?: 'root';
+$pass   = getenv('DB_PASS') ?: '';
+
+header('Content-Type: text/html; charset=utf-8');
+$ok   = '&#9989;';  // ✅
+$fail = '&#10060;'; // ❌
+$warn = '&#9888;';  // ⚠️
+
+function row(string $icon, string $label, string $value, string $note = ''): void {
+    $c = $icon === '&#9989;' ? '#15803d' : ($icon === '&#10060;' ? '#dc2626' : '#b45309');
+    echo "<tr><td style='padding:8px 12px;font-weight:600;'>{$icon} {$label}</td>"
+       . "<td style='padding:8px 12px;font-family:monospace;color:{$c};'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>"
+       . "<td style='padding:8px 12px;color:#64748b;font-size:.82rem;'>{$note}</td></tr>";
+}
+
+?><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HOSU DB Diagnostics</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f8fafc;color:#1e293b;margin:0;padding:2rem;}
+h1{color:#0d4593;margin-bottom:.25rem;}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:1.5rem 2rem;margin-bottom:1.5rem;max-width:860px;}
+table{width:100%;border-collapse:collapse;}
+tr{border-bottom:1px solid #f1f5f9;}
+tr:last-child{border-bottom:none;}
+th{text-align:left;padding:8px 12px;background:#f8fafc;font-size:.8rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;}
+pre{background:#1e293b;color:#86efac;border-radius:8px;padding:1rem 1.2rem;font-size:.83rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+.fix-box{background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+.ok-box{background:#f0fdf4;border-left:4px solid #15803d;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+.warn-box{background:#fffbeb;border-left:4px solid #d97706;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+code{background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;font-size:.88em;}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>&#x1F4BB; HOSU Database Diagnostics</h1>
+<p style="color:#64748b;font-size:.85rem;">Run this page to diagnose the "Database connection failed" error on your payment pages.</p>
+
+<table>
+<thead><tr><th>Check</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<?php
+
+// 1. PHP version
+$phpVer = PHP_VERSION;
+$phpOk  = version_compare($phpVer, '7.4', '>=');
+row($phpOk ? $ok : $fail, 'PHP Version', $phpVer, $phpOk ? 'OK' : 'Requires PHP 7.4+');
+
+// 2. PDO extension
+$pdoOk = extension_loaded('pdo') && extension_loaded('pdo_mysql');
+row($pdoOk ? $ok : $fail, 'PDO + pdo_mysql', $pdoOk ? 'Loaded' : 'MISSING', $pdoOk ? '' : 'Enable pdo_mysql in php.ini');
+
+// 3. .env file
+$envPath = __DIR__ . '/.env';
+$envExists = file_exists($envPath);
+row($envExists ? $ok : $fail, '.env file', $envExists ? 'Found at ' . $envPath : 'NOT FOUND', $envExists ? '' : 'Create .env from the template below');
+
+// 4. Loaded env values (masked password)
+row($warn, 'DB_HOST (loaded)', $host ?: '(empty)');
+row($warn, 'DB_NAME (loaded)', $dbname ?: '(empty)', empty($dbname) ? 'Set DB_NAME in .env' : '');
+row($warn, 'DB_USER (loaded)', $user ?: '(empty)', empty($user) ? 'Set DB_USER in .env' : '');
+row($warn, 'DB_PASS (loaded)', empty($pass) ? '(empty)' : str_repeat('*', min(strlen($pass), 8)) . '…', '');
+
+// 5. TCP connection to MySQL host
+$tcpOk = false;
+$errno = 0; $errstr = '';
+try {
+    $sock = @fsockopen($host, 3306, $errno, $errstr, 3);
+    $tcpOk = ($sock !== false);
+    if ($sock) fclose($sock);
+} catch (\Throwable $e) { $tcpOk = false; }
+row($tcpOk ? $ok : $fail, 'TCP to MySQL :3306', $tcpOk ? "Reachable ($host:3306)" : "UNREACHABLE — $errstr",
+    $tcpOk ? '' : 'MySQL is not running, or host/port is wrong');
+
+// 6. Authenticate (no database selected)
+$authOk = false; $authErr = '';
+try {
+    $tmp = new PDO("mysql:host=$host;charset=utf8", $user, $pass);
+    $tmp->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $authOk = true;
+} catch (PDOException $e) {
+    $authErr = $e->getMessage();
+}
+row($authOk ? $ok : $fail, 'Auth (user/password)', $authOk ? "User '$user' authenticated OK" : "FAILED: $authErr",
+    $authOk ? '' : 'Wrong username or password for MySQL user');
+
+// 7. Database exists
+$dbExists = false; $dbErr = ''; $availableDbs = [];
+if ($authOk) {
+    try {
+        $dbs = $tmp->query("SHOW DATABASES")->fetchAll(PDO::FETCH_COLUMN);
+        $availableDbs = $dbs;
+        $dbExists = in_array($dbname, $dbs);
+    } catch (PDOException $e) { $dbErr = $e->getMessage(); }
+}
+row($dbExists ? $ok : $fail, "Database '$dbname' exists",
+    $dbExists ? "Found" : ($dbErr ?: "NOT FOUND"),
+    $dbExists ? '' : "Create the database or update DB_NAME in .env");
+
+// 8. User has access to the database
+$hasAccess = false;
+if ($authOk && $dbExists) {
+    try {
+        $tmp2 = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+        $tmp2->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $hasAccess = true;
+    } catch (PDOException $e) {
+        row($fail, 'DB Access', $e->getMessage(), "Grant user '$user' privileges on '$dbname'");
     }
+}
+if ($authOk && $dbExists) {
+    row($hasAccess ? $ok : $fail, "User access to '$dbname'",
+        $hasAccess ? "Full access confirmed" : "ACCESS DENIED",
+        $hasAccess ? '' : "Run: GRANT ALL ON `$dbname`.* TO '$user'@'localhost';");
+}
 
-    /* ── Shared popup HTML (class-based, no IDs — scoped per popup) ── */
-    var popupTemplate =
-        '<button class="dfp-close" aria-label="Close">&times;</button>' +
-        '<div class="dfp-modal-header"><h3>Support HOSU</h3></div>' +
-        '<p class="dfp-subtitle">Your donation transforms cancer care in Uganda.</p>' +
-        '<div class="dfp-form-grid">' +
-            '<div class="dfp-field dfp-fg-full">' +
-                '<label class="dfp-label">Full Name</label>' +
-                '<input type="text" class="dfp-input dfp-name" placeholder="Full name" required>' +
-            '</div>' +
-            '<div class="dfp-field dfp-fg-full">' +
-                '<label class="dfp-label">Phone Number</label>' +
-                '<input type="tel" class="dfp-input dfp-phone" required>' +
-            '</div>' +
-            '<div class="dfp-field dfp-fg-full">' +
-                '<label class="dfp-label">Email <span style="color:#e63946">*</span></label>' +
-                '<input type="email" class="dfp-input dfp-email" placeholder="you@example.com" required>' +
-            '</div>' +
-            '<div class="dfp-invalid-phone dfp-fg-full" style="display:none">Invalid phone number.</div>' +
-            '<div class="dfp-invalid-email dfp-fg-full" style="display:none;color:#e63946;font-size:0.78rem;margin-top:-6px;">Valid email is required.</div>' +
-        '</div>' +
-        '<div class="dfp-field">' +
-            '<label class="dfp-label">Amount (UGX)</label>' +
-            '<input type="number" class="dfp-input dfp-amount" placeholder="Enter amount" min="1000">' +
-        '</div>' +
-        '<div class="dfp-amounts">' +
-            '<button type="button" class="dfp-amt" data-amt="5000">5,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="10000">10,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="25000">25,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="50000">50,000</button>' +
-        '</div>' +
-        '<div class="dfp-pay-divider">Payment Method</div>' +
-        '<div class="dfp-pay-chips">' +
-            '<button type="button" class="dfp-pay-chip" data-method="bank">' +
-                '<i class="fas fa-university"></i> Bank</button>' +
-            '<button type="button" class="dfp-pay-chip" data-method="banktobank">' +
-                '<i class="fas fa-exchange-alt"></i> Bank to Bank</button>' +
-            '<button type="button" class="dfp-pay-chip" data-method="visa">' +
-                '<i class="fab fa-cc-visa"></i> Visa</button>' +
-            '<button type="button" class="dfp-pay-chip dfp-mtn-chip" data-method="mtn">' +
-                '<img src="img/mtn.png" alt="MTN" class="dfp-chip-img"> MTN</button>' +
-            '<button type="button" class="dfp-pay-chip dfp-airtel-chip" data-method="airtel">' +
-                '<img src="img/airtel.png" alt="Airtel" class="dfp-chip-img"> Airtel</button>' +
-        '</div>' +
-        '<div class="dfp-bank-info" style="display:none">' +
-            '<p><strong>Account:</strong> HOSU Limited</p>' +
-            '<p><strong>No:</strong> 9030025235214</p>' +
-            '<p><strong>Bank:</strong> Stanbic Bank, Mulago</p>' +
-        '</div>' +
-        '<button class="dfp-submit" disabled>Process Payment</button>' +
-        '<div class="dfp-process-overlay" style="display:none">' +
-            '<div class="dfp-proc-steps">' +
-                '<span class="dfp-step active"></span>' +
-                '<span class="dfp-step"></span>' +
-                '<span class="dfp-step"></span>' +
-            '</div>' +
-            '<div class="dfp-proc-spinner"></div>' +
-            '<div class="dfp-proc-msg">Preparing\u2026</div>' +
-            '<div class="dfp-proc-sub"></div>' +
-            '<div class="dfp-proc-countdown" style="display:none"></div>' +
-            '<button class="dfp-proc-close" style="display:none">Close</button>' +
-        '</div>';
+// 9. Full connection (same as db.php)
+$fullOk = false; $fullErr = '';
+if ($authOk && $dbExists && $hasAccess) {
+    try {
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $fullOk = true;
+    } catch (PDOException $e) { $fullErr = $e->getMessage(); }
+}
+row($fullOk ? $ok : ($authOk ? $fail : $warn), 'Full Connection (db.php test)',
+    $fullOk ? 'SUCCESS — db.php will work' : ($fullOk === false && $authOk ? "FAILED: $fullErr" : 'Skipped (auth failed)'));
 
-    /* ── Inject floating button ── */
-    var floatWrap = document.createElement('div');
-    floatWrap.className = 'floating-donate';
-    floatWrap.innerHTML =
-        '<div class="donate-trigger-wrap donate-trigger-wrap--fixed">' +
-            '<button class="donate-button" aria-label="Support Us">' +
-                '<span class="donate-icon">&#10084;</span> Support Us' +
-            '</button>' +
-            '<div class="donate-float-popup"></div>' +
-        '</div>';
-    document.body.appendChild(floatWrap);
-
-    /* ═════════════════════════════════════════════════════════
-       POPUP LIFECYCLE — works for ANY .donate-float-popup
-       ═════════════════════════════════════════════════════════ */
-
-    /** Fill a popup with the template, wire all events, return scoped state */
-    function initPopup(popup) {
-        popup.innerHTML = popupTemplate;
-        // Upgrade phone input
-        if (window.intlPhone) {
-            var ph = popup.querySelector('.dfp-phone');
-            if (ph) window.intlPhone.upgrade(ph);
-        }
-        // Per-popup state
-        var st = { method: null, receiptToken: null, paymentId: null, txnRef: null, txnId: null, pollActive: false };
-        popup._dfpState = st;
-
-        // Close
-        popup.querySelector('.dfp-close').addEventListener('click', function () { closePopup(popup); });
-        // Amount presets
-        popup.querySelectorAll('.dfp-amt').forEach(function (btn) {
-            btn.addEventListener('click', function () {
-                popup.querySelectorAll('.dfp-amt').forEach(function (b) { b.classList.remove('selected'); });
-                btn.classList.add('selected');
-                popup.querySelector('.dfp-amount').value = btn.getAttribute('data-amt');
-                validate(popup);
-            });
-        });
-        // Payment method chips
-        popup.querySelectorAll('.dfp-pay-chip').forEach(function (chip) {
-            chip.addEventListener('click', function () {
-                popup.querySelectorAll('.dfp-pay-chip').forEach(function (c) { c.classList.remove('selected'); });
-                chip.classList.add('selected');
-                st.method = chip.getAttribute('data-method');
-                var bi = popup.querySelector('.dfp-bank-info');
-                if (bi) bi.style.display = (st.method === 'bank' || st.method === 'banktobank') ? 'block' : 'none';
-                validate(popup);
-            });
-        });
-        // Real-time validation
-        ['.dfp-name', '.dfp-amount', '.dfp-email'].forEach(function (sel) {
-            var el = popup.querySelector(sel);
-            if (el) el.addEventListener('input', function () { validate(popup); });
-        });
-        var phoneWrap = popup.querySelector('.intl-phone-wrap');
-        if (phoneWrap && phoneWrap._intlPhone) {
-            phoneWrap._intlPhone.input.addEventListener('input', function () { validate(popup); });
-            phoneWrap._intlPhone.select.addEventListener('change', function () { validate(popup); });
-        } else {
-            var pi = popup.querySelector('.dfp-phone');
-            if (pi) pi.addEventListener('input', function () { validate(popup); });
-        }
-        // Auto-detect MTN / Airtel from phone number
-        function dfpAutoDetect() {
-            var phoneWrap2 = popup.querySelector('.intl-phone-wrap');
-            var phoneApi2  = phoneWrap2 ? phoneWrap2._intlPhone : null;
-            var raw = phoneApi2 ? phoneApi2.getDigitsOnly() : (popup.querySelector('.dfp-phone').value.replace(/\D/g,''));
-            var d = raw;
-            if (d.startsWith('256')) d = d.slice(3);
-            if (d.startsWith('0'))   d = d.slice(1);
-            var p = d.slice(0, 2);
-            var net = null;
-            if (['77','78','76','31','39'].includes(p)) net = 'mtn';
-            else if (['70','71','72','73','74','75','20'].includes(p)) net = 'airtel';
-            if (!net) return;
-            popup.querySelectorAll('.dfp-pay-chip').forEach(function(c){ c.classList.remove('selected'); });
-            var chip = popup.querySelector('.dfp-pay-chip[data-method="' + net + '"]');
-            if (chip) { chip.classList.add('selected'); st.method = net; }
-            var bi = popup.querySelector('.dfp-bank-info');
-            if (bi) bi.style.display = 'none';
-            validate(popup);
-        }
-        var dfpPhoneEl = popup.querySelector('.dfp-phone');
-        if (dfpPhoneEl) {
-            dfpPhoneEl.addEventListener('input',  dfpAutoDetect);
-            dfpPhoneEl.addEventListener('change', dfpAutoDetect);
-        }
-        // Submit
-        popup.querySelector('.dfp-submit').addEventListener('click', function () { submitPayment(popup); });
-        // Stop bubbling
-        popup.addEventListener('click', function (e) { e.stopPropagation(); });
+// 10. Payments table exists
+if ($fullOk) {
+    try {
+        $tbls = $pdo->query("SHOW TABLES LIKE 'payments'")->fetchAll(PDO::FETCH_COLUMN);
+        $paytbl = count($tbls) > 0;
+        row($paytbl ? $ok : $fail, "Table 'payments' exists",
+            $paytbl ? 'Found' : 'MISSING — run setup_db.php',
+            $paytbl ? '' : 'Payment features will fail without this table');
+    } catch (\Throwable $e) {
+        row($fail, "Table check", $e->getMessage());
     }
+}
 
-    /** Validate form, enable/disable submit */
-    function validate(popup) {
-        var st = popup._dfpState;
-        var name = popup.querySelector('.dfp-name');
-        var email = popup.querySelector('.dfp-email');
-        var amount = popup.querySelector('.dfp-amount');
-        var phoneWrap = popup.querySelector('.intl-phone-wrap');
-        var phoneApi = phoneWrap ? phoneWrap._intlPhone : null;
-        var phoneInput = phoneApi ? phoneApi.input : popup.querySelector('.dfp-phone');
-        var phoneErr = popup.querySelector('.dfp-invalid-phone');
-        var emailErr = popup.querySelector('.dfp-invalid-email');
-        var submitBtn = popup.querySelector('.dfp-submit');
+echo '</tbody></table>';
 
-        var nameOk = name && name.value.trim().length > 0;
-        var phoneOk = phoneApi ? phoneApi.isValid() : (phoneInput && phoneInput.value.trim().replace(/\D/g, '').length >= 7);
-        var emailVal = email ? email.value.trim() : '';
-        var emailOk = emailVal.length > 0 && /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(emailVal);
-        var amountOk = amount && amount.value && Number(amount.value) >= 1000;
-        var methodOk = !!st.method;
-
-        if (phoneErr) {
-            var hasVal = phoneInput && phoneInput.value.trim().length > 0;
-            phoneErr.style.display = (hasVal && !phoneOk) ? 'block' : 'none';
-            if (!phoneOk && hasVal) phoneErr.textContent = 'Invalid phone number for selected country.';
-        }
-        if (emailErr) {
-            emailErr.style.display = (email && email.value.trim().length > 0 && !emailOk) ? 'block' : 'none';
-        }
-        if (submitBtn) submitBtn.disabled = !(nameOk && phoneOk && emailOk && amountOk && methodOk);
+// ── Diagnosis summary ──────────────────────────────────────────────
+echo '<hr style="margin:1.5rem 0;border:none;border-top:1px solid #f1f5f9;">';
+if ($fullOk) {
+    echo '<div class="ok-box"><strong>&#9989; All checks passed.</strong> The database connection is working. '
+       . 'The payment error may have been a temporary outage. '
+       . 'If it still occurs, check PHP error logs at: <code>/var/log/apache2/error.log</code> or cPanel Error Log.</div>';
+} elseif (!$tcpOk) {
+    echo '<div class="fix-box"><strong>&#10060; MySQL is not reachable.</strong><br>
+    <strong>On cPanel shared hosting:</strong> DB_HOST is almost always <code>localhost</code>.<br>
+    <strong>On VPS:</strong> Make sure MySQL is running: <code>sudo systemctl start mysql</code></div>';
+} elseif (!$authOk) {
+    echo '<div class="fix-box"><strong>&#10060; Authentication failed.</strong><br>
+    The username/password in <code>.env</code> is wrong.<br>
+    <strong>On cPanel:</strong> Go to cPanel &#8594; MySQL Databases &#8594; verify/reset the user password, then update <code>.env</code>.<br>
+    <strong>On XAMPP:</strong> Use <code>DB_USER=root</code> and <code>DB_PASS=</code> (blank).</div>';
+} elseif (!$dbExists) {
+    echo '<div class="fix-box"><strong>&#10060; Database not found.</strong><br>';
+    if (!empty($availableDbs)) {
+        echo 'Available databases for this user:<br><code>' . implode('</code>, <code>', array_map('htmlspecialchars', $availableDbs)) . '</code><br><br>';
+        echo '<strong>On cPanel hosting</strong>, the database name is prefixed with your cPanel username.<br>'
+           . 'Example: if your cPanel username is <code>hosumain</code>, the real DB name would be <code>hosumain_hosu_blog</code>.<br>'
+           . 'Update <code>DB_NAME</code> in <code>.env</code> to match, then re-run this page.';
+    } else {
+        echo 'No databases visible. The user may not have SHOW DATABASES privilege, or no databases exist.<br>'
+           . 'Create the database in cPanel &#8594; MySQL Databases, then run <code>setup_db.php</code>.';
     }
+    echo '</div>';
+} elseif (!$hasAccess) {
+    echo '<div class="fix-box"><strong>&#10060; User has no access to the database.</strong><br>
+    In cPanel &#8594; MySQL Databases &#8594; scroll to "Add User To Database" &#8594; select the user and database &#8594; grant ALL PRIVILEGES.</div>';
+}
 
-    /** Smart positioning */
-    function positionPopup(popup) {
-        popup.classList.remove('pos-top', 'pos-bottom', 'pos-left');
-        var wrap = popup.closest('.donate-trigger-wrap');
-        if (!wrap) return;
-        var btn = wrap.querySelector('.donate-button') || wrap.querySelector('.donate-trigger') || wrap.querySelector('.cta-button');
-        if (!btn) btn = wrap;
-        var r = btn.getBoundingClientRect();
-        var vh = window.innerHeight, vw = window.innerWidth;
-        var pH = 450, pW = 320;
-        if (r.top >= pH + 20) popup.classList.add('pos-top');
-        else if (vh - r.bottom >= pH + 20) popup.classList.add('pos-bottom');
-        else if (r.left >= pW + 20) popup.classList.add('pos-left');
-        else if (vh - r.bottom >= r.top) popup.classList.add('pos-bottom');
-        else popup.classList.add('pos-top');
-    }
+echo '</div>';
 
-    /** Open a popup */
-    function openPopup(popup) {
-        closeAllPopups();
-        if (typeof closeLoginPopup === 'function') closeLoginPopup();
-        if (typeof closeAllFloatPopups === 'function') closeAllFloatPopups();
-        initPopup(popup);
-        positionPopup(popup);
-        popup.classList.add('active');
-        popup.scrollTop = 0;
-        setTimeout(function () { popup.scrollIntoView({ behavior: 'smooth', block: 'center' }); }, 50);
-    }
+// ── Fix instructions ───────────────────────────────────────────────
+?>
+<div class="card">
+<h2 style="margin-top:0;">&#x1F527; How to Fix on cPanel Hosting</h2>
+<ol style="line-height:1.9;font-size:.9rem;">
+<li>Log in to <strong>cPanel</strong> at <code>https://hosu.or.ug:2083</code></li>
+<li>Go to <strong>MySQL Databases</strong></li>
+<li>Under <em>"Create New Database"</em>, type <code>hosu_blog</code> &rarr; click <strong>Create Database</strong><br>
+    <span style="color:#64748b;font-size:.82rem;">cPanel will auto-prefix it: e.g. <code>hosumain_hosu_blog</code></span></li>
+<li>Under <em>"MySQL Users"</em>, create user <code>hosu_user</code> with a strong password</li>
+<li>Under <em>"Add User To Database"</em>, add <code>hosu_user</code> to <code>hosu_blog</code> with <strong>ALL PRIVILEGES</strong></li>
+<li>Update <code>.env</code> with the <strong>full prefixed names</strong>:<br>
+<pre>DB_HOST=localhost
+DB_NAME=hosumain_hosu_blog   # replace hosumain with your cPanel username
+DB_USER=hosumain_hosu_user   # same prefix
+DB_PASS=YourChosenPassword</pre></li>
+<li>Run <a href="setup_db.php" target="_blank"><strong>setup_db.php</strong></a> to create all tables</li>
+<li>Re-run this page to confirm everything is green &#9989;</li>
+</ol>
+<div class="warn-box">&#9888; <strong>Delete or rename this file</strong> (<code>db_check.php</code>) after fixing the issue. It exposes database name details.</div>
+</div>
 
-    /** Close a specific popup */
-    function closePopup(popup) {
-        if (popup._dfpState) popup._dfpState.pollActive = false;
-        popup.classList.remove('active');
-    }
+<div class="card">
+<h2 style="margin-top:0;">&#x1F4E6; Correct .env for cPanel (template)</h2>
+<p style="font-size:.83rem;color:#64748b;">Copy this to your <code>.env</code> file on the server, replacing the values with your real cPanel ones:</p>
+<pre># Database — replace PREFIX_ with your cPanel username + underscore
+DB_HOST=localhost
+DB_NAME=PREFIX_hosu_blog
+DB_USER=PREFIX_hosu_user
+DB_PASS=YourStrongPassword
 
-    /** Close ALL donate popups */
-    function closeAllPopups() {
-        document.querySelectorAll('.donate-float-popup.active').forEach(function (p) {
-            if (p._dfpState) p._dfpState.pollActive = false;
-            p.classList.remove('active');
-        });
-    }
+# PesaPal v3 (production)
+PESAPAL_CONSUMER_KEY=lk7lFpodKnEq9mJyjwOBrr/9Ot/Lofof
+PESAPAL_CONSUMER_SECRET=3JZdXlVouyKIbGu1pdg71cwwi4c=
+PESAPAL_ENV=production
 
-    /* ═════════════════════════════════════════════════════════
-       PAYMENT FLOW — uses overlay inside the popup (no page swap)
-       ═════════════════════════════════════════════════════════ */
+# App
+APP_ENV=production
+APP_DOMAIN=hosu.or.ug</pre>
+</div>
 
-    function setStep(overlay, n) {
-        overlay.querySelectorAll('.dfp-step').forEach(function (s, i) {
-            s.className = 'dfp-step' + (i < n ? ' done' : '') + (i === n ? ' active' : '');
-        });
-    }
+<?php if ($authOk && !empty($availableDbs)): ?>
+<div class="card">
+<h2 style="margin-top:0;">&#x1F4CB; All Databases Visible to '<?= htmlspecialchars($user) ?>'</h2>
+<code><?= implode('</code><br><code>', array_map('htmlspecialchars', $availableDbs)) ?></code>
+<p style="font-size:.82rem;color:#64748b;margin-top:.8rem;">Update <code>DB_NAME</code> in <code>.env</code> to match the database you want to use.</p>
+</div>
+<?php endif; ?>
 
-    function showError(overlay, errMsg, helpHtml) {
-        overlay.querySelector('.dfp-proc-spinner').style.display = 'none';
-        overlay.querySelector('.dfp-proc-countdown').style.display = 'none';
-        var msg = overlay.querySelector('.dfp-proc-msg');
-        var sub = overlay.querySelector('.dfp-proc-sub');
-        msg.textContent = '\u274C ' + errMsg;
-        msg.style.color = '#e63946';
-        if (helpHtml) sub.innerHTML = helpHtml;
-        else sub.innerHTML = 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-        var btn = overlay.querySelector('.dfp-proc-close');
-        btn.textContent = 'Close';
-        btn.style.display = '';
-        btn.onclick = function () { overlay.style.display = 'none'; msg.style.color = ''; };
-    }
-
-    function showSuccess(overlay, popup) {
-        var st = popup._dfpState;
-        setStep(overlay, 3);
-        overlay.querySelector('.dfp-proc-spinner').style.display = 'none';
-        overlay.querySelector('.dfp-proc-countdown').style.display = 'none';
-        var msg = overlay.querySelector('.dfp-proc-msg');
-        var sub = overlay.querySelector('.dfp-proc-sub');
-        msg.style.color = '#27ae60';
-        var btn = overlay.querySelector('.dfp-proc-close');
-
-        if (st.receiptToken && st.paymentId) {
-            msg.textContent = 'Confirming payment\u2026';
-            var fd = new FormData();
-            fd.append('payment_id', st.paymentId);
-            fd.append('receipt_token', st.receiptToken);
-            fetch('api.php?action=confirm_payment', { method: 'POST', body: fd })
-                .catch(function () {})
-                .then(function () {
-                    msg.textContent = '\u2705 Donation confirmed!';
-                    sub.innerHTML = 'A receipt has been sent to your email.<br><br>' +
-                        '<a href="receipt.php?token=' + encodeURIComponent(st.receiptToken) + '" ' +
-                        'style="display:inline-block;background:#0d4593;color:#fff;padding:8px 20px;border-radius:8px;text-decoration:none;font-weight:600;font-size:0.75rem;">' +
-                        '\uD83D\uDCC4 View Receipt</a>';
-                    btn.textContent = 'Done';
-                    btn.style.display = '';
-                    btn.onclick = function () {
-                        overlay.style.display = 'none';
-                        msg.style.color = '';
-                        closePopup(popup);
-                    };
-                });
-        } else {
-            msg.textContent = '\u2705 Payment Successful!';
-            sub.textContent = 'Thank you for your donation!';
-            btn.textContent = 'Done';
-            btn.style.display = '';
-            btn.onclick = function () {
-                overlay.style.display = 'none';
-                msg.style.color = '';
-                closePopup(popup);
-            };
-        }
-    }
-
-    /** Main payment submission */
-    async function submitPayment(popup) {
-        var st = popup._dfpState;
-        var nameEl = popup.querySelector('.dfp-name');
-        var emailEl = popup.querySelector('.dfp-email');
-        var amountEl = popup.querySelector('.dfp-amount');
-        var phoneWrap = popup.querySelector('.intl-phone-wrap');
-        var phoneApi = phoneWrap ? phoneWrap._intlPhone : null;
-        var phone = phoneApi ? phoneApi.getDigitsOnly() : popup.querySelector('.dfp-phone').value.trim().replace(/\D/g, '');
-        var name = nameEl.value.trim();
-        var email = emailEl.value.trim();
-        var amount = parseInt(amountEl.value);
-
-        if (!name) { alert('Please enter your full name.'); return; }
-        if (phoneApi ? !phoneApi.isValid() : (phone.length < 7 || phone.length > 15)) { alert('Please enter a valid phone number.'); return; }
-        if (!email || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { alert('Please enter a valid email address.'); return; }
-        if (!amount || amount < 1000) { alert('Please enter a valid amount (minimum 1,000 UGX).'); return; }
-        if (!st.method) { alert('Please select a payment method.'); return; }
-
-        var overlay = popup.querySelector('.dfp-process-overlay');
-        var spinner = overlay.querySelector('.dfp-proc-spinner');
-        var msgEl = overlay.querySelector('.dfp-proc-msg');
-        var subEl = overlay.querySelector('.dfp-proc-sub');
-        var countdownEl = overlay.querySelector('.dfp-proc-countdown');
-        var closeBtnEl = overlay.querySelector('.dfp-proc-close');
-
-        // Bank / Bank-to-Bank
-        if (st.method === 'bank' || st.method === 'banktobank') {
-            overlay.style.display = 'flex';
-            spinner.style.display = 'none';
-            countdownEl.style.display = 'none';
-            setStep(overlay, 1);
-            msgEl.textContent = 'Transfer UGX ' + amount.toLocaleString() + ' to:';
-            msgEl.style.color = '';
-            subEl.innerHTML = '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>Provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-            closeBtnEl.textContent = 'Close';
-            closeBtnEl.style.display = '';
-            closeBtnEl.onclick = function () { overlay.style.display = 'none'; };
-            return;
-        }
-        // Visa — PesaPal hosted redirect
-        if (st.method === 'visa') {
-            overlay.style.display = 'flex';
-            spinner.style.display = '';
-            closeBtnEl.style.display = 'none';
-            countdownEl.style.display = 'none';
-            setStep(overlay, 0);
-            msgEl.textContent = 'Preparing donation…';
-            msgEl.style.color = '';
-            subEl.textContent = '';
-            st.receiptToken = null;
-            st.paymentId = null;
-
-            try {
-                var vPreFd = new FormData();
-                vPreFd.append('fullName', name);
-                vPreFd.append('email', email);
-                vPreFd.append('phone', phone);
-                vPreFd.append('profession', 'Donor');
-                vPreFd.append('institution', '');
-                vPreFd.append('paymentMethod', 'Visa/Mastercard');
-                vPreFd.append('paymentType', 'donation');
-                vPreFd.append('membershipPeriod', '');
-                vPreFd.append('amount', amount);
-                vPreFd.append('transactionId', '');
-                vPreFd.append('transactionRef', '');
-
-                var vPreRes = await fetch('api.php?action=pre_register', { method: 'POST', body: vPreFd }).then(function(r){ return r.json(); });
-                if (vPreRes.success) {
-                    st.receiptToken = vPreRes.receipt_token;
-                    st.paymentId    = vPreRes.payment_id;
-                } else {
-                    showError(overlay, vPreRes.error || 'Registration failed.');
-                    return;
-                }
-            } catch(e) { showError(overlay, 'Connection error.'); return; }
-
-            setStep(overlay, 1);
-            msgEl.textContent = 'Connecting to payment gateway…';
-            try {
-                var vPayFd = new FormData();
-                vPayFd.append('payment_id',    st.paymentId || 0);
-                vPayFd.append('receipt_token', st.receiptToken || '');
-                vPayFd.append('amount',        amount);
-                vPayFd.append('email',         email);
-                vPayFd.append('name',          name);
-                vPayFd.append('phone',         phone);
-                vPayFd.append('type',          'donation');
-
-                var vPayRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vPayFd }).then(function(r){ return r.json(); });
-                if (vPayRes.error) { showError(overlay, vPayRes.error); return; }
-                if (vPayRes.redirect_url) {
-                    setStep(overlay, 2);
-                    msgEl.textContent = 'Redirecting to PesaPal…';
-                    await new Promise(function(r){ setTimeout(r, 600); });
-                    window.location.href = vPayRes.redirect_url;
-                } else { showError(overlay, 'Could not get payment link. Please try again.'); }
-            } catch(e) { showError(overlay, 'Network error.'); }
-            return;
-        }
-
-        // ── MTN or Airtel — PesaPal direct USSD push ──
-        overlay.style.display = 'flex';
-        spinner.style.display = '';
-        closeBtnEl.style.display = 'none';
-        countdownEl.style.display = 'none';
-        setStep(overlay, 0);
-        msgEl.textContent = 'Preparing your donation\u2026';
-        msgEl.style.color = '';
-        subEl.textContent = '';
-        st.receiptToken = null;
-        st.paymentId = null;
-        st.txnRef = null;
-        st.txnId = null;
-
-        var methodLabel  = st.method === 'mtn' ? 'MTN Mobile Money' : 'Airtel Money';
-        var dfpChannel   = st.method === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
-
-        // Step 1: Pre-register
-        try {
-            var preFd = new FormData();
-            preFd.append('fullName', name);
-            preFd.append('email', email);
-            preFd.append('phone', phone);
-            preFd.append('profession', 'Donor');
-            preFd.append('institution', '');
-            preFd.append('paymentMethod', methodLabel);
-            preFd.append('paymentType', 'donation');
-            preFd.append('membershipPeriod', '');
-            preFd.append('amount', amount);
-            preFd.append('transactionId', '');
-            preFd.append('transactionRef', '');
-
-            var preRes = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd }).then(function (r) { return r.json(); });
-            if (preRes.success) {
-                st.receiptToken = preRes.receipt_token;
-                st.paymentId = preRes.payment_id;
-            } else {
-                showError(overlay, preRes.error || 'Registration failed.');
-                return;
-            }
-        } catch (e) {
-            showError(overlay, 'Connection error. Please check your network.');
-            return;
-        }
-
-        // Step 2: Trigger USSD push via PesaPal pay_mobile
-        setStep(overlay, 1);
-        msgEl.textContent = 'Sending prompt to your ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + ' phone…';
-        subEl.textContent = 'Please wait a moment…';
-
-        try {
-            var payFd = new FormData();
-            payFd.append('phone',         phone);
-            payFd.append('amount',        amount);
-            payFd.append('email',         email);
-            payFd.append('name',          name);
-            payFd.append('payment_id',    st.paymentId || 0);
-            payFd.append('receipt_token', st.receiptToken || '');
-            payFd.append('channel',       dfpChannel);
-            payFd.append('type',          'donation');
-
-            var payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(function (r) { return r.json(); });
-
-            if (payRes.error) { showError(overlay, payRes.error); return; }
-
-            // Fallback: hosted redirect
-            if (payRes.redirect_url) {
-                setStep(overlay, 2);
-                msgEl.textContent = 'Redirecting to PesaPal…';
-                await new Promise(function(r){ setTimeout(r, 600); });
-                window.location.href = payRes.redirect_url;
-                return;
-            }
-
-            st.txnRef = payRes.tracking_id || null;
-            setStep(overlay, 2);
-            msgEl.textContent = '📱 Check your ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + ' phone!';
-            subEl.innerHTML = 'Enter your mobile money PIN to approve <strong>UGX ' + amount.toLocaleString() + '</strong>.';
-            st.pollActive = true;
-
-            // Step 3: Poll check_mobile
-            var MAX_POLLS = 15;
-            var INTERVAL  = 8000;
-
-            for (var i = 0; i < MAX_POLLS; i++) {
-                if (!st.pollActive) return;
-                var secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                countdownEl.style.display = '';
-                countdownEl.textContent = 'Time remaining: ' + Math.floor(secsLeft / 60) + 'm ' + (secsLeft % 60) + 's';
-
-                await new Promise(function (r) { setTimeout(r, INTERVAL); });
-                if (!st.pollActive) return;
-
-                try {
-                    var params = 'action=check_mobile&tracking_id=' + encodeURIComponent(st.txnRef || '')
-                        + '&payment_id=' + (st.paymentId || 0);
-                    var result = await fetch('payment.php?' + params).then(function (r) { return r.json(); });
-
-                    if (result.status === 'completed') {
-                        st.pollActive = false;
-                        countdownEl.style.display = 'none';
-                        spinner.style.display = 'none';
-                        msgEl.textContent = '✅ Payment confirmed!';
-                        msgEl.style.color = '#27ae60';
-                        subEl.innerHTML = 'Thank you for your donation! A receipt has been sent to your email.'
-                            + (result.receipt_token || st.receiptToken
-                                ? '<br><br><a href="receipt.php?token=' + encodeURIComponent(result.receipt_token || st.receiptToken)
-                                  + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">📄 View Receipt</a>'
-                                : '');
-                        closeBtnEl.textContent = 'Close';
-                        closeBtnEl.style.display = '';
-                        closeBtnEl.onclick = function(){ overlay.style.display = 'none'; };
-                        return;
-                    } else if (result.status === 'failed') {
-                        st.pollActive = false;
-                        showError(overlay, result.message || 'Payment was declined. Please try again.');
-                        return;
-                    }
-                } catch (e) { /* continue polling */ }
-            }
-            st.pollActive = false;
-            showError(overlay, 'Payment timed out (2 minutes). The request was cancelled.',
-                'If money was deducted, contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or '
-                + '<a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
-        } catch (e) {
-            showError(overlay, 'Network error. Please check your connection.');
-        }
-    }
-
-    /* ═════════════════════════════════════════════════════════
-       GLOBAL EVENT WIRING
-       ═════════════════════════════════════════════════════════ */
-
-    // Floating button
-    floatWrap.querySelector('.donate-button').addEventListener('click', function (e) {
-        e.preventDefault();
-        e.stopPropagation();
-        var popup = floatWrap.querySelector('.donate-float-popup');
-        if (popup.classList.contains('active')) closeAllPopups();
-        else openPopup(popup);
-    });
-
-    // Wire ALL .donate-trigger buttons on this page (e.g. CTA section)
-    document.addEventListener('DOMContentLoaded', function () {
-        document.querySelectorAll('.donate-trigger').forEach(function (trigger) {
-            trigger.addEventListener('click', function (e) {
-                e.preventDefault();
-                e.stopPropagation();
-                var wrap = trigger.closest('.donate-trigger-wrap');
-                if (wrap) {
-                    var popup = wrap.querySelector('.donate-float-popup');
-                    if (popup) {
-                        if (popup.classList.contains('active')) closeAllPopups();
-                        else openPopup(popup);
-                        return;
-                    }
-                }
-                // Fallback: use the floating popup
-                var fp = floatWrap.querySelector('.donate-float-popup');
-                if (fp.classList.contains('active')) closeAllPopups();
-                else openPopup(fp);
-            });
-        });
-    });
-
-    // Outside click
-    document.addEventListener('click', function (e) {
-        if (!e.target.closest('.donate-trigger-wrap') && !e.target.closest('.floating-donate')) {
-            closeAllPopups();
-        }
-    });
-
-    // Escape key
-    document.addEventListener('keydown', function (e) {
-        if (e.key === 'Escape') {
-            closeAllPopups();
-            if (typeof closeLoginPopup === 'function') closeLoginPopup();
-            if (typeof closeAllFloatPopups === 'function') closeAllFloatPopups();
-        }
-    });
-
-    /* ── Public API ── */
-    window._dfpToggle = function () {
-        var popup = floatWrap.querySelector('.donate-float-popup');
-        if (popup.classList.contains('active')) closeAllPopups();
-        else openPopup(popup);
-    };
-    window._dfpClose = function () { closeAllPopups(); };
-    window.closeDonatePopups = function () { closeAllPopups(); };
-})();
+</body>
+</html>

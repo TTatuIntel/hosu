@@ -1,101 +1,921 @@
-{
-    "_readme": [
-        "This file locks the dependencies of your project to a known state",
-        "Read more about it at https://getcomposer.org/doc/01-basic-usage.md#installing-dependencies",
-        "This file is @generated automatically"
-    ],
-    "content-hash": "826f515f5ef16946d3e3ee3e3205b25e",
-    "packages": [
-        {
-            "name": "phpmailer/phpmailer",
-            "version": "v7.0.2",
-            "source": {
-                "type": "git",
-                "url": "https://github.com/PHPMailer/PHPMailer.git",
-                "reference": "ebf1655bd5b99b3f97e1a3ec0a69e5f4cd7ea088"
-            },
-            "dist": {
-                "type": "zip",
-                "url": "https://api.github.com/repos/PHPMailer/PHPMailer/zipball/ebf1655bd5b99b3f97e1a3ec0a69e5f4cd7ea088",
-                "reference": "ebf1655bd5b99b3f97e1a3ec0a69e5f4cd7ea088",
-                "shasum": ""
-            },
-            "require": {
-                "ext-ctype": "*",
-                "ext-filter": "*",
-                "ext-hash": "*",
-                "php": ">=5.5.0"
-            },
-            "require-dev": {
-                "dealerdirect/phpcodesniffer-composer-installer": "^1.0",
-                "doctrine/annotations": "^1.2.6 || ^1.13.3",
-                "php-parallel-lint/php-console-highlighter": "^1.0.0",
-                "php-parallel-lint/php-parallel-lint": "^1.3.2",
-                "phpcompatibility/php-compatibility": "^10.0.0@dev",
-                "squizlabs/php_codesniffer": "^3.13.5",
-                "yoast/phpunit-polyfills": "^1.0.4"
-            },
-            "suggest": {
-                "decomplexity/SendOauth2": "Adapter for using XOAUTH2 authentication",
-                "directorytree/imapengine": "For uploading sent messages via IMAP, see gmail example",
-                "ext-imap": "Needed to support advanced email address parsing according to RFC822",
-                "ext-mbstring": "Needed to send email in multibyte encoding charset or decode encoded addresses",
-                "ext-openssl": "Needed for secure SMTP sending and DKIM signing",
-                "greew/oauth2-azure-provider": "Needed for Microsoft Azure XOAUTH2 authentication",
-                "hayageek/oauth2-yahoo": "Needed for Yahoo XOAUTH2 authentication",
-                "league/oauth2-google": "Needed for Google XOAUTH2 authentication",
-                "psr/log": "For optional PSR-3 debug logging",
-                "symfony/polyfill-mbstring": "To support UTF-8 if the Mbstring PHP extension is not enabled (^1.2)",
-                "thenetworg/oauth2-azure": "Needed for Microsoft XOAUTH2 authentication"
-            },
-            "type": "library",
-            "autoload": {
-                "psr-4": {
-                    "PHPMailer\\PHPMailer\\": "src/"
-                }
-            },
-            "notification-url": "https://packagist.org/downloads/",
-            "license": [
-                "LGPL-2.1-only"
-            ],
-            "authors": [
-                {
-                    "name": "Marcus Bointon",
-                    "email": "phpmailer@synchromedia.co.uk"
-                },
-                {
-                    "name": "Jim Jagielski",
-                    "email": "jimjag@gmail.com"
-                },
-                {
-                    "name": "Andy Prevost",
-                    "email": "codeworxtech@users.sourceforge.net"
-                },
-                {
-                    "name": "Brent R. Matzelle"
-                }
-            ],
-            "description": "PHPMailer is a full-featured email creation and transfer class for PHP",
-            "support": {
-                "issues": "https://github.com/PHPMailer/PHPMailer/issues",
-                "source": "https://github.com/PHPMailer/PHPMailer/tree/v7.0.2"
-            },
-            "funding": [
-                {
-                    "url": "https://github.com/Synchro",
-                    "type": "github"
-                }
-            ],
-            "time": "2026-01-09T18:02:33+00:00"
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HOSU Blog - Latest insights, research updates, and stories from the Hematology & Oncology Society of Uganda">
+    <title>Blog - HOSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="navbar.css?v=2026040404">
+    <link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --primary-light: #f8d7da;
+            --primary-dark: #c81d2a;
+            --secondary-color: #0d4593;
+            --secondary-light: #e6f0ff;
+            --secondary-dark: #072a5e;
+            --text-color: #001848;
+            --text-light: #4a5568;
+            --background-light: #f1faee;
+            --white: #ffffff;
+            --accent-color: #a8dadc;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --transition: all 0.3s ease;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1);
+            --navbar-height: 90px;
+            --section-width: 92%;
+            --section-max-width: 1280px;
         }
-    ],
-    "packages-dev": [],
-    "aliases": [],
-    "minimum-stability": "stable",
-    "stability-flags": {},
-    "prefer-stable": false,
-    "prefer-lowest": false,
-    "platform": {},
-    "platform-dev": {},
-    "plugin-api-version": "2.9.0"
-}
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; }
+        body { font-family: 'Inter', sans-serif; line-height: 1.5; color: var(--text-color); background: var(--white); }
+        a { text-decoration: none; color: inherit; }
+        img { max-width: 100%; height: auto; }
+
+        /* â”€â”€ Hero (matching about.html) â”€â”€ */
+        .page-hero {
+            padding-top: var(--navbar-height);
+            position: relative;
+            min-height: 380px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            overflow: hidden;
+        }
+        .hero-inner {
+            display: flex;
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            gap: 3%;
+            align-items: center;
+            min-height: 320px;
+            position: relative;
+            z-index: 5;
+        }
+        .hero-content {
+            width: 50%;
+            margin-left: auto;
+            z-index: 10;
+            position: relative;
+            min-height: 200px;
+            background: rgba(255,255,255,0.55);
+            -webkit-backdrop-filter: blur(16px) saturate(1.3);
+            backdrop-filter: blur(16px) saturate(1.3);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 18px;
+            padding: 1.4rem 1.6rem;
+            box-shadow: 0 8px 32px rgba(0,0,0,0.08);
+        }
+        .hero-slide { display: none; flex-direction: column; animation: heroFadeIn 0.6s ease; }
+        .hero-slide.active { display: flex; }
+        @keyframes heroFadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+        .hero-image-container {
+            position: absolute; inset: 0; width: 100%; height: 100%; overflow: hidden; z-index: 0;
+        }
+        .hero-image-container::after {
+            content: ''; position: absolute; inset: 0; z-index: 2; pointer-events: none;
+            background:
+                linear-gradient(to right, rgba(255,255,255,0.1) 0%, rgba(255,255,255,0.25) 40%, rgba(255,255,255,0.45) 70%, rgba(255,255,255,0.6) 100%),
+                linear-gradient(to bottom, transparent 80%, var(--white) 100%);
+        }
+        .hero-background {
+            position: absolute; top: 0; left: 0; width: 100%; height: 100%;
+            background-size: cover; background-position: center;
+            transition: opacity 1s ease, transform 8s ease;
+            opacity: 0; transform: scale(1.05);
+        }
+        .hero-background.active { opacity: 1; transform: scale(1); }
+        .hero-background.bg-1 { background-image: url('img/IMG_7787.jpg'); }
+        .hero-background.bg-2 { background-image: url('img/IMG_7770.jpg'); }
+        .hero-background.bg-3 { background-image: url('img/IMG_7776.jpg'); }
+
+        .hero-pills { display: flex; gap: 0.3rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
+        .hero-pill { background: rgba(255,255,255,0.85); color: var(--secondary-color); font-size: 0.68rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 12px; border: 1px solid rgba(13,69,147,0.1); display: inline-flex; align-items: center; gap: 0.2rem; }
+        .hero-pill i { font-size: 0.6rem; }
+        .hero-content h1 { font-size: 1.3rem; color: var(--secondary-color); font-weight: 700; margin-bottom: 0.3rem; position: relative; display: inline-block; }
+        .hero-content h1::after { content: ''; position: absolute; bottom: -4px; left: 0; width: 50px; height: 2.5px; background: var(--primary-color); }
+        .hero-content p { font-size: 0.8rem; color: var(--text-light); margin-top: 0.5rem; line-height: 1.55; }
+        .hero-readmore { display: inline-flex; align-items: center; color: var(--primary-color); font-weight: 600; font-size: 0.82rem; transition: all 0.3s ease; margin-top: 0.25rem; cursor: pointer; }
+        .hero-readmore:hover { color: #c81d2a; transform: translateX(4px); }
+
+        .hero-stats { display: flex; gap: 1.25rem; margin-top: 0.65rem; background: rgba(255,255,255,0.45); -webkit-backdrop-filter: blur(10px); backdrop-filter: blur(10px); border: 1.5px solid rgba(13,69,147,0.12); border-radius: 30px; padding: 0.4rem 1.25rem; width: fit-content; animation: statsSlideUp 0.7s ease 0.2s both; }
+        @keyframes statsSlideUp { from { opacity: 0; transform: translateY(15px); } to { opacity: 1; transform: translateY(0); } }
+        .hero-stat { text-align: center; }
+        .hero-stat-number { font-size: 1.1rem; font-weight: 700; color: var(--secondary-color); display: block; }
+        .hero-stat-label { font-size: 0.65rem; color: var(--text-light); text-transform: uppercase; font-weight: 600; }
+        .hero-indicators { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+        .hero-dot { width: 8px; height: 8px; border-radius: 50%; background: rgba(18,41,74,0.2); cursor: pointer; transition: all 0.3s ease; }
+        .hero-dot.active { background: var(--primary-color); width: 22px; border-radius: 4px; }
+
+        /* â”€â”€ Section Title â”€â”€ */
+        .section-title { text-align: center; font-size: 1.15rem; color: var(--secondary-color); font-weight: 700; margin-bottom: 0.5rem; overflow: visible; position: relative; z-index: 1; }
+        .section-title::after { content: ''; display: block; width: 40px; height: 2.5px; background: var(--primary-color); margin: 0.3rem auto 0; border-radius: 2px; }
+
+        /* â”€â”€ Blog Section â€” tight, no waste â”€â”€ */
+        .blog-section { padding: 1rem 0 1.5rem; background: var(--gray-100); display: flex; justify-content: center; }
+        .blog-container { width: var(--section-width); max-width: var(--section-max-width); }
+
+        /* â”€â”€ Unified Filter Toolbar â”€â”€ */
+        .filter-toolbar {
+            display: flex; align-items: center; gap: 0.5rem; flex-wrap: wrap;
+            background: var(--white); border: 1px solid rgba(13,69,147,0.08);
+            border-radius: 12px; padding: 0.6rem 0.85rem; margin-bottom: 1rem;
+            box-shadow: var(--shadow-sm);
+        }
+        .filter-toolbar .search-wrap {
+            flex: 1; min-width: 180px; display: flex; align-items: center;
+            background: var(--gray-100); border-radius: 8px; padding: 0.35rem 0.65rem;
+            border: 1.5px solid transparent; transition: border-color 0.2s;
+        }
+        .filter-toolbar .search-wrap:focus-within { border-color: var(--secondary-color); }
+        .filter-toolbar .search-wrap i { color: var(--text-light); font-size: 0.78rem; margin-right: 0.4rem; }
+        .filter-toolbar .search-wrap input {
+            flex: 1; border: none; background: transparent; font-size: 0.8rem;
+            font-family: inherit; outline: none; color: var(--text-color);
+        }
+        .filter-toolbar .search-wrap input::placeholder { color: var(--text-light); }
+        .filter-toolbar .filter-divider { width: 1px; height: 24px; background: var(--gray-300); flex-shrink: 0; }
+        .filter-toolbar select {
+            border: 1.5px solid var(--gray-300); border-radius: 8px; padding: 0.35rem 0.6rem;
+            font-size: 0.78rem; font-family: inherit; color: var(--text-color);
+            background: var(--white); cursor: pointer; outline: none; transition: border-color 0.2s;
+        }
+        .filter-toolbar select:focus { border-color: var(--secondary-color); }
+        .filter-toolbar .result-count {
+            font-size: 0.72rem; color: var(--text-light); font-weight: 500;
+            margin-left: auto; white-space: nowrap;
+        }
+        .filter-toolbar .clear-btn {
+            background: rgba(230,57,70,0.08); color: var(--primary-color); border: none;
+            padding: 0.3rem 0.6rem; border-radius: 6px; font-size: 0.72rem;
+            font-weight: 600; cursor: pointer; font-family: inherit; transition: var(--transition);
+            display: none;
+        }
+        .filter-toolbar .clear-btn.show { display: inline-block; }
+        .filter-toolbar .clear-btn:hover { background: var(--primary-color); color: var(--white); }
+
+        /* â”€â”€ Live update indicator â”€â”€ */
+        .live-dot { width: 7px; height: 7px; border-radius: 50%; background: #16a34a; display: inline-block; margin-right: 0.3rem; animation: livePulse 2s infinite; }
+        @keyframes livePulse { 0%,100% { opacity: 1; } 50% { opacity: 0.4; } }
+        .live-label { font-size: 0.68rem; color: #16a34a; font-weight: 600; display: inline-flex; align-items: center; }
+
+        /* â”€â”€ Blog List â”€â”€ */
+        .blog-grid {
+            display: flex; flex-direction: column;
+            gap: 0.45rem; margin-top: 0.6rem;
+        }
+        .blog-card {
+            background: var(--white); border-radius: 8px; overflow: hidden;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.06); border: 1px solid rgba(13,69,147,0.06);
+            transition: transform 0.15s ease, box-shadow 0.15s ease;
+            display: flex; flex-direction: row; cursor: pointer; align-items: stretch;
+        }
+        .blog-card:hover { transform: translateX(2px); box-shadow: var(--shadow-sm); }
+        .blog-card-img { width: 120px; min-width: 120px; height: 82px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .blog-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
+        .blog-card:hover .blog-card-img img { transform: scale(1.05); }
+        .blog-card-body { padding: 0.4rem 0.7rem; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
+        .blog-card-cat { color: var(--primary-color); font-size: 0.56rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; margin-bottom: 0.05rem; }
+        .blog-card-body h3 { font-size: 0.78rem; margin-bottom: 0.1rem; color: var(--secondary-color); font-weight: 700; line-height: 1.25; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+        .blog-card-body .card-excerpt { color: var(--text-light); font-size: 0.7rem; line-height: 1.4; display: -webkit-box; -webkit-line-clamp: 1; -webkit-box-orient: vertical; overflow: hidden; margin-bottom: 0.2rem; }
+        .blog-card-meta { display: flex; align-items: center; gap: 0.6rem; margin-top: auto; font-size: 0.64rem; color: var(--text-light); }
+        .blog-card-meta .meta-author { display: flex; align-items: center; gap: 0.25rem; }
+        .blog-card-meta .meta-author img { width: 16px; height: 16px; border-radius: 50%; object-fit: cover; }
+        .blog-card-meta .meta-date { font-size: 0.62rem; color: var(--text-light); }
+        .blog-card-comment { display: flex; align-items: center; gap: 0.15rem; font-size: 0.62rem; color: var(--text-light); }
+        .blog-card-comment i { font-size: 0.56rem; }
+
+        /* â”€â”€ Pagination â”€â”€ */
+        .pagination { display: flex; justify-content: center; gap: 0.4rem; margin-top: 1.1rem; }
+        .pagination a {
+            width: 34px; height: 34px; display: flex; align-items: center; justify-content: center;
+            border-radius: 8px; background: var(--white); color: var(--text-light); font-weight: 600;
+            transition: var(--transition); box-shadow: var(--shadow-sm); cursor: pointer; font-size: 0.8rem;
+            border: 1.5px solid transparent;
+        }
+        .pagination a:hover { border-color: var(--secondary-color); color: var(--secondary-color); transform: translateY(-1px); }
+        .pagination a.active { background: var(--secondary-color); color: var(--white); border-color: var(--secondary-color); }
+        .pagination a.disabled { opacity: 0.35; pointer-events: none; }
+
+        /* â”€â”€ Article Detail Overlay â”€â”€ */
+        .article-overlay {
+            position: fixed; inset: 0; background: rgba(0,0,0,0.55); z-index: 2000;
+            display: flex; justify-content: center; align-items: center; padding: 1rem;
+            opacity: 0; visibility: hidden; transition: var(--transition); -webkit-backdrop-filter: blur(6px); backdrop-filter: blur(6px);
+        }
+        .article-overlay.active { opacity: 1; visibility: visible; }
+        .article-detail {
+            background: var(--white); border-radius: 14px; width: 100%; max-width: 680px;
+            max-height: 92vh; display: flex; flex-direction: column;
+            position: relative; animation: heroFadeIn 0.3s ease;
+            box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+        }
+        .article-detail-hero { position: relative; height: 200px; overflow: hidden; flex-shrink: 0; border-radius: 14px 14px 0 0; }
+        .article-detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+        .article-detail-hero .hero-gradient { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(0,0,0,0.5)); }
+        .article-detail-hero .close-article {
+            position: absolute; top: 0.6rem; right: 0.6rem;
+            background: rgba(255,255,255,0.92); border: none; width: 30px; height: 30px;
+            border-radius: 50%; cursor: pointer; font-size: 1rem; transition: var(--transition);
+            display: flex; align-items: center; justify-content: center; z-index: 5;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.15);
+        }
+        .article-detail-hero .close-article:hover { background: var(--primary-color); color: var(--white); }
+        .article-scroll { overflow-y: auto; flex: 1; }
+        .article-detail-content { padding: 1.2rem 1.5rem 0.8rem; }
+        .article-detail-content .detail-cat {
+            display: inline-block; background: var(--secondary-light); color: var(--secondary-color);
+            padding: 0.12rem 0.45rem; border-radius: 20px; font-size: 0.62rem; font-weight: 600;
+            text-transform: uppercase; margin-bottom: 0.35rem;
+        }
+        .article-detail-content h1 { font-size: 1.15rem; color: var(--secondary-color); font-weight: 700; margin-bottom: 0.35rem; line-height: 1.3; }
+        .article-detail-content .detail-meta {
+            display: flex; align-items: center; gap: 0.6rem; font-size: 0.72rem;
+            color: var(--text-light); margin-bottom: 0.8rem; padding-bottom: 0.6rem;
+            border-bottom: 1px solid var(--gray-200); flex-wrap: wrap;
+        }
+        .article-detail-content .detail-meta img { width: 28px; height: 28px; border-radius: 50%; object-fit: cover; }
+        .article-detail-content .detail-meta .author-name { font-weight: 600; color: var(--text-color); }
+        .article-detail-content .article-body { font-size: 0.82rem; line-height: 1.65; color: var(--text-color); }
+        .article-detail-content .article-body p { margin-bottom: 0.6rem; }
+
+        /* â”€â”€ Comments Section (in popup) â”€â”€ */
+        .comments-section { padding: 0.8rem 1.5rem 1rem; border-top: 1px solid var(--gray-200); }
+        .comments-header { display: flex; align-items: center; justify-content: space-between; margin-bottom: 0.5rem; }
+        .comments-header h3 { font-size: 0.82rem; color: var(--secondary-color); font-weight: 700; }
+        .comments-header .comment-count-badge { background: var(--secondary-light); color: var(--secondary-color); padding: 0.1rem 0.4rem; border-radius: 10px; font-size: 0.62rem; font-weight: 600; }
+        .comments-list { max-height: 200px; overflow-y: auto; margin-bottom: 0.6rem; }
+        .comments-list::-webkit-scrollbar { width: 4px; }
+        .comments-list::-webkit-scrollbar-thumb { background: var(--gray-300); border-radius: 4px; }
+        .comment-item { padding: 0.5rem 0; border-bottom: 1px solid var(--gray-100); display: flex; gap: 0.5rem; align-items: flex-start; }
+        .comment-item:last-child { border-bottom: none; }
+        .comment-avatar { width: 28px; height: 28px; border-radius: 50%; background: var(--secondary-light); color: var(--secondary-color); display: flex; align-items: center; justify-content: center; font-size: 0.65rem; font-weight: 700; flex-shrink: 0; }
+        .comment-body { flex: 1; min-width: 0; }
+        .comment-author { font-weight: 600; font-size: 0.72rem; color: var(--text-color); }
+        .comment-date { font-size: 0.62rem; color: var(--text-light); margin-left: 0.3rem; }
+        .comment-text { font-size: 0.74rem; color: var(--text-light); margin-top: 0.1rem; line-height: 1.45; }
+        .comment-delete { background: none; border: none; color: var(--text-light); font-size: 0.6rem; cursor: pointer; padding: 0.15rem 0.3rem; border-radius: 4px; transition: all 0.15s; flex-shrink: 0; }
+        .comment-delete:hover { background: rgba(230,57,70,0.1); color: var(--primary-color); }
+        .no-comments { font-size: 0.74rem; color: var(--text-light); font-style: italic; text-align: center; padding: 0.8rem 0; }
+
+        /* â”€â”€ Comment Form â”€â”€ */
+        .comment-form { display: flex; gap: 0.4rem; align-items: flex-end; }
+        .comment-form .cf-fields { flex: 1; display: flex; flex-direction: column; gap: 0.3rem; }
+        .comment-form input, .comment-form textarea {
+            width: 100%; padding: 0.4rem 0.6rem; border: 1.5px solid var(--gray-300);
+            border-radius: 7px; font-size: 0.75rem; font-family: inherit;
+            color: var(--text-color); outline: none; transition: border-color 0.2s;
+        }
+        .comment-form input:focus, .comment-form textarea:focus { border-color: var(--secondary-color); }
+        .comment-form textarea { resize: none; min-height: 52px; line-height: 1.4; }
+        .comment-form input::placeholder, .comment-form textarea::placeholder { color: var(--text-light); font-size: 0.72rem; }
+        .cf-submit {
+            padding: 0.4rem 0.8rem; background: var(--secondary-color); color: var(--white);
+            border: none; border-radius: 7px; font-size: 0.72rem; font-weight: 600;
+            cursor: pointer; font-family: inherit; transition: all 0.2s; white-space: nowrap;
+            align-self: flex-end;
+        }
+        .cf-submit:hover { background: #072a5e; }
+        .cf-submit:disabled { background: var(--gray-300); cursor: not-allowed; }
+        .comment-login-hint { font-size: 0.7rem; color: var(--text-light); text-align: center; padding: 0.5rem 0; }
+        .comment-login-hint a { color: var(--secondary-color); font-weight: 600; }
+
+        /* â”€â”€ Empty States â”€â”€ */
+        .empty-state {
+            text-align: center; grid-column: 1/-1; padding: 2rem 1.5rem; color: var(--text-light);
+            font-size: 0.82rem; background: var(--white); border-radius: 12px;
+            border: 1px dashed var(--gray-300);
+        }
+        .empty-state .empty-icon { display: block; font-size: 2rem; margin-bottom: 0.4rem; opacity: 0.4; }
+        .empty-state .empty-sub { display: block; font-size: 0.72rem; margin-top: 0.3rem; opacity: 0.7; }
+
+        /* â”€â”€ Footer (matching about.html) â”€â”€ */
+        footer { background: var(--gray-100); padding: 1rem 0 0.4rem; border-top: 1px solid var(--gray-300); }
+        .footer-content { display: grid; grid-template-columns: 1fr 1.2fr 1.4fr 1fr; gap: 1rem; width: var(--section-width); max-width: var(--section-max-width); margin: 0 auto; }
+        .footer-section h4 { color: var(--secondary-color); font-size: 0.82rem; font-weight: 600; margin-bottom: 0.35rem; position: relative; display: inline-block; }
+        .footer-section h4::after { content: ''; position: absolute; bottom: -3px; left: 0; width: 20px; height: 2px; background: var(--primary-color); }
+        .footer-section ul { list-style: none; }
+        .footer-section li { margin-bottom: 0.3rem; }
+        .footer-section a { color: var(--text-light); font-size: 0.8rem; transition: var(--transition); }
+        .footer-section a:hover { color: var(--primary-color); }
+        .footer-section address { font-style: normal; font-size: 0.8rem; color: var(--text-light); line-height: 1.5; }
+        .footer-section p { font-size: 0.78rem; color: var(--text-light); line-height: 1.4; }
+        .social-links { display: flex; gap: 0.4rem; margin-top: 0.5rem; }
+        .social-links a { width: 30px; height: 30px; border-radius: 50%; background: var(--gray-200); display: flex; align-items: center; justify-content: center; color: var(--secondary-color); transition: var(--transition); }
+        .social-links a:hover { background: var(--secondary-color); color: var(--white); }
+        .footer-dev-name { font-size: 0.8rem; font-weight: 600; color: var(--secondary-color); }
+        .footer-dev-contact { font-size: 0.75rem; color: var(--text-light); }
+        .copyright { text-align: center; margin-top: 0.6rem; padding-top: 0.5rem; border-top: 1px solid var(--gray-300); font-size: 0.72rem; color: var(--text-light); width: var(--section-width); max-width: var(--section-max-width); margin-left: auto; margin-right: auto; }
+
+        /* Login Floating Popup */
+        .login-trigger-wrap { position: relative; display: inline-block; }
+        .login-float-popup {
+            display: none; position: absolute; top: calc(100% + 14px); right: 0; z-index: 1001; width: 300px;
+            background: rgba(255,255,255,0.78); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid rgba(255,255,255,0.55); border-radius: 14px; padding: 1.2rem 1.3rem 1.1rem;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
+            animation: loginPopUp 0.3s cubic-bezier(0.22,1,0.36,1); text-align: left;
+        }
+        .login-float-popup.active { display: block; }
+        .login-float-popup::after {
+            content: ''; position: absolute; top: -7px; right: 24px; width: 14px; height: 14px;
+            background: rgba(255,255,255,0.78); border-top: 1px solid rgba(255,255,255,0.55);
+            border-left: 1px solid rgba(255,255,255,0.55); transform: rotate(45deg);
+            -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+        }
+        .login-float-popup .lfp-close {
+            position: absolute; top: 0.55rem; right: 0.6rem; width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.06);
+            border: none; border-radius: 50%; font-size: 0.9rem; color: var(--text-light);
+            cursor: pointer; line-height: 1; transition: all 0.2s ease;
+        }
+        .login-float-popup .lfp-close:hover { background: var(--primary-color); color: var(--white); }
+        .login-float-popup h3 { font-size: 0.92rem; font-weight: 700; color: var(--secondary-color); margin-bottom: 0.15rem; padding-right: 1.8rem; }
+        .login-float-popup .lfp-subtitle { font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.7rem; }
+        .login-float-popup .lfp-label { font-size: 0.72rem; font-weight: 600; color: var(--text-color); margin-bottom: 0.25rem; display: block; }
+        .login-float-popup .lfp-input {
+            width: 100%; padding: 0.45rem 0.6rem; border: 1.5px solid var(--gray-300); border-radius: 8px;
+            font-size: 0.8rem; font-family: inherit; outline: none; transition: border-color 0.2s;
+            background: rgba(255,255,255,0.6); box-sizing: border-box;
+        }
+        .login-float-popup .lfp-input:focus { border-color: var(--secondary-color); }
+        .login-float-popup .lfp-field { margin-bottom: 0.5rem; }
+        .login-float-popup .lfp-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; font-size: 0.72rem; }
+        .login-float-popup .lfp-options label { display: flex; align-items: center; gap: 0.3rem; color: var(--text-light); cursor: pointer; }
+        .login-float-popup .lfp-options label input { accent-color: var(--secondary-color); }
+        .login-float-popup .lfp-options a { color: var(--secondary-color); text-decoration: none; font-weight: 500; }
+        .login-float-popup .lfp-options a:hover { text-decoration: underline; }
+        .login-float-popup .lfp-submit {
+            width: 100%; padding: 0.5rem; background: var(--secondary-color); color: var(--white);
+            border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .login-float-popup .lfp-submit:hover { background: var(--secondary-dark); transform: translateY(-1px); }
+        .login-float-popup .lfp-footer { text-align: center; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-light); }
+        .login-float-popup .lfp-footer a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+        .login-float-popup .lfp-footer a:hover { text-decoration: underline; }
+        @keyframes loginPopUp {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        /* â”€â”€ Responsive â”€â”€ */
+        @media (max-width: 768px) {
+            .page-hero { min-height: 280px; }
+            .hero-inner { flex-direction: column; min-height: 0; padding: 1rem 0; }
+            .hero-content { width: 92%; margin: 0 auto; text-align: center; align-items: center; padding: 1.2rem; background: rgba(255,255,255,0.7); -webkit-backdrop-filter: blur(14px); backdrop-filter: blur(14px); }
+            .hero-content h1::after { left: 50%; transform: translateX(-50%); }
+            .hero-image-container { position: absolute; inset: 0; width: 100%; height: 100%; border-radius: 0; }
+            .hero-image-container::after { background: linear-gradient(to bottom, rgba(255,255,255,0.15) 0%, rgba(255,255,255,0.3) 50%, var(--white) 100%); }
+            .hero-stats { margin: 0.75rem auto 0; }
+            .hero-pills { justify-content: center; }
+            .hero-indicators { justify-content: center; }
+            .blog-card-img { width: 90px; min-width: 90px; height: 68px; }
+            .filter-toolbar { flex-direction: column; gap: 0.4rem; }
+            .filter-toolbar .search-wrap { width: 100%; }
+            .filter-toolbar .filter-divider { display: none; }
+            .filter-toolbar .filter-row { display: flex; gap: 0.4rem; width: 100%; }
+            .filter-toolbar select { flex: 1; }
+            .footer-content { grid-template-columns: 1fr 1fr; }
+            .article-detail-hero { height: 150px; }
+            .article-detail-content { padding: 1rem 1rem 0.6rem; }
+            .comments-section { padding: 0.6rem 1rem 0.8rem; }
+            .comment-form { flex-direction: column; }
+            .cf-submit { width: 100%; }
+        }
+        @media (max-width: 480px) {
+            .footer-content { grid-template-columns: 1fr; }
+            .hero-stats { flex-direction: column; gap: 0.5rem; border-radius: 12px; padding: 0.6rem 1.25rem; }
+            .blog-card-img { width: 80px; min-width: 80px; height: 60px; }
+            .blog-card-body h3 { font-size: 0.74rem; }
+            .blog-card-body .card-excerpt { -webkit-line-clamp: 1; }
+        }
+    </style>
+</head>
+<body>
+    <!-- Navbar -->
+    <nav class="navbar"></nav>
+
+    <!-- Hero -->
+    <section class="page-hero">
+        <div class="hero-inner">
+            <div class="hero-image-container" id="heroImageContainer">
+                <div class="hero-background bg-1 active"></div>
+                <div class="hero-background bg-2"></div>
+                <div class="hero-background bg-3"></div>
+            </div>
+            <div class="hero-content">
+                <article class="hero-slide active" data-slide="intro">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-pen-nib"></i> Articles</span>
+                        <span class="hero-pill"><i class="fas fa-microscope"></i> Research</span>
+                        <span class="hero-pill"><i class="fas fa-users"></i> Community</span>
+                    </div>
+                    <h1>HOSU Blog</h1>
+                    <p>Latest insights, research updates, and stories from the Hematology &amp; Oncology Society of Uganda.</p>
+                    <div class="hero-stats">
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="hero-total">â€”</span>
+                            <span class="hero-stat-label">Articles</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="hero-cats">â€”</span>
+                            <span class="hero-stat-label">Categories</span>
+                        </div>
+                        <div class="hero-stat">
+                            <span class="hero-stat-number" id="hero-comments">â€”</span>
+                            <span class="hero-stat-label">Comments</span>
+                        </div>
+                    </div>
+                </article>
+
+                <article class="hero-slide" data-slide="research">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-flask"></i> Science</span>
+                        <span class="hero-pill"><i class="fas fa-chart-line"></i> Impact</span>
+                    </div>
+                    <h1>Research Updates</h1>
+                    <p>Stay informed with the latest findings in hematology and oncology research from Uganda and beyond.</p>
+                    <a href="#blogContent" class="hero-readmore">Browse Articles &rarr;</a>
+                </article>
+
+                <article class="hero-slide" data-slide="community">
+                    <div class="hero-pills">
+                        <span class="hero-pill"><i class="fas fa-heart-pulse"></i> Stories</span>
+                        <span class="hero-pill"><i class="fas fa-hand-holding-heart"></i> Support</span>
+                    </div>
+                    <h1>Community Stories</h1>
+                    <p>Hear from healthcare professionals, patients, and advocates transforming cancer care across Uganda.</p>
+                    <a href="#blogContent" class="hero-readmore">Read Stories &rarr;</a>
+                </article>
+
+                <div class="hero-indicators">
+                    <span class="hero-dot active" data-index="0" aria-label="Blog"></span>
+                    <span class="hero-dot" data-index="1" aria-label="Research"></span>
+                    <span class="hero-dot" data-index="2" aria-label="Community"></span>
+                </div>
+            </div>
+        </div>
+    </section>
+
+    <!-- Blog Content -->
+    <section class="blog-section" id="blogContent">
+        <div class="blog-container">
+            <!-- Unified Filter Toolbar -->
+            <div class="filter-toolbar">
+                <div class="search-wrap">
+                    <i class="fas fa-search"></i>
+                    <input type="text" id="searchInput" placeholder="Search articles..." autocomplete="off">
+                </div>
+                <div class="filter-divider"></div>
+                <select id="catFilter" aria-label="Filter by category">
+                    <option value="">All Categories</option>
+                </select>
+                <select id="sortFilter" aria-label="Sort articles">
+                    <option value="newest">Newest First</option>
+                    <option value="oldest">Oldest First</option>
+                    <option value="a-z">A â€” Z</option>
+                    <option value="z-a">Z â€” A</option>
+                </select>
+                <button class="clear-btn" id="clearFilters" aria-label="Clear filters">Clear</button>
+                <span class="result-count" id="resultCount"></span>
+                <span class="live-label"><span class="live-dot"></span>Live</span>
+            </div>
+
+            <!-- Blog Grid -->
+            <div class="blog-grid" id="blogGrid">
+                <div class="empty-state">
+                    <span class="empty-icon">ðŸ“„</span>
+                    No articles published yet. Stay tuned for upcoming content.
+                    <span class="empty-sub">Articles will appear here once published by HOSU contributors.</span>
+                </div>
+            </div>
+
+            <!-- Pagination -->
+            <div class="pagination" id="blogPagination"></div>
+        </div>
+    </section>
+
+    <!-- Article Detail Overlay -->
+    <div class="article-overlay" id="articleOverlay">
+        <div class="article-detail" id="articleDetail"></div>
+    </div>
+
+    <!-- Footer -->
+    <footer></footer>
+
+    <script>
+    (function() {
+        'use strict';
+
+        /* ── AUTO-INJECT CSRF TOKEN INTO ALL POST REQUESTS ── */
+        var _origFetch = window.fetch;
+        window.fetch = function(url, opts){
+            if(opts && opts.method && opts.method.toUpperCase()==='POST' && opts.body instanceof FormData){
+                if(window._hosuCsrfToken && !opts.body.has('csrf_token')){
+                    opts.body.append('csrf_token', window._hosuCsrfToken);
+                }
+            }
+            return _origFetch.apply(this, arguments);
+        };
+
+        /* â”€â”€ Hero Slideshow â”€â”€ */
+        var heroIndex = 0;
+        var heroSlides = document.querySelectorAll('.hero-slide');
+        var heroBgs = document.querySelectorAll('.hero-background');
+        var heroDots = document.querySelectorAll('.hero-dot');
+
+        function showHeroSlide(i) {
+            heroSlides.forEach(function(s) { s.classList.remove('active'); });
+            heroBgs.forEach(function(b) { b.classList.remove('active'); });
+            heroDots.forEach(function(d) { d.classList.remove('active'); });
+            heroSlides[i].classList.add('active');
+            heroBgs[i % heroBgs.length].classList.add('active');
+            heroDots[i].classList.add('active');
+            heroIndex = i;
+        }
+        var heroTimer = setInterval(function() {
+            showHeroSlide((heroIndex + 1) % heroSlides.length);
+        }, 6000);
+        heroDots.forEach(function(dot) {
+            dot.addEventListener('click', function() {
+                showHeroSlide(parseInt(dot.dataset.index, 10));
+                clearInterval(heroTimer);
+                heroTimer = setInterval(function() { showHeroSlide((heroIndex + 1) % heroSlides.length); }, 6000);
+            });
+        });
+
+        /* â”€â”€ State â”€â”€ */
+        var POSTS_PER_PAGE = 12;
+        var allPosts = [];
+        var filteredPosts = [];
+        var currentPage = 1;
+        var lastDataHash = '';
+        var POLL_INTERVAL = 8000; // 8s real-time polling
+
+        /* â”€â”€ Helpers â”€â”€ */
+        function esc(str) {
+            var d = document.createElement('div');
+            d.textContent = str || '';
+            return d.innerHTML;
+        }
+        function truncate(text, max) {
+            if (!text) return '';
+            var plain = text.replace(/<[^>]*>/g, '');
+            return plain.length > max ? plain.substring(0, max) + '\u2026' : plain;
+        }
+        function fixPath(p) { return (p || '').replace(/\\\\/g, '/').replace(/\\/g, '/'); }
+        function simpleHash(arr) {
+            return arr.map(function(p) { return p.id + ':' + (p.title || '') + ':' + (p.created_at || ''); }).join('|');
+        }
+
+        /* â”€â”€ Fetch Posts â”€â”€ */
+        function loadPosts(isPolling) {
+            fetch('api.php?action=get_posts')
+                .then(function(r) { return r.json(); })
+                .then(function(data) {
+                    var posts = Array.isArray(data) ? data : (data.posts || []);
+                    var hash = simpleHash(posts);
+                    if (isPolling && hash === lastDataHash) return; // no changes
+                    lastDataHash = hash;
+                    allPosts = posts;
+                    buildCategoryFilter();
+                    applyFilters();
+                    updateHeroStats();
+                })
+                .catch(function() {
+                    if (!isPolling) { allPosts = []; applyFilters(); updateHeroStats(); }
+                });
+        }
+
+        /* â”€â”€ Real-time Polling â”€â”€ */
+        setInterval(function() { loadPosts(true); }, POLL_INTERVAL);
+
+        /* â”€â”€ Hero Stats â”€â”€ */
+        function updateHeroStats() {
+            document.getElementById('hero-total').textContent = allPosts.length || '0';
+            var cats = [];
+            allPosts.forEach(function(p) { if (p.category && cats.indexOf(p.category) === -1) cats.push(p.category); });
+            document.getElementById('hero-cats').textContent = cats.length || '0';
+            var comments = allPosts.reduce(function(s, p) { return s + parseInt(p.comment_count || 0, 10); }, 0);
+            document.getElementById('hero-comments').textContent = comments || '0';
+        }
+
+        /* â”€â”€ Build Category Dropdown â”€â”€ */
+        function buildCategoryFilter() {
+            var sel = document.getElementById('catFilter');
+            var current = sel.value;
+            var cats = [];
+            allPosts.forEach(function(p) { if (p.category && cats.indexOf(p.category) === -1) cats.push(p.category); });
+            cats.sort();
+            sel.innerHTML = '<option value="">All Categories</option>';
+            cats.forEach(function(c) {
+                sel.innerHTML += '<option value="' + esc(c) + '"' + (c === current ? ' selected' : '') + '>' + esc(c) + '</option>';
+            });
+        }
+
+        /* â”€â”€ Apply All Filters â”€â”€ */
+        function applyFilters() {
+            var q = document.getElementById('searchInput').value.trim().toLowerCase();
+            var cat = document.getElementById('catFilter').value;
+            var sort = document.getElementById('sortFilter').value;
+
+            filteredPosts = allPosts.filter(function(p) {
+                var matchQ = !q || (p.title || '').toLowerCase().indexOf(q) !== -1
+                    || (p.content || '').toLowerCase().indexOf(q) !== -1
+                    || (p.author || '').toLowerCase().indexOf(q) !== -1
+                    || (p.category || '').toLowerCase().indexOf(q) !== -1;
+                var matchCat = !cat || p.category === cat;
+                return matchQ && matchCat;
+            });
+
+            // Sort
+            filteredPosts.sort(function(a, b) {
+                if (sort === 'oldest') return (a.id || 0) - (b.id || 0);
+                if (sort === 'a-z') return (a.title || '').localeCompare(b.title || '');
+                if (sort === 'z-a') return (b.title || '').localeCompare(a.title || '');
+                return (b.id || 0) - (a.id || 0); // newest
+            });
+
+            // Show/hide clear button
+            var clearBtn = document.getElementById('clearFilters');
+            if (q || cat || sort !== 'newest') {
+                clearBtn.classList.add('show');
+            } else {
+                clearBtn.classList.remove('show');
+            }
+
+            // Result count
+            document.getElementById('resultCount').textContent =
+                filteredPosts.length + ' article' + (filteredPosts.length !== 1 ? 's' : '');
+
+            currentPage = 1;
+            renderGrid();
+        }
+
+        /* â”€â”€ (Featured removed â€” all posts in grid) â”€â”€ */
+
+
+        /* â”€â”€ Render Grid â”€â”€ */
+        function renderGrid() {
+            var grid = document.getElementById('blogGrid');
+            var pagEl = document.getElementById('blogPagination');
+            var posts = filteredPosts;
+
+            if (posts.length === 0) {
+                grid.innerHTML = filteredPosts.length === 0
+                    ? '<div class="empty-state"><span class="empty-icon">ðŸ“„</span>No articles match your search.<span class="empty-sub">Try adjusting your filters or check back later.</span></div>'
+                    : '<div class="empty-state"><span class="empty-icon">âœ¨</span>More articles coming soon!<span class="empty-sub">Check back for additional content from HOSU contributors.</span></div>';
+                pagEl.innerHTML = '';
+                return;
+            }
+
+            var totalPages = Math.ceil(posts.length / POSTS_PER_PAGE);
+            if (currentPage > totalPages) currentPage = totalPages;
+            var start = (currentPage - 1) * POSTS_PER_PAGE;
+            var pageItems = posts.slice(start, start + POSTS_PER_PAGE);
+
+            grid.innerHTML = pageItems.map(function(p) {
+                var img = fixPath(p.image) || 'uploads/default-blog.jpg';
+                var avatar = fixPath(p.avatar) || 'uploads/default-avatar.jpg';
+                return '<div class="blog-card" data-id="' + p.id + '">'
+                    + '<div class="blog-card-img"><img src="' + esc(img) + '" alt="' + esc(p.title) + '" loading="lazy"></div>'
+                    + '<div class="blog-card-body">'
+                    + '<span class="blog-card-cat">' + esc(p.category) + '</span>'
+                    + '<h3>' + esc(p.title) + '</h3>'
+                    + '<p class="card-excerpt">' + esc(truncate(p.content, 110)) + '</p>'
+                    + '<div class="blog-card-meta">'
+                    + '<div class="meta-author"><img src="' + esc(avatar) + '" alt=""><span>' + esc(p.author) + '</span></div>'
+                    + '<span class="blog-card-comment"><i class="far fa-comment"></i> ' + (p.comment_count || 0) + '</span>'
+                    + '<span class="meta-date">' + (p.formatted_date || '') + '</span>'
+                    + '</div></div></div>';
+            }).join('');
+
+            // Attach click handlers
+            grid.querySelectorAll('.blog-card').forEach(function(card) {
+                card.addEventListener('click', function() {
+                    openArticle(card.dataset.id);
+                });
+            });
+
+            // Pagination
+            if (totalPages <= 1) { pagEl.innerHTML = ''; return; }
+            var html = '<a class="' + (currentPage === 1 ? 'disabled' : '') + '" data-page="' + (currentPage - 1) + '">&larr;</a>';
+            for (var i = 1; i <= totalPages; i++) {
+                html += '<a class="' + (i === currentPage ? 'active' : '') + '" data-page="' + i + '">' + i + '</a>';
+            }
+            html += '<a class="' + (currentPage === totalPages ? 'disabled' : '') + '" data-page="' + (currentPage + 1) + '">&rarr;</a>';
+            pagEl.innerHTML = html;
+            pagEl.querySelectorAll('a').forEach(function(a) {
+                a.addEventListener('click', function() {
+                    var pg = parseInt(a.dataset.page, 10);
+                    if (pg >= 1 && pg <= totalPages) {
+                        currentPage = pg;
+                        renderGrid();
+                        document.getElementById('blogContent').scrollIntoView({ behavior: 'smooth', block: 'start' });
+                    }
+                });
+            });
+        }
+
+        /* â”€â”€ Article Detail Overlay â”€â”€ */
+        var _currentArticleId = null;
+        var _isAdmin = window._hosuIsAdmin || false;
+
+        function closeArticleOverlay() {
+            document.getElementById('articleOverlay').classList.remove('active');
+            document.body.style.overflow = '';
+            _currentArticleId = null;
+        }
+
+        function openArticle(id) {
+            var p = allPosts.find(function(x) { return String(x.id) === String(id); });
+            if (!p) return;
+            _currentArticleId = p.id;
+            var img = fixPath(p.image) || 'uploads/default-blog.jpg';
+            var avatar = fixPath(p.avatar) || 'uploads/default-avatar.jpg';
+
+            // Convert plain text content to paragraphs
+            var bodyContent = (p.content || '').split(/\n\n+/).map(function(para) {
+                return '<p>' + esc(para.trim()) + '</p>';
+            }).join('');
+
+            // Comment form â€” show name field for non-logged-in, or auto-fill for logged-in
+            var commentFormHtml = '';
+            if (_loginState && _loginState.loggedIn) {
+                commentFormHtml =
+                    '<div class="comment-form" id="commentForm">'
+                    + '<div class="cf-fields">'
+                    + '<input type="text" id="cf-name" value="' + esc(_loginState.user.username) + '" readonly style="background:var(--gray-100);cursor:default;">'
+                    + '<textarea id="cf-text" placeholder="Write a comment..." rows="2"></textarea>'
+                    + '</div>'
+                    + '<button class="cf-submit" onclick="submitComment()">Post</button>'
+                    + '</div>';
+            } else {
+                commentFormHtml =
+                    '<div class="comment-form" id="commentForm">'
+                    + '<div class="cf-fields">'
+                    + '<input type="text" id="cf-name" placeholder="Your name" maxlength="100">'
+                    + '<textarea id="cf-text" placeholder="Write a comment..." rows="2"></textarea>'
+                    + '</div>'
+                    + '<button class="cf-submit" onclick="submitComment()">Post</button>'
+                    + '</div>';
+            }
+
+            document.getElementById('articleDetail').innerHTML =
+                '<div class="article-detail-hero">'
+                + '<img src="' + esc(img) + '" alt="' + esc(p.title) + '">'
+                + '<div class="hero-gradient"></div>'
+                + '<button class="close-article" onclick="closeArticleOverlay()">&times;</button>'
+                + '</div>'
+                + '<div class="article-scroll">'
+                + '<div class="article-detail-content">'
+                + '<span class="detail-cat">' + esc(p.category) + '</span>'
+                + '<h1>' + esc(p.title) + '</h1>'
+                + '<div class="detail-meta">'
+                + '<img src="' + esc(avatar) + '" alt="' + esc(p.author) + '">'
+                + '<span><span class="author-name">' + esc(p.author) + '</span></span>'
+                + '<span><i class="far fa-calendar" style="margin-right:3px"></i>' + (p.formatted_date || '') + '</span>'
+                + '</div>'
+                + '<div class="article-body">' + bodyContent + '</div>'
+                + '</div>'
+                + '<div class="comments-section">'
+                + '<div class="comments-header">'
+                + '<h3><i class="far fa-comments" style="margin-right:4px"></i>Comments</h3>'
+                + '<span class="comment-count-badge" id="overlay-comment-count">' + (p.comment_count || 0) + '</span>'
+                + '</div>'
+                + '<div class="comments-list" id="commentsList"><p class="no-comments">Loading comments...</p></div>'
+                + commentFormHtml
+                + '</div>'
+                + '</div>';
+
+            document.getElementById('articleOverlay').classList.add('active');
+            document.body.style.overflow = 'hidden';
+
+            // Fetch ALL comments for this post (not just 2)
+            loadArticleComments(p.id);
+        }
+
+        function loadArticleComments(postId) {
+            fetch('api.php?action=get_comments&post_id=' + postId)
+            .then(function(r) { return r.json(); })
+            .then(function(comments) {
+                var list = document.getElementById('commentsList');
+                var countBadge = document.getElementById('overlay-comment-count');
+                if (!list) return;
+                if (!Array.isArray(comments) || comments.length === 0) {
+                    list.innerHTML = '<p class="no-comments">No comments yet. Be the first to share your thoughts!</p>';
+                    if (countBadge) countBadge.textContent = '0';
+                    return;
+                }
+                if (countBadge) countBadge.textContent = comments.length;
+                list.innerHTML = comments.map(function(c) {
+                    var initial = (c.author || 'A').charAt(0).toUpperCase();
+                    var deleteBtn = _isAdmin
+                        ? '<button class="comment-delete" onclick="deleteComment(' + c.id + ',' + postId + ')" title="Delete comment"><i class="fas fa-trash-alt"></i></button>'
+                        : '';
+                    return '<div class="comment-item">'
+                        + '<div class="comment-avatar">' + initial + '</div>'
+                        + '<div class="comment-body">'
+                        + '<span class="comment-author">' + esc(c.author || 'Anonymous') + '</span>'
+                        + '<span class="comment-date">' + (c.formatted_date || '') + '</span>'
+                        + '<p class="comment-text">' + esc(c.content || c.comment || '') + '</p>'
+                        + '</div>'
+                        + deleteBtn
+                        + '</div>';
+                }).join('');
+                // Scroll to bottom of comments
+                list.scrollTop = list.scrollHeight;
+            })
+            .catch(function() {
+                var list = document.getElementById('commentsList');
+                if (list) list.innerHTML = '<p class="no-comments">Could not load comments.</p>';
+            });
+        }
+
+        window.submitComment = function() {
+            var name = document.getElementById('cf-name').value.trim();
+            var text = document.getElementById('cf-text').value.trim();
+            if (!name || !text) return;
+            var btn = document.querySelector('.cf-submit');
+            btn.disabled = true; btn.textContent = 'Posting...';
+            var fd = new FormData();
+            fd.append('action', 'add_comment');
+            fd.append('post_id', _currentArticleId);
+            fd.append('author', name);
+            fd.append('content', text);
+            fetch('api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                btn.disabled = false; btn.textContent = 'Post';
+                if (d.success) {
+                    document.getElementById('cf-text').value = '';
+                    loadArticleComments(_currentArticleId);
+                    // Also refresh the main post list to update comment counts
+                    loadPosts(true);
+                }
+            })
+            .catch(function() { btn.disabled = false; btn.textContent = 'Post'; });
+        };
+
+        window.deleteComment = function(commentId, postId) {
+            if (!confirm('Delete this comment?')) return;
+            var fd = new FormData();
+            fd.append('action', 'delete_comment');
+            fd.append('id', commentId);
+            fetch('api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    loadArticleComments(postId);
+                    loadPosts(true);
+                }
+            })
+            .catch(function() {});
+        };
+
+        // Close overlay
+        document.getElementById('articleOverlay').addEventListener('click', function(e) {
+            if (e.target === this) closeArticleOverlay();
+        });
+        document.addEventListener('keydown', function(e) {
+            if (e.key === 'Escape') closeArticleOverlay();
+        });
+
+        /* â”€â”€ Filter Event Listeners â”€â”€ */
+        var debounceTimer;
+        document.getElementById('searchInput').addEventListener('input', function() {
+            clearTimeout(debounceTimer);
+            debounceTimer = setTimeout(applyFilters, 250);
+        });
+        document.getElementById('catFilter').addEventListener('change', applyFilters);
+        document.getElementById('sortFilter').addEventListener('change', applyFilters);
+        document.getElementById('clearFilters').addEventListener('click', function() {
+            document.getElementById('searchInput').value = '';
+            document.getElementById('catFilter').value = '';
+            document.getElementById('sortFilter').value = 'newest';
+            applyFilters();
+        });
+
+        /* â”€â”€ Init â”€â”€ */
+        document.addEventListener('DOMContentLoaded', function() { loadPosts(false); });
+
+    })();
+    </script>
+<script src="shared-components.js?v=2026040701"></script>
+<script src="shared-login.js?v=2026040404"></script>
+<script src="donate-float.js?v=2026040404"></script>
+</body>
+</html>

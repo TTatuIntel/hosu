@@ -1,90 +1,4685 @@
-<?php
-/**
- * mailer.php — SMTP email helper using PHPMailer.
- *
- * Drop-in replacement for PHP mail(). Reads SMTP config from .env via env.php.
- *
- * Usage:
- *   require_once 'mailer.php';
- *   hosuMail($to, $subject, $htmlBody);             // simple
- *   hosuMail($to, $subject, $htmlBody, $fromName);  // custom sender name
- */
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>HOSU - Hematology & Oncology Society of Uganda</title>
+<meta name="description" content="Hematology & Oncology Society of Uganda (HOSU) - Advancing cancer care and hematology research in Uganda through education, advocacy, and clinical excellence.">
+<meta name="keywords" content="HOSU, hematology, oncology, Uganda, cancer care, medical society, hematology research">
+<meta name="author" content="HOSU">
+<meta name="robots" content="index, follow">
+<meta property="og:title" content="HOSU - Hematology & Oncology Society of Uganda">
+<meta property="og:description" content="Advancing cancer care and hematology research in Uganda.">
+<meta property="og:type" content="website">
+<link rel="canonical" href="https://hosu.or.ug/">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+<link rel="stylesheet" href="navbar.css?v=2026040404">
+<link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+<style>
+/* CSS for home page - ensuring uniform colors with blog page */
+:root {
+    --primary-color: #e63946;
+    --primary-light: #f8d7da;
+    --primary-dark: #c81d2a;
+    --secondary-color: #0d4593;
+    --secondary-light: #e6f0ff;
+    --secondary-dark: #072a5e;
+    --text-color: #001848;
+    --text-light: #4a5568;
+    --background-light: #f1faee;
+    --background-dark: #1d3557;
+    --white: #ffffff;
+    --accent-color: #a8dadc;
+    --gray-100: #f7fafc;
+    --gray-200: #edf2f7;
+    --gray-300: #e2e8f0;
+    --gray-400: #cbd5e0;
+    --gray-500: #a0aec0;
+    --transition: all 0.3s ease;
+    --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+    --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+    --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+    --navbar-height: 90px;
+    --border-radius: 8px;
+    --spacing-xs: 0.5rem;
+    --spacing-sm: 1rem;
+    --spacing-md: 1.5rem;
+    --spacing-lg: 2rem;
+    --spacing-xl: 3rem;
+    --content-width: 1200px;
+    --section-width: 92%;
+    --section-max-width: 1280px;
+    --hero-height: auto;
+    --section-padding: 2rem;
+    --hero-content-width: 48%;
+    --hero-image-width: 48%;
+}
 
-require_once __DIR__ . '/vendor/autoload.php';
-require_once __DIR__ . '/env.php';
+* {
+    margin: 0;
+    padding: 0;
+    box-sizing: border-box;
+}
 
-use PHPMailer\PHPMailer\PHPMailer;
-use PHPMailer\PHPMailer\SMTP;
-use PHPMailer\PHPMailer\Exception;
+html {
+    scroll-behavior: smooth;
+    overflow-x: hidden;
+}
 
-/**
- * Send an HTML email via SMTP.
- *
- * @param string $to        Recipient email
- * @param string $subject   Email subject
- * @param string $htmlBody  Full HTML body
- * @param string $fromName  Sender display name (default: HOSU)
- * @return bool             True on success
- */
-function hosuMail(string $to, string $subject, string $htmlBody, string $fromName = 'HOSU'): bool
-{
-    $mail = new PHPMailer(true);
+body {
+    font-family: 'Inter', sans-serif;
+    line-height: 1.6;
+    color: var(--text-color);
+    background-color: var(--white);
+    overflow-x: hidden;
+}
 
-    try {
-        // SMTP configuration from environment
-        $smtpHost = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
-        $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
-        $smtpUser = getenv('SMTP_USER') ?: 'info@hosu.or.ug';
-        $smtpPass = getenv('SMTP_PASS') ?: '';
-        $smtpFrom = getenv('SMTP_FROM') ?: ($smtpUser ?: 'info@hosu.or.ug');
-        $smtpReplyTo = getenv('SMTP_REPLY_TO') ?: $smtpFrom;
-        $smtpFromName = getenv('SMTP_FROM_NAME') ?: $fromName;
-        $smtpEncryption = getenv('SMTP_ENCRYPTION') ?: 'tls';
+a {
+    text-decoration: none;
+    color: inherit;
+}
 
-        // If no SMTP credentials configured, fall back to PHP mail()
-        if (empty($smtpUser) || empty($smtpPass)) {
-            error_log('HOSU Mailer: No SMTP credentials configured, falling back to mail()');
-            $headers  = "MIME-Version: 1.0\r\n";
-            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
-            $headers .= "From: " . $smtpFromName . " <" . $smtpFrom . ">\r\n";
-            $headers .= "Reply-To: <" . $smtpReplyTo . ">\r\n";
-            return @mail($to, $subject, $htmlBody, $headers);
-        }
+img {
+    max-width: 100%;
+    height: auto;
+}
 
-        // Server settings
-        $mail->isSMTP();
-        $mail->Host       = $smtpHost;
-        $mail->SMTPAuth   = true;
-        $mail->Username   = $smtpUser;
-        $mail->Password   = $smtpPass;
-        $mail->Port       = $smtpPort;
+.container {
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin: 0 auto;
+    padding: 0 var(--spacing-sm);
+}
 
-        if ($smtpEncryption === 'tls') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
-        } elseif ($smtpEncryption === 'ssl') {
-            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
-        }
+section {
+    padding: var(--section-padding) 0;
+    display: flex;
+    justify-content: center;
+    width: 100%;
+}
 
-        // Timeout
-        $mail->Timeout = 30;
+/* Utility Classes */
+.text-center { text-align: center; }
+.text-primary { color: var(--primary-color); }
+.text-secondary { color: var(--secondary-color); }
+.bg-primary { background-color: var(--primary-color); }
+.bg-secondary { background-color: var(--secondary-color); }
+.bg-light { background-color: var(--background-light); }
+.shadow { box-shadow: var(--shadow-md); }
+.rounded { border-radius: var(--border-radius); }
+.fade-in { animation: fadeIn 0.5s ease-in-out; }
 
-        // Recipients
-        $mail->setFrom($smtpFrom, $smtpFromName);
-        $mail->addReplyTo($smtpReplyTo, $smtpFromName);
-        $mail->addAddress($to);
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
 
-        // Content
-        $mail->isHTML(true);
-        $mail->CharSet = 'UTF-8';
-        $mail->Subject = $subject;
-        $mail->Body    = $htmlBody;
-        // Plain text fallback
-        $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $htmlBody));
+/* Navbar styles - Enhanced with transparent blur */
+.navbar {
+    background: rgba(255, 255, 255, 0.1);
+    -webkit-backdrop-filter: blur(10px);
+    backdrop-filter: blur(10px);
+    padding: 1rem 5%;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: fixed;
+    width: 100%;
+    top: 0;
+    z-index: 1000;
+    height: var(--navbar-height);
+    transition: all 0.3s ease;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+}
 
-        $mail->send();
-        return true;
-    } catch (Exception $e) {
-        error_log('HOSU Mailer Error: ' . $e->getMessage());
-        return false;
+/* Add this class when scrolling */
+.navbar.scrolled {
+    background-color: rgba(255, 255, 255, 0.7);
+    -webkit-backdrop-filter: blur(15px);
+    backdrop-filter: blur(15px);
+    border-bottom: 1px solid rgba(0, 0, 0, 0.05);
+}
+
+.navbar-container {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    padding: 0 var(--spacing-sm);
+}
+
+.logo img {
+    width: 180px;
+    height: 65px;
+    object-fit: contain;
+    transition: transform 0.3s ease;
+}
+
+.nav-links {
+    display: flex;
+    gap: 1.5rem;
+    align-items: center;
+}
+
+.nav-links a {
+    transition: var(--transition);
+    position: relative;
+    padding: 0.5rem 0.25rem;
+}
+
+.nav-links a:not(.cta-button)::after {
+    content: '';
+    position: absolute;
+    width: 0;
+    height: 2px;
+    bottom: 0;
+    left: 0;
+    background-color: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.nav-links a:not(.cta-button):hover::after {
+    width: 100%;
+}
+
+.nav-links a:not(.cta-button):hover {
+    color: var(--primary-color);
+}
+
+.nav-links .cta-button {
+    background: var(--primary-color);
+    color: var(--white);
+    padding: 0.5rem 1.25rem;
+    border-radius: 30px;
+    min-height: 40px;
+    min-width: 40px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    box-shadow: var(--shadow-sm);
+    border: none;
+}
+
+.nav-links .cta-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.menu-toggle {
+    display: none;
+    cursor: pointer;
+    font-size: 1.5rem;
+    width: 40px;
+    height: 40px;
+    align-items: center;
+    justify-content: center;
+    border-radius: 50%;
+    transition: background-color 0.3s ease;
+}
+
+.menu-toggle:hover {
+    background-color: var(--gray-200);
+}
+
+/* Hero Section */
+.hero {
+    position: relative;
+    color: var(--text-color);
+    padding-top: var(--navbar-height);
+    overflow: visible;
+    background-color: var(--gray-100);
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: var(--hero-height);
+    padding-bottom: 0;
+    margin-top: 0;
+    z-index: 20;
+}
+
+.hero-container {
+    display: flex;
+    flex-direction: row;
+    max-width: var(--section-max-width);
+    width: var(--section-width);
+    margin: 0 auto;
+    position: relative;
+    overflow: visible;
+    padding: 1.25rem 0;
+    gap: 3%;
+    justify-content: space-between;
+    align-items: center;
+    min-height: 380px;
+}
+
+.hero-content {
+    width: var(--hero-content-width);
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    padding: 0.5rem 0;
+    z-index: 10;
+    text-align: left;
+    position: relative;
+    min-height: 280px;
+}
+
+/* Hero Slides */
+.hero-slide {
+    display: none;
+    flex-direction: column;
+    animation: heroFadeIn 0.6s ease;
+}
+
+.hero-slide.active {
+    display: flex;
+}
+
+@keyframes heroFadeIn {
+    from { opacity: 0; transform: translateY(10px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+.hero-pills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin-bottom: 0.75rem;
+}
+
+.hero-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(255,255,255,0.85);
+    color: var(--secondary-color);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: 16px;
+    border: 1px solid rgba(13,69,147,0.12);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.hero-readmore {
+    display: inline-flex;
+    align-items: center;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.85rem;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    margin-top: 0.25rem;
+    position: relative;
+}
+
+.hero-readmore:hover {
+    color: #c81d2a;
+    transform: translateX(4px);
+}
+
+/* Floating Popup near Read More */
+.hero-float-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 12px);
+    left: -8px;
+    z-index: 200;
+    width: 360px;
+    max-height: 320px;
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.72);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 14px;
+    padding: 1.1rem 1.3rem 1.2rem;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.12),
+        0 4px 12px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    animation: floatPopDown 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+.hero-float-popup.active {
+    display: block;
+}
+/* Arrow pointing up */
+.hero-float-popup::before {
+    content: '';
+    position: absolute;
+    top: -7px;
+    left: 20px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.72);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+}
+/* Scrollbar styling */
+.hero-float-popup::-webkit-scrollbar {
+    width: 4px;
+}
+.hero-float-popup::-webkit-scrollbar-track {
+    background: transparent;
+}
+.hero-float-popup::-webkit-scrollbar-thumb {
+    background: rgba(13, 69, 147, 0.15);
+    border-radius: 4px;
+}
+.float-popup-close {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.05);
+    border: none;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+.float-popup-close:hover {
+    background: var(--primary-color);
+    color: var(--white);
+}
+.hero-float-popup h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.4rem;
+    padding-right: 1.8rem;
+    letter-spacing: -0.01em;
+}
+.hero-float-popup p {
+    font-size: 0.76rem;
+    color: var(--text-color);
+    line-height: 1.55;
+    margin-bottom: 0.35rem;
+    opacity: 0.9;
+}
+.hero-float-popup h4 {
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 0.45rem 0 0.25rem;
+    padding-bottom: 0.2rem;
+    border-bottom: 1.5px solid rgba(13, 69, 147, 0.1);
+    display: inline-block;
+}
+.hero-float-popup ul {
+    padding-left: 0.9rem;
+    margin-bottom: 0.35rem;
+}
+.hero-float-popup li {
+    font-size: 0.73rem;
+    color: var(--text-color);
+    line-height: 1.5;
+    margin-bottom: 0.15rem;
+    opacity: 0.88;
+}
+.hero-float-popup li strong {
+    color: var(--secondary-color);
+    font-weight: 600;
+}
+@keyframes floatPopDown {
+    from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+
+/* Hero Dot Indicators */
+.hero-indicators {
+    display: flex;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+
+.hero-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: rgba(18, 41, 74, 0.2);
+    cursor: pointer;
+    transition: all 0.3s ease;
+}
+
+.hero-dot.active {
+    background: var(--primary-color);
+    width: 22px;
+    border-radius: 4px;
+}
+
+.hero-image-container {
+    position: absolute;
+    right: -5%;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 58%;
+    aspect-ratio: 4/3;
+    overflow: hidden;
+    border-radius: 0;
+    box-shadow: none;
+    animation: fadeIn 1s ease-out 0.3s forwards;
+    opacity: 0;
+    z-index: 0;
+    max-height: 420px;
+}
+
+.hero-image-container::after {
+    content: '';
+    position: absolute;
+    top: -1px;
+    left: -1px;
+    right: -1px;
+    bottom: -1px;
+    z-index: 2;
+    pointer-events: none;
+    background:
+        linear-gradient(to right, #f7fafc 0%, rgba(247,250,252,0.85) 8%, rgba(247,250,252,0.5) 18%, rgba(247,250,252,0.15) 30%, transparent 45%),
+        linear-gradient(to left, #f7fafc 0%, rgba(247,250,252,0.4) 3%, transparent 10%),
+        linear-gradient(to bottom, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%),
+        linear-gradient(to top, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%);
+}
+
+@keyframes fadeIn {
+    from { opacity: 0; }
+    to { opacity: 1; }
+}
+
+.hero-background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    width: 100%;
+    height: 100%;
+    background-size: cover;
+    background-position: center;
+    transition: opacity 1s ease, transform 8s ease;
+    opacity: 0;
+    transform: scale(1.05);
+    z-index: 1;
+}
+
+#hero-bg-0{background-image:url('img/IMG_7825.webp')}
+/* Load the remaining hero backgrounds lazily after first paint to reduce initial bandwidth */
+.hero-background.active {
+    opacity: 1;
+    transform: scale(1);
+}
+
+/* Dynamic backgrounds for featured content */
+.hero-background.dynamic-bg {
+    background: linear-gradient(135deg, rgba(29, 78, 137, 0.9), rgba(230, 57, 70, 0.8));
+}
+.hero-background.event-bg {
+    background: linear-gradient(135deg, rgba(230, 57, 70, 0.9) 0%, rgba(29, 78, 137, 0.85) 100%);
+}
+.hero-background.publication-bg {
+    background: linear-gradient(135deg, rgba(29, 78, 137, 0.95) 0%, rgba(44, 62, 80, 0.9) 100%);
+}
+.hero-background.grant-bg {
+    background: linear-gradient(135deg, rgba(40, 167, 69, 0.9) 0%, rgba(29, 78, 137, 0.85) 100%);
+}
+
+/* Event image backgrounds get a dark overlay for text readability */
+.hero-background[style*="background-image"]::after {
+    content: '';
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: linear-gradient(
+        135deg,
+        rgba(29, 78, 137, 0.7) 0%,
+        rgba(0, 0, 0, 0.5) 50%,
+        rgba(230, 57, 70, 0.4) 100%
+    );
+    pointer-events: none;
+}
+
+/* Typography */
+.hero h1 {
+    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+    color: var(--secondary-color);
+    font-weight: 700;
+    position: relative;
+    display: inline-block;
+}
+
+.hero h1::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 80px;
+    height: 3px;
+    background: var(--primary-color);
+}
+
+.hero p {
+    font-size: clamp(0.8rem, 1.3vw, 0.88rem);
+    margin-bottom: 1rem;
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+/* CTA buttons */
+.hero .cta-buttons {
+    display: flex;
+    gap: 1rem;
+    flex-wrap: wrap;
+    justify-content: flex-start;
+}
+
+.cta-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding: 0.75rem 1.25rem;
+    border-radius: 30px;
+    font-weight: 500;
+    font-size: 0.95rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 44px;
+    min-width: 44px;
+    outline: none;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+}
+
+.cta-button:focus-visible {
+    outline: 2px solid var(--primary-color);
+    outline-offset: 2px;
+}
+
+.cta-button:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.hero .cta-button {
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    position: relative;
+    overflow: hidden;
+    z-index: 1;
+}
+
+.hero .cta-button:hover {
+   background: var(--primary-dark);
+}
+
+/* Interactive button with glow effect */
+.interactive-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    font-weight: 500;
+    font-size: 1rem;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    box-shadow: var(--shadow-sm);
+}
+
+.interactive-button .icon {
+    transition: transform 0.3s ease;
+}
+
+.interactive-button:hover .icon {
+    transform: translateX(4px);
+}
+
+.interactive-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+/* Glow effect instead of pulse */
+.glow-effect {
+    box-shadow: 0 0 10px 2px rgba(230, 57, 70, 0.5);
+}
+
+/* ══════════════════════════════════════════════════════════════════
+   Featured Hero Slides (Admin-controlled dynamic content)
+   ══════════════════════════════════════════════════════════════════ */
+.hero-slide.featured-hero-slide h1 {
+    /* Match regular hero h1 styling */
+    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
+    line-height: 1.2;
+    margin-bottom: 0.6rem;
+    color: var(--secondary-color);
+    font-weight: 700;
+    position: relative;
+    display: inline-block;
+}
+
+.hero-slide.featured-hero-slide h1::after {
+    content: '';
+    position: absolute;
+    bottom: -8px;
+    left: 0;
+    width: 80px;
+    height: 3px;
+    background: var(--primary-color);
+}
+
+.hero-slide.featured-hero-slide p {
+    /* Match regular hero p styling */
+    font-size: clamp(0.8rem, 1.3vw, 0.88rem);
+    margin-bottom: 1rem;
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+.hero-slide .featured-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.72rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    padding: 0.35rem 0.75rem;
+    border-radius: 20px;
+    margin-bottom: 0.75rem;
+    background: rgba(230, 57, 70, 0.1);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+    color: var(--primary-color);
+    border: 1px solid rgba(230, 57, 70, 0.2);
+}
+
+.hero-slide .featured-label .featured-label-icon {
+    font-size: 0.9rem;
+}
+
+.featured-label--event {
+    background: rgba(230, 57, 70, 0.1);
+    color: var(--primary-color);
+    border-color: rgba(230, 57, 70, 0.2);
+}
+
+.featured-label--publication {
+    background: rgba(29, 78, 137, 0.1);
+    color: var(--secondary-color);
+    border-color: rgba(29, 78, 137, 0.2);
+}
+
+.featured-label--grant {
+    background: rgba(40, 167, 69, 0.1);
+    color: #28a745;
+    border-color: rgba(40, 167, 69, 0.2);
+}
+
+.hero-slide .featured-meta {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.4rem;
+    margin: 0.75rem 0;
+}
+
+.hero-slide .featured-meta-tag,
+.hero-slide .featured-meta-item {
+    /* Match hero-pill styling */
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(255,255,255,0.85);
+    color: var(--secondary-color);
+    font-size: 0.72rem;
+    font-weight: 600;
+    padding: 0.3rem 0.6rem;
+    border-radius: 16px;
+    border: 1px solid rgba(13,69,147,0.12);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.hero-slide .featured-cta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-top: 0.75rem;
+}
+
+.hero-slide .featured-cta .btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.65rem 1.25rem;
+    background: var(--primary-color);
+    color: white;
+    font-size: 0.85rem;
+    font-weight: 600;
+    border-radius: 30px;
+    text-decoration: none;
+    transition: all 0.3s ease;
+    box-shadow: var(--shadow-sm);
+}
+
+.hero-slide .featured-cta .btn:hover {
+    background: var(--primary-dark);
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-md);
+}
+
+.hero-slide .featured-amount {
+    display: block;
+    font-size: 1.6rem;
+    font-weight: 800;
+    color: #28a745;
+    margin: 0.5rem 0;
+}
+
+.hero-slide .featured-deadline {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    font-size: 0.8rem;
+    color: var(--text-light);
+    margin-top: 0.5rem;
+}
+
+.hero-slide .featured-status {
+    display: inline-block;
+    font-size: 0.7rem;
+    font-weight: 700;
+    padding: 0.25rem 0.6rem;
+    border-radius: 16px;
+    margin-left: 0.5rem;
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.featured-status--open {
+    background: rgba(40, 167, 69, 0.15);
+    color: #28a745;
+    border: 1px solid rgba(40, 167, 69, 0.3);
+}
+
+.featured-status--closing,
+.featured-status--soon {
+    background: rgba(255, 193, 7, 0.15);
+    color: #d97706;
+    border: 1px solid rgba(255, 193, 7, 0.3);
+}
+
+/* Partner Logos Section */
+.partners-section {
+    padding: 0.5rem 0 1rem;
+    background: rgba(247, 250, 252, 0.5);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    position: relative;
+    display: flex;
+    justify-content: center;
+    overflow: visible;
+    z-index: 5;
+}
+
+.partners-container {
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin: 0 auto;
+    overflow: hidden;
+}
+
+.partners-header {
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    margin-bottom: 0.5rem;
+}
+
+.partners-title {
+    font-size: 1rem;
+    color: var(--text-light);
+    font-weight: 600;
+    text-align: left;
+    margin: 0;
+}
+
+.partners-track {
+    display: flex;
+    animation: scrollPartners 25s linear infinite;
+    width: max-content;
+}
+
+.partners-track:hover {
+    animation-play-state: paused;
+}
+
+.partners-grid {
+    display: flex;
+    align-items: center;
+    gap: 2rem;
+    flex-shrink: 0;
+    padding-right: 2rem;
+}
+
+@keyframes scrollPartners {
+    0% { transform: translateX(0); }
+    100% { transform: translateX(-50%); }
+}
+
+.partner-logo {
+    height: 46px;
+    min-width: 110px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: var(--transition);
+    flex-shrink: 0;
+}
+
+/* Individual logo size fixes for small/short source images */
+.partner-logo--uci { min-width: 143px; height: 57px; }
+.partner-logo--onco { min-width: 154px; height: 55px; }
+.partner-logo--mulago { min-width: 165px; height: 42px; }
+
+.partner-logo img {
+    max-height: 100%;
+    max-width: 100%;
+    object-fit: contain;
+    filter: none;
+    opacity: 1;
+}
+
+.partner-logo:hover img {
+    transform: scale(1.1);
+    filter: brightness(1.1);
+}
+
+/* Events Section */
+.events-section {
+    padding: 1.5rem 0 1rem;
+    background: var(--background-light);
+    position: relative;
+    overflow: hidden;
+}
+
+.events-container {
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin: 0 auto;
+    text-align: center;
+}
+
+.section-title {
+    text-align: center;
+    margin-bottom: var(--spacing-sm);
+    font-size: clamp(1.5rem, 3.8vw, 2rem);
+    color: var(--secondary-color);
+    position: relative;
+}
+
+.section-title::after {
+    content: '';
+    display: block;
+    width: 50px;
+    height: 3px;
+    background: var(--primary-color);
+    margin: 0.5rem auto 0;
+}
+
+.events-subtitle {
+    font-size: 0.95rem;
+    color: var(--text-light);
+    margin-bottom: 1.25rem;
+    max-width: 700px;
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Event filters */
+.event-filters {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+    flex-wrap: wrap;
+}
+
+.filter-button {
+    background: var(--white);
+    border: 1px solid var(--gray-300);
+    padding: 0.3rem 0.8rem;
+    border-radius: 20px;
+    font-size: 0.75rem;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    color: var(--text-light);
+}
+
+.filter-button:hover {
+    background: var(--gray-200);
+    transform: translateY(-2px);
+}
+
+.filter-button.active {
+    background: var(--secondary-color);
+    color: var(--white);
+    border-color: var(--secondary-color);
+}
+
+/* Events Carousel - ENHANCED with progress indicator */
+.events-carousel-container {
+    position: relative;
+    max-width: 850px;
+    margin: 0 auto;
+    padding: 0 2rem;
+    overflow: hidden;
+}
+
+.events-carousel {
+    display: flex;
+    overflow: hidden;
+    margin-bottom: 1.25rem;
+    position: relative;
+    transition: transform 0.5s ease;
+    scroll-snap-type: x mandatory; /* Added for smooth scrolling */
+}
+
+.carousel-slide {
+    display: flex;
+    flex: 0 0 100%;
+    justify-content: center;
+    gap: 1rem;
+    min-height: 320px;
+    overflow: visible;
+    scroll-snap-align: start; /* Added for smooth scrolling */
+    transition: opacity 0.4s ease, transform 0.4s ease; /* Added for transitions */
+}
+
+.carousel-slide.empty {
+    display: none;
+}
+
+.carousel-slide.prev-slide {
+    opacity: 0;
+    transform: translateX(-10%);
+}
+
+.carousel-slide.next-slide {
+    opacity: 0;
+    transform: translateX(10%);
+}
+
+.carousel-slide.active-slide {
+    opacity: 1;
+    transform: translateX(0);
+}
+
+.carousel-progress {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 3px;
+    width: 0;
+    background-color: var(--primary-color);
+    z-index: 5;
+}
+
+/* Enhanced event cards with color coding and countdown */
+.event-card {
+    background: var(--white);
+    border-radius: var(--border-radius);
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+    transition: all 0.3s ease;
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    max-height: 300px;
+    width: 200px;
+    flex: 0 0 auto;
+    transform: scale(0.98);
+    opacity: 0.9;
+    cursor: pointer;
+    position: relative;
+    border: none !important;
+    border-left: none !important;
+}
+
+.event-card:hover, .event-card.active-card {
+    transform: translateY(-5px) scale(1);
+    box-shadow: var(--shadow-md);
+    opacity: 1;
+}
+
+/* Color coding for event types - removed red border */
+.event-card[data-type="conference"] {
+    border-left: 3px solid transparent;
+}
+
+.event-card[data-type="workshop"] {
+    border-left: 3px solid transparent;
+}
+
+.event-card[data-type="webinar"] {
+    border-left: 3px solid transparent;
+}
+
+.event-image {
+    height: 110px;
+    overflow: hidden;
+    position: relative;
+}
+
+.event-image img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+}
+
+.event-card:hover .event-image img {
+    transform: scale(1.05);
+}
+
+.event-content {
+    padding: 0.6rem;
+    flex-grow: 1;
+    display: flex;
+    flex-direction: column;
+}
+
+.event-type {
+    display: inline-block;
+    padding: 0.15rem 0.4rem;
+    background: var(--accent-color);
+    color: var(--secondary-color);
+    border-radius: 10px;
+    font-size: 0.65rem;
+    margin-bottom: 0.2rem;
+}
+
+.event-date {
+    color: var(--primary-color);
+    font-weight: 500;
+    margin-bottom: 0.2rem;
+    font-size: 0.7rem;
+}
+
+.event-title {
+    font-size: 0.9rem;
+    color: var(--secondary-color);
+    margin-bottom: 0.3rem;
+    line-height: 1.3;
+}
+
+.event-description {
+    margin-bottom: 0.4rem;
+    color: var(--text-light);
+    flex-grow: 1;
+    font-size: 0.7rem;
+    line-height: 1.4;
+    display: -webkit-box;
+    -webkit-line-clamp: 3;
+    line-clamp: 3;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* Event countdown timer */
+.event-countdown {
+    margin: 0.4rem 0;
+    font-size: 0.7rem;
+    color: var(--primary-color);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+}
+
+.countdown-label {
+    font-weight: 500;
+}
+
+.countdown-time {
+    background: var(--primary-light);
+    padding: 0.1rem 0.3rem;
+    border-radius: 4px;
+    font-weight: 600;
+}
+
+.event-footer {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-top: 0.3rem;
+    border-top: 1px solid rgba(0,0,0,0.1);
+    margin-top: auto;
+}
+
+.event-location {
+    display: flex;
+    align-items: center;
+    gap: 0.2rem;
+    color: var(--text-light);
+    font-size: 0.65rem;
+}
+
+.register-button {
+    padding: 0.2rem 0.4rem;
+    background: var(--primary-color);
+    color: var(--white);
+    border-radius: 10px;
+    text-decoration: none;
+    transition: var(--transition);
+    font-size: 0.65rem;
+}
+
+.register-button:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+/* Calendar button */
+.calendar-button {
+    background: var(--secondary-light);
+    border: none;
+    width: 24px;
+    height: 24px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    font-size: 0.8rem;
+    transition: all 0.3s ease;
+    margin-left: 0.3rem;
+}
+
+.calendar-button:hover {
+    background: var(--secondary-color);
+    color: white;
+    transform: scale(1.1);
+}
+
+.featured-event {
+    position: relative;
+    /* box-shadow: 0 6px 12px rgba(0,0,0,0.15); */
+}
+
+.featured-badge {
+    position: absolute;
+    top: 5px;
+    right: 5px;
+    background: var(--primary-color);
+    color: white;
+    padding: 2px 5px;
+    border-radius: 5px;
+    font-weight: 600;
+    font-size: 0.6rem;
+    z-index: 10;
+}
+
+/* Enhanced carousel navigation */
+.carousel-arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background-color: var(--white);
+    color: var(--secondary-color);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    box-shadow: var(--shadow-sm);
+    z-index: 10;
+    transition: all 0.3s ease;
+    font-size: 1rem;
+    border: none;
+    opacity: 0.7;
+}
+
+.carousel-arrow:hover {
+    background-color: var(--secondary-color);
+    color: var(--white);
+    opacity: 1;
+}
+
+.carousel-arrow.clicked {
+    transform: translateY(-50%) scale(0.95);
+    background-color: var(--primary-color);
+    color: var(--white);
+}
+
+.carousel-arrow.prev {
+    left: 0;
+}
+
+.carousel-arrow.next {
+    right: 0;
+}
+
+/* Enhanced carousel dots */
+.carousel-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.4rem;
+    margin-top: 0.75rem;
+}
+
+.carousel-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: var(--gray-300);
+    cursor: pointer;
+    transition: all 0.3s ease;
+    opacity: 0.6;
+    display: none; /* Hide by default */
+}
+
+.carousel-dot.has-content {
+    display: block; /* Only show dots for slides with content */
+}
+
+.carousel-dot:hover {
+    opacity: 0.8;
+    transform: scale(1.2);
+}
+
+.carousel-dot.active {
+    background-color: var(--primary-color);
+    opacity: 1;
+}
+
+.carousel-dot.clicked {
+    transform: scale(1.3);
+    background-color: var(--primary-color);
+}
+
+/* Past events highlight */
+.past-events-highlight {
+    margin: 1.5rem auto;
+    max-width: 600px;
+    background: var(--gray-100);
+    border-radius: var(--border-radius);
+    padding: 1rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.highlight-title {
+    font-size: 1rem;
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
+    text-align: center;
+}
+
+.highlight-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+}
+
+.highlight-image {
+    flex: 0 0 120px;
+    border-radius: var(--border-radius);
+    overflow: hidden;
+}
+
+.highlight-text {
+    font-size: 0.85rem;
+    color: var(--text-light);
+}
+
+.highlight-link {
+    display: inline-block;
+    margin-top: 0.5rem;
+    color: var(--primary-color);
+    font-weight: 500;
+}
+
+.view-all-events {
+    margin-top: 1.25rem;
+    text-align: center;
+}
+
+.view-all-button {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4rem;
+    background: var(--secondary-color);
+    color: var(--white);
+    padding: 0.75rem 1.5rem;
+    border-radius: 30px;
+    font-weight: 500;
+    transition: var(--transition);
+    font-size: 0.95rem;
+    box-shadow: var(--shadow-sm);
+}
+
+.view-all-button:hover {
+    background: var(--secondary-dark);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-md);
+}
+
+.view-all-button span {
+    transition: transform 0.3s ease;
+}
+
+.view-all-button:hover span {
+    transform: translateX(4px);
+}
+
+/* Specialty Section - Dynamic Layout */
+.specialty-section {
+    background: var(--white);
+    padding: 2rem 0 2.5rem;
+}
+
+.specialty-container {
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin: 0 auto;
+    display: flex;
+    gap: 2.5rem;
+    align-items: center;
+}
+
+.specialty-image-col {
+    flex: 0 0 42%;
+    max-width: 42%;
+}
+
+.specialty-img-stack {
+    position: relative;
+    padding-bottom: 1.5rem;
+    padding-right: 1.5rem;
+}
+
+.specialty-img {
+    border-radius: 10px;
+    object-fit: cover;
+    box-shadow: 0 6px 24px rgba(0,0,0,0.12);
+}
+
+.specialty-img--main {
+    width: 100%;
+    height: 280px;
+    display: block;
+}
+
+.specialty-img--accent {
+    position: absolute;
+    bottom: 0;
+    right: 0;
+    width: 45%;
+    height: 130px;
+    border: 3px solid var(--white);
+    z-index: 2;
+}
+
+.specialty-text-col {
+    flex: 1;
+    min-width: 0;
+}
+
+.specialty-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.5rem;
+    position: relative;
+    padding-bottom: 0.6rem;
+}
+
+.specialty-title::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 50px;
+    height: 3px;
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+.specialty-desc {
+    color: var(--text-light);
+    font-size: 0.88rem;
+    line-height: 1.65;
+    margin-bottom: 1rem;
+}
+
+.specialty-highlights {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.5rem;
+    margin-bottom: 1.25rem;
+}
+
+.specialty-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.35rem;
+    background: var(--gray-100);
+    color: var(--secondary-color);
+    font-size: 0.78rem;
+    font-weight: 600;
+    padding: 0.4rem 0.75rem;
+    border-radius: 20px;
+    border: 1px solid rgba(13, 69, 147, 0.1);
+    transition: var(--transition);
+}
+
+.specialty-pill:hover {
+    background: var(--secondary-light);
+    transform: translateY(-1px);
+}
+
+.specialty-pill span {
+    font-size: 0.85rem;
+}
+
+.specialty-readmore {
+    display: inline-flex;
+    align-items: center;
+    color: var(--primary-color);
+    font-weight: 600;
+    font-size: 0.88rem;
+    text-decoration: none;
+    transition: var(--transition);
+}
+
+.specialty-readmore:hover {
+    color: #c81d2a;
+    transform: translateX(4px);
+}
+
+/* Responsive - Specialty */
+@media (max-width: 768px) {
+    .specialty-container {
+        flex-direction: column;
+        gap: 1.5rem;
+    }
+    .specialty-image-col {
+        flex: none;
+        max-width: 100%;
+        width: 100%;
+    }
+    .specialty-img--main {
+        height: 200px;
+    }
+    .specialty-img--accent {
+        width: 40%;
+        height: 100px;
     }
 }
+
+/* CTA Section */
+.cta-section {
+    padding: 1.25rem 0;
+    background: rgba(247, 250, 252, 0.6);
+    -webkit-backdrop-filter: blur(14px);
+    backdrop-filter: blur(14px);
+    color: var(--text-color);
+    text-align: center;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    overflow: visible;
+    z-index: 100;
+    border-top: 1px solid var(--gray-300);
+}
+
+.cta-section::before {
+    display: none;
+}
+
+.cta-section::after {
+    display: none;
+}
+
+.cta-section .container {
+    position: relative;
+    z-index: 2;
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    overflow: visible;
+}
+
+.cta-inner {
+    background-color: transparent;
+    padding: 0.75rem 1.25rem;
+    border-radius: var(--border-radius);
+    max-width: 520px;
+    margin: 0 auto;
+    overflow: visible;
+}
+
+.cta-section .section-title {
+    color: var(--secondary-color);
+    margin-bottom: 0.35rem;
+    font-size: 1.1rem;
+}
+
+.cta-section .section-title::after {
+    background: var(--primary-color);
+    width: 30px;
+    height: 2px;
+}
+
+.cta-section p {
+    max-width: 460px;
+    margin: 0 auto 0.5rem;
+    font-size: 0.82rem;
+    line-height: 1.5;
+    color: var(--text-light);
+}
+
+.cta-section .cta-buttons {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    flex-wrap: wrap;
+    margin-top: 0.6rem;
+    position: relative;
+    overflow: visible;
+}
+
+.cta-section .cta-button {
+    background: var(--secondary-color);
+    color: var(--white);
+    padding: 0.5rem 1.25rem;
+    border-radius: 30px;
+    min-height: 38px;
+    min-width: 38px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0.1rem;
+    font-size: 0.85rem;
+    font-weight: 600;
+    transition: var(--transition);
+    border: 2px solid var(--secondary-color);
+    cursor: pointer;
+}
+
+.cta-section .cta-button:hover {
+    background: var(--primary-color);
+    border-color: var(--primary-color);
+    color: var(--white);
+    transform: translateY(-2px);
+}
+.cta-section .cta-button--outline {
+    background: transparent;
+    color: var(--secondary-color);
+    border: 2px solid var(--secondary-color);
+}
+.cta-section .cta-button--outline:hover {
+    background: var(--secondary-color);
+    color: var(--white);
+}
+
+/* Footer */
+footer {
+    background: var(--gray-100);
+    color: var(--text-color);
+    padding: 1rem 0 0.6rem;
+    position: relative;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    flex-direction: column;
+    border-top: 1px solid var(--gray-300);
+}
+
+.footer-content {
+    display: grid;
+    grid-template-columns: 1fr 1.2fr 1.4fr 1fr;
+    gap: 1.25rem;
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin: 0 auto;
+}
+
+.footer-section h4 {
+    color: var(--secondary-color);
+    font-size: 0.95rem;
+    margin-bottom: 0.75rem;
+    font-weight: 600;
+    position: relative;
+    display: inline-block;
+}
+
+.footer-section h4::after {
+    content: '';
+    position: absolute;
+    bottom: -4px;
+    left: 0;
+    width: 24px;
+    height: 2px;
+    background: var(--primary-color);
+    border-radius: 2px;
+}
+
+.footer-section ul {
+    list-style: none;
+    margin: 0;
+    padding: 0;
+}
+
+.footer-section li {
+    margin-bottom: 0.45rem;
+}
+
+.footer-section a {
+    color: var(--text-light);
+    transition: var(--transition);
+    display: inline-block;
+    padding: 0.15rem 0;
+    font-size: 0.88rem;
+}
+
+.footer-section a:hover {
+    color: var(--primary-color);
+    transform: translateX(3px);
+}
+
+.footer-section a:focus-visible {
+    outline: 2px solid var(--secondary-color);
+    outline-offset: 2px;
+}
+
+.footer-section address {
+    font-style: normal;
+    font-size: 0.88rem;
+    color: var(--text-light);
+    line-height: 1.6;
+}
+
+.footer-section p {
+    font-size: 0.85rem;
+    color: var(--text-light);
+    line-height: 1.5;
+    margin-bottom: 0.35rem;
+}
+
+.social-links {
+    display: flex;
+    gap: 0.5rem;
+    margin-top: 0.75rem;
+    flex-wrap: wrap;
+}
+
+.social-links a {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    background: var(--gray-200);
+    transition: var(--transition);
+    color: var(--secondary-color);
+}
+
+.social-links a:hover {
+    background: var(--secondary-color);
+    transform: translateY(-2px);
+    color: var(--white);
+}
+
+.copyright {
+    text-align: center;
+    margin-top: 1rem;
+    padding-top: 0.75rem;
+    border-top: 1px solid var(--gray-300);
+    font-size: 0.78rem;
+    color: var(--text-light);
+    width: var(--section-width);
+    max-width: var(--section-max-width);
+    margin-left: auto;
+    margin-right: auto;
+}
+
+/* Back to top button */
+.back-to-top {
+    position: fixed;
+    bottom: 20px;
+    right: 20px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: var(--primary-color);
+    color: var(--white);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    cursor: pointer;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
+    z-index: 999;
+    box-shadow: var(--shadow-md);
+    font-size: 1.1rem;
+}
+
+.back-to-top.visible {
+    opacity: 1;
+    visibility: visible;
+}
+
+.back-to-top:hover {
+    background: var(--primary-dark);
+}
+
+/* Floating Donation Button */
+.floating-donate {
+    position: fixed;
+    right: 20px;
+    bottom: 80px;
+    z-index: 999;
+}
+
+.donate-button {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.4rem;
+    background: var(--primary-color);
+    color: var(--white);
+    padding: 0.6rem 1.25rem;
+    border-radius: 30px;
+    font-weight: 500;
+    box-shadow: var(--shadow-md);
+    transition: var(--transition);
+    border: none;
+    font-size: 0.9rem;
+}
+
+.donate-button:hover {
+    background: var(--primary-dark);
+    transform: translateY(-3px);
+    box-shadow: var(--shadow-lg);
+}
+
+.donate-icon {
+    font-size: 1.1rem;
+}
+
+/* Custom cursor */
+.custom-cursor {
+    position: fixed;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    border: 2px solid var(--primary-color);
+    pointer-events: none;
+    transform: translate(-50%, -50%);
+    z-index: 9999;
+    opacity: 0;
+    transition: transform 0.1s ease, opacity 0.2s ease, width 0.3s ease, height 0.3s ease, background-color 0.3s ease;
+}
+
+/* Enhanced custom cursor for events section */
+.custom-cursor.events-cursor {
+    background-color: rgba(230, 57, 70, 0.1);
+    width: 60px;
+    height: 60px;
+    border: 2px solid var(--primary-color);
+    box-shadow: 0 0 10px rgba(230, 57, 70, 0.3);
+}
+
+.custom-cursor.card-hover {
+    width: 30px;
+    height: 30px;
+    background-color: var(--primary-color);
+    opacity: 0.7;
+    border: none;
+}
+
+/* Event card hover effects for cursor interaction */
+.event-card {
+    transition: all 0.3s ease, transform 0.2s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+}
+
+.event-card.cursor-active {
+    transform: scale(1.03);
+    box-shadow: 0 10px 20px rgba(0,0,0,0.15);
+    z-index: 5;
+}
+
+.event-card.cursor-active .event-image img {
+    transform: scale(1.1);
+}
+
+.event-card.cursor-active .register-button {
+    background-color: var(--secondary-color);
+    transform: translateY(-2px);
+}
+
+/* Add this new CSS for auto-cycling indicators */
+.filter-indicator {
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    height: 3px;
+    background: var(--primary-color);
+    transition: width 0.3s ease;
+}
+
+.filter-button {
+    position: relative;
+    overflow: hidden;
+}
+
+.auto-cycling .filter-button.active::after {
+    content: '';
+    position: absolute;
+    bottom: -5px;
+    left: 0;
+    width: 100%;
+    height: 3px;
+    background: var(--primary-color);
+    animation: filterProgress 5s linear;
+}
+
+@keyframes filterProgress {
+    from { width: 0 }
+    to { width: 100% }
+}
+
+/* NEW: Enhanced carousel transitions */
+@keyframes slideInRight {
+    from { transform: translateX(20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slideInLeft {
+    from { transform: translateX(-20px); opacity: 0; }
+    to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes fadeInScale {
+    from { transform: scale(0.95); opacity: 0; }
+    to { transform: scale(1); opacity: 1; }
+}
+
+/* NEW: Scroll snap for smooth scrolling */
+.events-carousel {
+    -ms-overflow-style: none; /* IE and Edge */
+}
+
+.events-carousel::-webkit-scrollbar {
+    display: none; /* Chrome, Safari, Opera */
+}
+
+.hero-slide[data-slide="intro"] h1 {
+    text-align: center;
+}
+
+.footer-dev-info p {
+    margin: 0;
+}
+
+.footer-dev-name {
+    font-size: 0.88rem;
+    font-weight: 600;
+    color: var(--secondary-color);
+    margin-bottom: 0.35rem;
+}
+
+.footer-dev-contact {
+    font-size: 0.82rem;
+    color: var(--text-light);
+    margin-bottom: 0.25rem;
+}
+
+.footer-dev-contact:last-child {
+    margin-bottom: 0;
+}
+
+.footer-dev-contact a {
+    color: var(--text-light);
+}
+
+/* NEW: Drag to scroll visual feedback */
+.events-carousel.dragging {
+    cursor: -webkit-grabbing;
+    cursor: grabbing;
+}
+
+.events-carousel.dragging .event-card {
+    pointer-events: none;
+}
+
+/* NEW: Visual position indicator */
+.carousel-position-indicator {
+    position: absolute;
+    bottom: -20px;
+    left: 0;
+    width: 100%;
+    height: 4px;
+    background: var(--gray-300);
+    border-radius: 2px;
+    overflow: hidden;
+}
+
+.carousel-position-indicator-progress {
+    height: 100%;
+    background: var(--primary-color);
+    width: 0;
+    transition: width 0.3s ease;
+}
+
+/* Media Queries */
+@media (max-width: 1200px) {
+    .hero-container, .container, .stats-container, .footer-content, .copyright {
+        width: var(--section-width);
+        max-width: var(--section-max-width);
+    }
+    
+    .hero-image-container {
+        max-height: 400px;
+    }
+
+    :root {
+        --section-padding: 2.25rem;
+    }
+}
+
+@media (max-width: 992px) {
+    .hero-container {
+        gap: 2rem;
+    }
+    
+    .hero-image-container {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: 100%;
+        max-height: 350px;
+    }
+
+    :root {
+        --navbar-height: 90px;
+        --hero-height: auto;
+        --section-padding: 1.75rem;
+        --hero-content-width: 100%;
+        --hero-image-width: 100%;
+    }
+
+    .carousel-slide {
+        flex-wrap: wrap;
+    }
+}
+
+@media (max-width: 768px) {
+    :root {
+        --navbar-height: 90px;
+        --hero-height: auto;
+        --section-padding: 1.25rem;
+        --hero-content-width: 100%;
+        --hero-image-width: 100%;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr 1fr;
+    }
+
+    .navbar-container {
+        width: 95%;
+    }
+
+    .nav-links {
+        position: fixed;
+        top: var(--navbar-height);
+        left: 0;
+        width: 100%;
+        background: var(--white);
+        padding: 0;
+        box-shadow: var(--shadow-md);
+        z-index: 1000;
+        opacity: 0;
+        visibility: hidden;
+        transform: translateY(-10px);
+        transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .nav-links.active {
+        opacity: 1;
+        visibility: visible;
+        transform: translateY(0);
+    }
+
+    .nav-links a {
+        font-size: 1rem;
+        padding: 0.75rem 0;
+        width: 100%;
+        text-align: center;
+        border-bottom: 1px solid var(--gray-200);
+    }
+    
+    .nav-links a:last-child {
+        border-bottom: none;
+    }
+    
+    .menu-toggle {
+        display: flex;
+        font-size: 1.5rem;
+        background: rgba(255, 255, 255, 0.1);
+        border-radius: 50%;
+    }
+
+    .hero-container {
+        flex-direction: column;
+        height: auto;
+        min-height: 400px;
+        width: 95%;
+        padding: var(--spacing-md) 0;
+        gap: 2rem;
+    }
+
+    .hero-content {
+        padding: 1.5rem 0;
+        text-align: center;
+        width: 100%;
+        margin: 0 auto;
+    }
+
+    .hero h1::after {
+        left: 50%;
+        transform: translateX(-50%);
+    }
+
+    .hero h1, .hero p {
+        text-align: center;
+    }
+
+    .hero h1 {
+        font-size: 1.8rem;
+    }
+
+    .hero .cta-buttons {
+        justify-content: center;
+    }
+
+    .hero-image-container {
+        position: relative;
+        right: auto;
+        top: auto;
+        transform: none;
+        width: 100%;
+        max-width: 550px;
+        aspect-ratio: 16/9;
+        margin: 1rem auto 0;
+        border-radius: 0;
+        max-height: none;
+    }
+
+    .section-title {
+        font-size: 1.5rem;
+        margin-bottom: 1.25rem;
+    }
+
+    .event-filters {
+        flex-direction: row;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .filter-button {
+        margin-bottom: 0.5rem;
+    }
+
+    .highlight-content {
+        flex-direction: column;
+        align-items: center;
+    }
+
+    .highlight-image {
+        width: 100%;
+        max-width: 200px;
+    }
+
+    .highlight-text {
+        text-align: center;
+    }
+}
+
+@media (max-width: 480px) {
+    .container, .navbar-container, .hero-container, .stats-container, .footer-content, .copyright {
+        width: 90%;
+    }
+
+    .footer-content {
+        grid-template-columns: 1fr;
+    }
+    
+    :root {
+        --section-padding: 1.1rem;
+    }
+
+    .floating-donate {
+        right: 10px;
+        bottom: 70px;
+    }
+
+    .donate-button {
+        padding: 0.5rem 1rem;
+        font-size: 0.85rem;
+    }
+    
+    .carousel-slide {
+        justify-content: center;
+    }
+    
+    .event-card {
+        width: 180px;
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    * {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+        scroll-behavior: auto !important;
+    }
+    
+    .hero-background,
+    .animated-circle,
+    .animated-bg {
+        transition: none !important;
+        animation: none !important;
+    }
+
+    .events-carousel {
+        scroll-behavior: auto;
+    }
+    
+    .event-card {
+        transition: none;
+    }
+    
+    .carousel-progress {
+        display: none;
+    }
+}
+
+/* Event card hover styles for cursor interaction */
+.event-card.cursor-hover {
+  transform: translateY(-5px) scale(1.02) !important;
+  box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05) !important;
+  transition: all 0.3s ease !important;
+}
+
+.carousel-arrow.cursor-hover {
+  transform: translateY(-50%) scale(1.1) !important;
+  background-color: var(--secondary-color) !important;
+  color: white !important;
+  opacity: 1 !important;
+}
+
+.filter-button.cursor-hover {
+  background: var(--gray-200) !important;
+  transform: translateY(-2px) !important;
+}
+
+.custom-cursor.clicking {
+  transform: translate(calc(var(--x) - 50%), calc(var(--y) - 50%)) scale(0.9) !important;
+  background-color: rgba(230, 57, 70, 0.3) !important;
+}
+
+/* NEW: Focus styles for keyboard navigation */
+.event-card:focus-visible,
+.carousel-arrow:focus-visible,
+.filter-button:focus-visible,
+.carousel-dot:focus-visible {
+  outline: 3px solid var(--primary-color);
+  outline-offset: 2px;
+}
+
+/* NEW: Active slide indicator */
+.carousel-slide.active-slide .event-card {
+  animation: pulseHighlight 2s infinite alternate;
+}
+
+@keyframes pulseHighlight {
+  0% {
+    box-shadow: var(--shadow-sm);
+  }
+  100% {
+    box-shadow: 0 0 15px rgba(230, 57, 70, 0.3);
+  }
+}
+
+.upcoming-events-column,
+.other-events-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.upcoming-events-column .section-title,
+.other-events-column .section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.upcoming-events-column .events-subtitle,
+.other-events-column .events-subtitle {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.upcoming-events-carousel,
+.events-carousel {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+.upcoming-events-carousel .carousel-slide,
+.events-carousel .carousel-slide {
+    display: flex;
+    gap: 1rem;
+    transition: transform 0.5s ease;
+}
+
+
+
+
+
+.upcoming-events-carousel .event-image img,
+.events-carousel .event-image img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px 8px 0 0;
+}
+
+.upcoming-carousel-nav,
+.carousel-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.upcoming-carousel-nav .carousel-dot,
+.carousel-nav .carousel-dot {
+    width: 10px;
+    height: 10px;
+    background: #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.upcoming-carousel-nav .carousel-dot.active,
+.carousel-nav .carousel-dot.active {
+    background: #007bff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .events-wrapper {
+        flex-direction: column;
+    }
+
+    .upcoming-events-column,
+    .other-events-column {
+        width: 100%;
+    }
+
+}
+
+
+
+.upcoming-subheader {
+    font-size: 1.5rem;
+    color: #333;
+    margin: 1rem 0;
+    border-bottom: 2px solid #ff4d4f; /* Matches the red underline in the design */
+    display: inline-block;
+}
+
+.past-events-highlight.centered {
+    max-width: 600px;
+    margin: 2rem auto;
+    text-align: center;
+}
+
+.past-events-highlight .highlight-content {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    justify-content: center;
+}
+
+.past-events-highlight .highlight-image img {
+    border-radius: 8px;
+}
+
+.past-events-highlight .highlight-text {
+    text-align: left;
+}
+
+.past-events-highlight .highlight-link {
+    color: #007bff;
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.past-events-highlight .highlight-link:hover {
+    text-decoration: underline;
+}
+
+/* Adjust existing styles for consistency */
+.events-wrapper {
+    display: flex;
+    gap: 2rem;
+    padding: 2rem 0;
+}
+
+.upcoming-events-column,
+.other-events-column {
+    flex: 1;
+    min-width: 0;
+}
+
+.upcoming-events-column .section-title,
+.other-events-column .section-title {
+    font-size: clamp(1.5rem, 3vw, 2rem);
+    margin-bottom: 1rem;
+    color: #333;
+}
+
+.upcoming-events-column .events-subtitle,
+.other-events-column .events-subtitle {
+    font-size: 1rem;
+    color: #666;
+    margin-bottom: 2rem;
+}
+
+.upcoming-events-carousel,
+.events-carousel {
+    position: relative;
+    overflow: hidden;
+    width: 100%;
+}
+
+.upcoming-events-carousel .carousel-slide,
+.events-carousel .carousel-slide {
+    display: flex;
+    gap: 1rem;
+    transition: transform 0.5s ease;
+}
+
+.upcoming-events-carousel .event-card {
+    flex: 0 0 300px; /* Larger cards for upcoming events */
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: left;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+    margin-top: 20px;
+    margin-right: 200px;
+}
+
+.events-carousel .event-card {
+    flex: 0 0 200px; /* Smaller cards for other events */
+    background: #fff;
+    border-radius: 8px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+    text-align: left;
+    transition: transform 0.3s ease, opacity 0.3s ease;
+}
+
+.upcoming-events-carousel .event-image img,
+.events-carousel .event-image img {
+    width: 100%;
+    height: auto;
+    border-radius: 8px 8px 0 0;
+}
+
+.upcoming-carousel-nav,
+.carousel-nav {
+    display: flex;
+    justify-content: center;
+    gap: 0.5rem;
+    margin-top: 1rem;
+}
+
+.upcoming-carousel-nav .carousel-dot,
+.carousel-nav .carousel-dot {
+    width: 10px;
+    height: 10px;
+    background: #ccc;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: background 0.3s ease;
+}
+
+.upcoming-carousel-nav .carousel-dot.active,
+.carousel-nav .carousel-dot.active {
+    background: #007bff;
+}
+
+/* Responsive Design */
+@media (max-width: 768px) {
+    .events-wrapper {
+        flex-direction: column;
+    }
+
+    .upcoming-events-column,
+    .other-events-column {
+        width: 100%;
+    }
+
+    .upcoming-events-carousel .event-card {
+        flex: 0 0 80%;
+    }
+
+    .events-carousel .event-card {
+        flex: 0 0 45%; /* Adjust for mobile */
+    }
+
+    .past-events-highlight.centered {
+        max-width: 100%;
+        padding: 0 1rem;
+    }
+
+
+    /* Adjust the current and upcoming sections to fit side by side */
+.current-events-section,
+.upcoming-events-section {
+    flex: 1; /* Each section takes equal space */
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+    min-width: 0; /* Prevents overflow issues */
+}
+
+/* Ensure the upcoming-events-column is set up correctly */
+.upcoming-events-column {
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+}
+
+.events-row {
+  display: flex;
+  justify-content: space-between;
+  flex-wrap: wrap; /* Optional: wrap on small screens */
+  gap: 2rem; /* spacing between left and right */
+}
+
+.current-events-section,
+.upcoming-events-section {
+  flex: 1;
+  /* box-sizing: border-box; */
+  min-width: 0; /* Prevents flex items from overflowing */
+
+}
+
+/* Ensure event cards fit properly */
+.current-event-card,
+.upcoming-event-card {
+    width: 100%;
+    max-width: none; /* Remove max-width to allow full width within the section */
+}
+/* Responsive design: Stack the sections vertically on smaller screens */
+@media (max-width: 768px) {
+    .events-row {
+        flex-direction: column !important; /* Stack vertically on mobile */
+        gap: 1.5rem;
+    }
+
+    .current-event-card,
+    .upcoming-event-card {
+        width: 100%;
+        max-width: none;
+    }
+}
+
+
+}
+
+</style>
+</head>
+<body>
+<!-- Custom cursor element -->
+<div class="custom-cursor" id="custom-cursor"></div>
+
+<!-- Floating Donation Button - REMOVED (handled by donate-float.js) -->
+<!-- The floating Support Us button is injected by donate-float.js -->
+
+<!-- Navbar -->
+<nav class="navbar"></nav>
+
+<!-- Hero Section -->
+<section id="home" class="hero">
+<div class="hero-container">
+    <div class="hero-content">
+        <!-- Slide 0: Default intro -->
+        <div class="hero-slide active" data-slide="intro">
+            <h1>Transforming Cancer<br>Care in Uganda</h1>
+            <p>The Hematology &amp; Oncology Society of Uganda (HOSU) is a nonprofit organization dedicated to eliminating suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
+            <div class="cta-buttons">
+                <a href="membership.html" class="interactive-button" id="join-button">
+                    Join Our Community
+                    <span class="icon">→</span>
+                </a>
+            </div>
+        </div>
+        <!-- Slide 1: Surgical Oncology -->
+        <div class="hero-slide" data-slide="surgical-oncology">
+            <h1>Surgical Oncology</h1>
+            <p>Focuses on the diagnosis, staging, and treatment of cancer through surgery — often combined with other therapies for the best outcomes.</p>
+            <div class="hero-pills">
+                <span class="hero-pill">🔬 Diagnosis</span>
+                <span class="hero-pill">📋 Staging</span>
+                <span class="hero-pill">💊 Curative</span>
+                <span class="hero-pill">🤝 Palliative</span>
+                <span class="hero-pill">🔧 Reconstructive</span>
+            </div>
+            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'surgical-oncology'); return false;">Read More →
+                <div class="hero-float-popup" data-popup="surgical-oncology"></div>
+            </a>
+        </div>
+        <!-- Slide 2: Medical Oncology -->
+        <div class="hero-slide" data-slide="medical-oncology">
+            <h1>Medical Oncology</h1>
+            <p>Treats cancer with medicines — chemotherapy, targeted therapy, immunotherapy, and hormonal therapy — tailored to each patient's needs.</p>
+            <div class="hero-pills">
+                <span class="hero-pill">💉 Chemotherapy</span>
+                <span class="hero-pill">🛡️ Immunotherapy</span>
+                <span class="hero-pill">🎯 Targeted Therapy</span>
+                <span class="hero-pill">⚖️ Hormone Therapy</span>
+                <span class="hero-pill">🧬 Precision Medicine</span>
+            </div>
+            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'medical-oncology'); return false;">Read More →
+                <div class="hero-float-popup" data-popup="medical-oncology"></div>
+            </a>
+        </div>
+        <!-- Slide 3: Radiation Oncology -->
+        <div class="hero-slide" data-slide="radiation-oncology">
+            <h1>Radiation Oncology</h1>
+            <p>Uses high-energy radiation to target and destroy cancer cells while sparing healthy tissue, alone or combined with other treatments.</p>
+            <div class="hero-pills">
+                <span class="hero-pill">📡 External Beam</span>
+                <span class="hero-pill">🔬 Brachytherapy</span>
+                <span class="hero-pill">⚡ Stereotactic</span>
+                <span class="hero-pill">🔵 Proton Therapy</span>
+                <span class="hero-pill">🖥️ Image-Guided</span>
+            </div>
+            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'radiation-oncology'); return false;">Read More →
+                <div class="hero-float-popup" data-popup="radiation-oncology"></div>
+            </a>
+        </div>
+        <!-- Slide 4: Pediatric Oncology -->
+        <div class="hero-slide" data-slide="pediatric-oncology">
+            <h1>Pediatric Oncology</h1>
+            <p>Focuses on cancers in children and adolescents — leukemia, brain tumors, and sarcomas — with care tailored to young patients.</p>
+            <div class="hero-pills">
+                <span class="hero-pill">🩸 Leukemia</span>
+                <span class="hero-pill">🧠 Brain Tumors</span>
+                <span class="hero-pill">🦴 Sarcoma Care</span>
+                <span class="hero-pill">💛 Supportive Care</span>
+                <span class="hero-pill">📈 Follow-Up</span>
+            </div>
+            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'pediatric-oncology'); return false;">Read More →
+                <div class="hero-float-popup" data-popup="pediatric-oncology"></div>
+            </a>
+        </div>
+
+        <!-- Slide indicators -->
+        <div class="hero-indicators">
+            <span class="hero-dot active" data-index="0"></span>
+            <span class="hero-dot" data-index="1"></span>
+            <span class="hero-dot" data-index="2"></span>
+            <span class="hero-dot" data-index="3"></span>
+            <span class="hero-dot" data-index="4"></span>
+        </div>
+    </div>            
+    <div class="hero-image-container">
+        <div id="hero-bg-0" class="hero-background active"></div>
+        <div id="hero-bg-1" class="hero-background" data-bg="img/IMG_7891.jpg"></div>
+        <div id="hero-bg-2" class="hero-background" data-bg="img/IMG_8022.webp"></div>
+        <div id="hero-bg-3" class="hero-background" data-bg="img/IMG_8316.jpg"></div>
+        <div id="hero-bg-4" class="hero-background" data-bg="img/IMG_8317.webp"></div>
+    </div>
+</div>
+
+</section>
+
+<section id="partners" class="partners-section">
+    <div class="partners-container">
+        <div class="partners-header">
+            <h2 class="partners-title">Our Partners</h2>
+        </div>
+        
+        <div class="partners-track">
+        <div class="partners-grid">
+            <div class="partner-logo partner-logo--uci">
+                <img src="img/uci.png" alt="Uganda Cancer Institute" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/ado.png" alt="Adonis Healthcare" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/Agakhan.png" alt="Aga Khan University Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/future.png" alt="Future Healthcare" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/hetero.png" alt="Hetero" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/metro.png" alt="Metropolis" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/msn.png" alt="MSN" loading="lazy">
+            </div>
+            <div class="partner-logo partner-logo--mulago">
+                <img src="img/mulago.png" alt="Mulago National Referral Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/nsambya.png" alt="Nsambya Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo partner-logo--onco">
+                <img src="img/onco.png" alt="OncoPharm" loading="lazy">
+            </div>
+        </div>
+        <!-- Duplicate for seamless loop -->
+        <div class="partners-grid">
+            <div class="partner-logo partner-logo--uci">
+                <img src="img/uci.png" alt="Uganda Cancer Institute" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/ado.png" alt="Adonis Healthcare" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/Agakhan.png" alt="Aga Khan University Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/future.png" alt="Future Healthcare" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/hetero.png" alt="Hetero" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/metro.png" alt="Metropolis" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/msn.png" alt="MSN" loading="lazy">
+            </div>
+            <div class="partner-logo partner-logo--mulago">
+                <img src="img/mulago.png" alt="Mulago National Referral Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo">
+                <img src="img/nsambya.png" alt="Nsambya Hospital" loading="lazy">
+            </div>
+            <div class="partner-logo partner-logo--onco">
+                <img src="img/onco.png" alt="OncoPharm" loading="lazy">
+            </div>
+        </div>
+        </div>
+    </div>
+</section>
+
+
+
+
+<!-- CTA Section -->
+<section class="cta-section">
+<div class="container">
+    <div class="cta-inner">
+        <h2 class="section-title">Make a Difference</h2>
+        <p>Join us in our mission to eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
+        <div class="cta-buttons">
+            <a href="about.html" class="cta-button cta-button--outline">Learn More About HOSU</a>
+            <div class="donate-trigger-wrap">
+                <button class="cta-button donate-trigger">Support Us</button>
+                <div class="donate-float-popup" id="cta-donate-popup"></div>
+            </div>
+        </div>
+    </div>
+</div>
+</section>
+
+<style>
+/* Floating Donate Popup */
+.donate-trigger-wrap {
+    position: relative;
+    display: inline-block;
+    z-index: 9999;
+}
+.donate-trigger-wrap--fixed {
+    position: relative;
+}
+.donate-float-popup {
+    display: none;
+    position: absolute;
+    z-index: 99999;
+    width: 320px;
+    max-height: calc(100vh - 100px);
+    overflow-y: auto;
+    background: rgba(255, 255, 255, 0.99);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(200, 200, 200, 0.4);
+    border-radius: 12px;
+    padding: 1rem 1rem 0.8rem;
+    box-shadow:
+        0 16px 48px rgba(0, 0, 0, 0.25),
+        0 6px 16px rgba(0, 0, 0, 0.12),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    animation: donatePopUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    text-align: left;
+}
+/* Position classes for smart positioning */
+.donate-float-popup.pos-top {
+    bottom: calc(100% + 12px);
+    right: 0;
+}
+.donate-float-popup.pos-top::after {
+    content: '';
+    position: absolute;
+    bottom: -7px;
+    right: 24px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.97);
+    border-right: 1px solid rgba(255, 255, 255, 0.55);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+}
+.donate-float-popup.pos-bottom {
+    top: calc(100% + 12px);
+    bottom: auto;
+    right: 0;
+}
+.donate-float-popup.pos-bottom::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    right: 24px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.97);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+}
+.donate-float-popup.pos-left {
+    right: calc(100% + 12px);
+    bottom: 0;
+    top: auto;
+}
+.donate-float-popup.pos-left::after {
+    content: '';
+    position: absolute;
+    right: -7px;
+    bottom: 20px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.97);
+    border-right: 1px solid rgba(255, 255, 255, 0.55);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+}
+.donate-float-popup.active {
+    display: block;
+}
+/* Legacy arrow - hidden */
+.donate-float-popup::after {
+    display: none;
+}
+.donate-float-popup .dfp-close {
+    position: absolute;
+    top: 0.5rem;
+    right: 0.5rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.08);
+    border: none;
+    border-radius: 50%;
+    font-size: 0.95rem;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+.donate-float-popup .dfp-close:hover {
+    background: var(--primary-color);
+    color: var(--white);
+}
+/* Modal header with underline */
+.donate-float-popup .dfp-modal-header {
+    text-align: center;
+    margin-bottom: 0.15rem;
+}
+.donate-float-popup .dfp-modal-header h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 0;
+}
+.donate-float-popup .dfp-modal-header h3::after {
+    content: '';
+    display: block;
+    width: 30px;
+    height: 2px;
+    background: var(--primary-color);
+    border-radius: 2px;
+    margin: 0.2rem auto 0;
+}
+.donate-float-popup h3 {
+    font-size: 0.9rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.15rem;
+    padding-right: 1.8rem;
+}
+.donate-float-popup .dfp-subtitle {
+    font-size: 0.65rem;
+    color: var(--text-light);
+    margin-bottom: 0.35rem;
+    text-align: center;
+}
+/* Form grid - 2 columns for compact layout */
+.donate-float-popup .dfp-form-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.2rem 0.35rem;
+    margin-bottom: 0.2rem;
+}
+.donate-float-popup .dfp-fg-full {
+    grid-column: 1 / -1;
+}
+.donate-float-popup .dfp-invalid-phone {
+    font-size: 0.62rem;
+    color: var(--primary-color);
+    font-weight: 600;
+    margin: 0;
+}
+.donate-float-popup .dfp-label {
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.1rem;
+    display: block;
+}
+.donate-float-popup .dfp-input {
+    width: 100%;
+    padding: 0.35rem 0.5rem;
+    border: 1px solid var(--gray-300);
+    border-radius: 6px;
+    font-size: 0.72rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.9);
+    box-sizing: border-box;
+}
+.donate-float-popup .dfp-input:focus {
+    border-color: var(--secondary-color);
+    box-shadow: 0 0 0 2px rgba(13,69,147,0.08);
+}
+.donate-float-popup .dfp-amounts {
+    display: flex;
+    gap: 0.2rem;
+    flex-wrap: wrap;
+    margin: 0.15rem 0 0.3rem;
+}
+.donate-float-popup .dfp-amt {
+    padding: 0.2rem 0.5rem;
+    border: 1px solid var(--gray-300);
+    background: rgba(255,255,255,0.6);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.62rem;
+    font-weight: 600;
+    color: var(--text-color);
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.donate-float-popup .dfp-amt:hover,
+.donate-float-popup .dfp-amt.selected {
+    background: var(--secondary-color);
+    color: var(--white);
+    border-color: var(--secondary-color);
+}
+/* Payment divider */
+.donate-float-popup .dfp-pay-divider {
+    font-size: 0.62rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin: 0.25rem 0 0.2rem;
+    text-align: center;
+}
+/* Payment chips */
+.donate-float-popup .dfp-pay-chips {
+    display: flex;
+    gap: 0.2rem;
+    flex-wrap: wrap;
+    justify-content: center;
+    margin-bottom: 0.2rem;
+}
+.donate-float-popup .dfp-pay-chip {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.15rem;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--gray-300);
+    background: rgba(255,255,255,0.6);
+    border-radius: 12px;
+    cursor: pointer;
+    font-size: 0.58rem;
+    font-weight: 600;
+    color: var(--text-color);
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.donate-float-popup .dfp-pay-chip i {
+    font-size: 0.65rem;
+    color: var(--primary-color);
+}
+.donate-float-popup .dfp-pay-chip:hover {
+    border-color: var(--secondary-color);
+    background: rgba(13,69,147,0.04);
+}
+.donate-float-popup .dfp-pay-chip.selected {
+    border-color: var(--primary-color);
+    background: rgba(230,57,70,0.08);
+    color: var(--primary-color);
+}
+.donate-float-popup .dfp-pay-chip .dfp-chip-img {
+    width: 14px;
+    height: 14px;
+    object-fit: contain;
+}
+.donate-float-popup .dfp-mtn-chip {
+    border-color: #ffcc00;
+    background: rgba(255,204,0,0.06);
+}
+.donate-float-popup .dfp-mtn-chip.selected {
+    background: rgba(255,204,0,0.16);
+    border-color: #ffcc00;
+}
+.donate-float-popup .dfp-airtel-chip {
+    border-color: #e40000;
+    background: rgba(228,0,0,0.03);
+}
+.donate-float-popup .dfp-airtel-chip.selected {
+    background: rgba(228,0,0,0.1);
+    border-color: #e40000;
+}
+/* Bank info */
+.donate-float-popup .dfp-bank-info {
+    background: rgba(13,69,147,0.06);
+    border: 1px solid rgba(13,69,147,0.15);
+    border-radius: 5px;
+    padding: 0.3rem 0.5rem;
+    margin: 0.2rem 0;
+    font-size: 0.6rem;
+    color: var(--text-color);
+}
+.donate-float-popup .dfp-bank-info p {
+    margin: 0.05rem 0;
+}
+.donate-float-popup .dfp-row {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.35rem;
+    margin-bottom: 0.3rem;
+}
+.donate-float-popup .dfp-field {
+    margin-bottom: 0.15rem;
+}
+.donate-float-popup .dfp-submit {
+    width: 100%;
+    padding: 0.4rem 0;
+    background: var(--primary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 12px;
+    font-size: 0.7rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-top: 0.2rem;
+    font-family: inherit;
+}
+.donate-float-popup .dfp-submit:hover:not(:disabled) {
+    background: var(--primary-dark);
+    transform: translateY(-1px);
+}
+.donate-float-popup .dfp-submit:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+/* Processing overlay */
+.dfp-process-overlay {
+    position: absolute; top: 0; left: 0; right: 0; bottom: 0;
+    background: #fff; z-index: 20; display: flex; flex-direction: column;
+    align-items: center; justify-content: center; padding: 1.5rem; text-align: center;
+    border-radius: 14px;
+}
+.dfp-proc-steps { display: flex; gap: 6px; margin-bottom: 1.2rem; }
+.dfp-proc-steps .dfp-step {
+    width: 28px; height: 4px; border-radius: 2px; background: #e2e8f0; transition: background 0.3s;
+}
+.dfp-proc-steps .dfp-step.active { background: var(--secondary-color, #0d4593); }
+.dfp-proc-steps .dfp-step.done { background: #27ae60; }
+.dfp-proc-spinner {
+    width: 36px; height: 36px; border: 3px solid #e2e8f0;
+    border-top-color: var(--secondary-color, #0d4593);
+    border-radius: 50%; animation: dfpSpin 0.8s linear infinite; margin-bottom: 1rem;
+}
+@keyframes dfpSpin { to { transform: rotate(360deg); } }
+.dfp-proc-msg { font-size: 0.82rem; font-weight: 700; color: var(--text-color, #001848); margin-bottom: 0.3rem; }
+.dfp-proc-sub { font-size: 0.72rem; color: var(--text-light, #4a5568); margin-bottom: 0.5rem; }
+.dfp-proc-countdown { font-size: 0.68rem; color: #888; margin-bottom: 0.5rem; }
+.dfp-proc-close {
+    margin-top: 0.5rem; padding: 0.4rem 1.2rem; border: none; border-radius: 6px;
+    background: var(--secondary-color, #0d4593); color: #fff; cursor: pointer; font-size: 0.75rem;
+}
+.dfp-proc-success .dfp-proc-spinner { display: none; }
+.dfp-proc-error .dfp-proc-spinner { display: none; }
+@keyframes donatePopUp {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+/* Scrollbar */
+.donate-float-popup::-webkit-scrollbar {
+    width: 4px;
+}
+.donate-float-popup::-webkit-scrollbar-thumb {
+    background: rgba(13,69,147,0.12);
+    border-radius: 4px;
+}
+
+/* Login Floating Popup */
+.login-trigger-wrap {
+    position: relative;
+    display: inline-block;
+}
+.login-float-popup {
+    display: none;
+    position: absolute;
+    top: calc(100% + 14px);
+    right: 0;
+    z-index: 1001;
+    width: 300px;
+    background: rgba(255, 255, 255, 0.78);
+    -webkit-backdrop-filter: blur(24px) saturate(1.4);
+    backdrop-filter: blur(24px) saturate(1.4);
+    border: 1px solid rgba(255, 255, 255, 0.55);
+    border-radius: 14px;
+    padding: 1.2rem 1.3rem 1.1rem;
+    box-shadow:
+        0 12px 40px rgba(0, 0, 0, 0.14),
+        0 4px 12px rgba(0, 0, 0, 0.06),
+        inset 0 1px 0 rgba(255, 255, 255, 0.6);
+    animation: loginPopUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+    text-align: left;
+}
+.login-float-popup.active {
+    display: block;
+}
+/* Arrow pointing up */
+.login-float-popup::after {
+    content: '';
+    position: absolute;
+    top: -7px;
+    right: 24px;
+    width: 14px;
+    height: 14px;
+    background: rgba(255, 255, 255, 0.78);
+    border-top: 1px solid rgba(255, 255, 255, 0.55);
+    border-left: 1px solid rgba(255, 255, 255, 0.55);
+    transform: rotate(45deg);
+    -webkit-backdrop-filter: blur(24px);
+    backdrop-filter: blur(24px);
+}
+.login-float-popup .lfp-close {
+    position: absolute;
+    top: 0.55rem;
+    right: 0.6rem;
+    width: 22px;
+    height: 22px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: rgba(0, 0, 0, 0.06);
+    border: none;
+    border-radius: 50%;
+    font-size: 0.9rem;
+    color: var(--text-light);
+    cursor: pointer;
+    line-height: 1;
+    transition: all 0.2s ease;
+}
+.login-float-popup .lfp-close:hover {
+    background: var(--primary-color);
+    color: var(--white);
+}
+.login-float-popup h3 {
+    font-size: 0.92rem;
+    font-weight: 700;
+    color: var(--secondary-color);
+    margin-bottom: 0.15rem;
+    padding-right: 1.8rem;
+}
+.login-float-popup .lfp-subtitle {
+    font-size: 0.75rem;
+    color: var(--text-light);
+    margin-bottom: 0.7rem;
+}
+.login-float-popup .lfp-label {
+    font-size: 0.72rem;
+    font-weight: 600;
+    color: var(--text-color);
+    margin-bottom: 0.25rem;
+    display: block;
+}
+.login-float-popup .lfp-input {
+    width: 100%;
+    padding: 0.45rem 0.6rem;
+    border: 1.5px solid var(--gray-300);
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-family: inherit;
+    outline: none;
+    transition: border-color 0.2s;
+    background: rgba(255,255,255,0.6);
+    box-sizing: border-box;
+}
+.login-float-popup .lfp-input:focus {
+    border-color: var(--secondary-color);
+}
+.login-float-popup .lfp-field {
+    margin-bottom: 0.5rem;
+}
+.login-float-popup .lfp-options {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.6rem;
+    font-size: 0.72rem;
+}
+.login-float-popup .lfp-options label {
+    display: flex;
+    align-items: center;
+    gap: 0.3rem;
+    color: var(--text-light);
+    cursor: pointer;
+}
+.login-float-popup .lfp-options label input {
+    accent-color: var(--secondary-color);
+}
+.login-float-popup .lfp-options a {
+    color: var(--secondary-color);
+    text-decoration: none;
+    font-weight: 500;
+}
+.login-float-popup .lfp-options a:hover {
+    text-decoration: underline;
+}
+.login-float-popup .lfp-submit {
+    width: 100%;
+    padding: 0.5rem;
+    background: var(--secondary-color);
+    color: var(--white);
+    border: none;
+    border-radius: 8px;
+    font-size: 0.8rem;
+    font-weight: 600;
+    cursor: pointer;
+    transition: all 0.2s;
+    font-family: inherit;
+}
+.login-float-popup .lfp-submit:hover {
+    background: var(--secondary-dark);
+    transform: translateY(-1px);
+}
+.login-float-popup .lfp-footer {
+    text-align: center;
+    margin-top: 0.6rem;
+    font-size: 0.72rem;
+    color: var(--text-light);
+}
+.login-float-popup .lfp-footer a {
+    color: var(--primary-color);
+    font-weight: 600;
+    text-decoration: none;
+}
+.login-float-popup .lfp-footer a:hover {
+    text-decoration: underline;
+}
+@keyframes loginPopUp {
+    from { opacity: 0; transform: translateY(8px) scale(0.97); }
+    to   { opacity: 1; transform: translateY(0) scale(1); }
+}
+</style>
+
+<script>
+</script>
+
+<!-- Footer -->
+<footer></footer>
+
+<a href="#" class="back-to-top" aria-label="Back to top">↑</a>
+
+<script data-cfasync="false" src="/cdn-cgi/scripts/5c5dd728/cloudflare-static/email-decode.min.js"></script>
+<script>
+// Enhanced custom cursor effect for events section — optimized to avoid first-load lag
+const cursor = document.getElementById('custom-cursor');
+const joinButton = document.getElementById('join-button');
+const eventsSection = document.getElementById('events');
+const canUseFancyCursor = !!(
+    cursor &&
+    eventsSection &&
+    window.matchMedia &&
+    window.matchMedia('(pointer: fine) and (min-width: 992px)').matches &&
+    !window.matchMedia('(prefers-reduced-motion: reduce)').matches
+);
+
+let isInEventsSection = false;
+
+if (canUseFancyCursor) {
+    let mouseX = 0;
+    let mouseY = 0;
+    let cursorFramePending = false;
+
+    function clearCursorStates() {
+        document.querySelectorAll('.event-card.cursor-hover, .event-card.cursor-active, .carousel-arrow.cursor-hover, .filter-button.cursor-hover').forEach(function (el) {
+            el.classList.remove('cursor-hover', 'cursor-active');
+        });
+    }
+
+    function updateCustomCursor() {
+        cursorFramePending = false;
+
+        const x = mouseX;
+        const y = mouseY;
+        cursor.style.setProperty('--x', `${x}px`);
+        cursor.style.setProperty('--y', `${y}px`);
+
+        const eventsRect = eventsSection.getBoundingClientRect();
+        isInEventsSection = (
+            x >= eventsRect.left &&
+            x <= eventsRect.right &&
+            y >= eventsRect.top &&
+            y <= eventsRect.bottom
+        );
+
+        if (!isInEventsSection) {
+            clearCursorStates();
+            cursor.className = 'custom-cursor';
+            cursor.style.opacity = '0';
+            cursor.style.transform = `translate(${x}px, ${y}px) scale(0.5)`;
+            cursor.textContent = '';
+            return;
+        }
+
+        const hovered = document.elementFromPoint(x, y);
+        const overButton = !!(joinButton && hovered && (hovered === joinButton || hovered.closest('#join-button')));
+        const overCard = hovered ? hovered.closest('.event-card') : null;
+        const overArrow = hovered ? hovered.closest('.carousel-arrow') : null;
+        const overFilter = hovered ? hovered.closest('.filter-button') : null;
+
+        clearCursorStates();
+
+        if (overButton) {
+            cursor.className = 'custom-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px) scale(1)`;
+            cursor.textContent = '';
+        } else if (overCard) {
+            overCard.classList.add('cursor-hover', 'cursor-active');
+            cursor.className = 'custom-cursor card-hover';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = 'View';
+        } else if (overArrow) {
+            overArrow.classList.add('cursor-hover');
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = overArrow.classList.contains('prev') ? 'Prev' : 'Next';
+        } else if (overFilter) {
+            overFilter.classList.add('cursor-hover');
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '1';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = 'Filter';
+        } else {
+            cursor.className = 'custom-cursor events-cursor';
+            cursor.style.opacity = '0.7';
+            cursor.style.transform = `translate(${x}px, ${y}px)`;
+            cursor.textContent = '';
+        }
+    }
+
+    document.addEventListener('mousemove', function (e) {
+        mouseX = e.clientX;
+        mouseY = e.clientY;
+        if (!cursorFramePending) {
+            cursorFramePending = true;
+            requestAnimationFrame(updateCustomCursor);
+        }
+    }, { passive: true });
+
+    document.addEventListener('mousedown', function () {
+        if (isInEventsSection) {
+            cursor.classList.add('clicking');
+        }
+    });
+
+    document.addEventListener('mouseup', function () {
+        cursor.classList.remove('clicking');
+    });
+} else if (cursor) {
+    cursor.style.display = 'none';
+}
+
+// Add glow effect to join button on hover
+if (joinButton) {
+    joinButton.addEventListener('mouseenter', () => {
+        joinButton.classList.add('glow-effect');
+    });
+
+    joinButton.addEventListener('mouseleave', () => {
+        joinButton.classList.remove('glow-effect');
+    });
+}
+
+// Synced hero slideshow: text slides + background images + dots
+// Wrapped in IIFE for dynamic slide support
+var HeroSlideshow = (function() {
+    var heroIndex = 0;
+    var heroSlides = [];
+    var heroBgs = [];
+    var heroDots = [];
+    var heroTimer = null;
+
+    function ensureHeroBackgroundLoaded(bgEl) {
+        if (!bgEl) return;
+        var src = bgEl.getAttribute('data-bg');
+        if (src && !bgEl.style.backgroundImage) {
+            bgEl.style.backgroundImage = "url('" + src + "')";
+        }
+    }
+
+    function init() {
+        heroSlides = Array.from(document.querySelectorAll('.hero-slide'));
+        heroBgs = Array.from(document.querySelectorAll('.hero-background'));
+        heroDots = Array.from(document.querySelectorAll('.hero-dot'));
+        heroIndex = 0;
+
+        ensureHeroBackgroundLoaded(heroBgs[0]);
+
+        // Warm remaining backgrounds after first paint instead of blocking initial load
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(function () {
+                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+            }, { timeout: 2000 });
+        } else {
+            setTimeout(function () {
+                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+            }, 1500);
+        }
+
+        // Bind dot clicks
+        heroDots.forEach(function(dot, idx) {
+            dot.onclick = function() {
+                showSlide(idx);
+                resetTimer();
+            };
+        });
+
+        startTimer();
+    }
+
+    function showSlide(index) {
+        // Close any open floating popups on slide change
+        document.querySelectorAll('.hero-float-popup.active').forEach(function(p) {
+            p.classList.remove('active');
+        });
+
+        if (heroSlides.length === 0) return;
+        if (index < 0) index = heroSlides.length - 1;
+        if (index >= heroSlides.length) index = 0;
+
+        heroSlides.forEach(function(s) { s.classList.remove('active'); });
+        heroBgs.forEach(function(b) { b.classList.remove('active'); });
+        heroDots.forEach(function(d) { d.classList.remove('active'); });
+
+        heroSlides[index].classList.add('active');
+        // Use exact index matching for backgrounds (1:1 with slides)
+        if (heroBgs[index]) {
+            ensureHeroBackgroundLoaded(heroBgs[index]);
+            heroBgs[index].classList.add('active');
+        }
+        if (heroBgs[(index + 1) % heroBgs.length]) {
+            ensureHeroBackgroundLoaded(heroBgs[(index + 1) % heroBgs.length]);
+        }
+        if (heroDots[index]) {
+            heroDots[index].classList.add('active');
+        }
+
+        heroIndex = index;
+    }
+
+    function startTimer() {
+        if (heroTimer) clearInterval(heroTimer);
+        heroTimer = setInterval(function() {
+            showSlide((heroIndex + 1) % heroSlides.length);
+        }, 6000);
+    }
+
+    function resetTimer() {
+        startTimer();
+    }
+
+    function stopTimer() {
+        if (heroTimer) clearInterval(heroTimer);
+    }
+
+    function addSlide(slideHtml, bgClass) {
+        var heroContent = document.querySelector('.hero-content');
+        var indicators = document.querySelector('.hero-indicators');
+        var bgContainer = document.querySelector('.hero-image-container');
+        if (!heroContent || !indicators) return;
+
+        // Insert slide before indicators
+        var temp = document.createElement('div');
+        temp.innerHTML = slideHtml;
+        var newSlide = temp.firstChild;
+        heroContent.insertBefore(newSlide, indicators);
+
+        // Add new dot
+        var newDot = document.createElement('span');
+        newDot.className = 'hero-dot';
+        newDot.setAttribute('data-index', heroDots.length);
+        indicators.appendChild(newDot);
+
+        // Add background if container exists
+        if (bgContainer && bgClass) {
+            var newBg = document.createElement('div');
+            newBg.className = 'hero-background ' + bgClass;
+            bgContainer.appendChild(newBg);
+        }
+
+        // Reinitialize
+        init();
+    }
+
+    function getIndex() {
+        return heroIndex;
+    }
+
+    function getTotalSlides() {
+        return heroSlides.length;
+    }
+
+    // Auto-init on load
+    init();
+
+    return {
+        init: init,
+        show: showSlide,
+        reset: resetTimer,
+        stop: stopTimer,
+        addSlide: addSlide,
+        getIndex: getIndex,
+        getTotalSlides: getTotalSlides
+    };
+})();
+
+// Legacy compatibility
+function showHeroSlide(index) { HeroSlideshow.show(index); }
+function resetHeroTimer() { HeroSlideshow.reset(); }
+
+// Hero popup content data
+const heroPopupData = {
+    'surgical-oncology': {
+        title: 'Surgical Oncology',
+        content: `
+            <p>Surgical oncology uses surgery to diagnose, stage, and treat cancer — a critical part of multidisciplinary tumor management.</p>
+            <h4>Key Areas</h4>
+            <ul>
+                <li><strong>Diagnostic</strong> — Biopsies to confirm diagnosis and extent of disease.</li>
+                <li><strong>Curative</strong> — Complete removal of tumors with cancer-free margins.</li>
+                <li><strong>Staging</strong> — Determining how far cancer has spread.</li>
+                <li><strong>Palliative</strong> — Relieving symptoms when a cure is not possible.</li>
+                <li><strong>Reconstructive</strong> — Restoring function after tumor removal.</li>
+            </ul>
+        `
+    },
+    'medical-oncology': {
+        title: 'Medical Oncology',
+        content: `
+            <p>Medical oncology treats cancer with systemic therapies that reach cancer cells throughout the body.</p>
+            <h4>Treatment Modalities</h4>
+            <ul>
+                <li><strong>Chemotherapy</strong> — Cytotoxic drugs given in cycles to kill rapidly dividing cells.</li>
+                <li><strong>Immunotherapy</strong> — Harnesses the immune system to attack cancer cells.</li>
+                <li><strong>Targeted Therapy</strong> — Drugs targeting specific molecular pathways in tumors.</li>
+                <li><strong>Hormone Therapy</strong> — Blocks hormones that fuel certain cancers.</li>
+                <li><strong>Precision Medicine</strong> — Genetic profiling to select optimal treatment.</li>
+            </ul>
+        `
+    },
+    'radiation-oncology': {
+        title: 'Radiation Oncology',
+        content: `
+            <p>Radiation oncology uses high-energy beams to destroy cancer cells while sparing healthy tissue.</p>
+            <h4>Techniques</h4>
+            <ul>
+                <li><strong>External Beam</strong> — Focused beams delivered from outside the body.</li>
+                <li><strong>Brachytherapy</strong> — Radioactive sources placed inside or near the tumor.</li>
+                <li><strong>Stereotactic</strong> — High-dose radiation to small, well-defined tumors.</li>
+                <li><strong>Proton Therapy</strong> — Proton beams that spare surrounding tissue.</li>
+                <li><strong>Image-Guided</strong> — Imaging during treatment for precise targeting.</li>
+            </ul>
+        `
+    },
+    'pediatric-oncology': {
+        title: 'Pediatric Oncology',
+        content: `
+            <p>Pediatric oncology diagnoses and treats cancers in children and adolescents with age-appropriate protocols.</p>
+            <h4>Common Cancers</h4>
+            <ul>
+                <li><strong>Leukemia</strong> — Most common childhood cancer, affecting blood and bone marrow.</li>
+                <li><strong>Brain Tumors</strong> — Including medulloblastoma and gliomas.</li>
+                <li><strong>Sarcomas</strong> — Bone and soft tissue cancers.</li>
+                <li><strong>Lymphomas</strong> — Hodgkin and non-Hodgkin lymphoma.</li>
+            </ul>
+            <h4>Specialized Care</h4>
+            <ul>
+                <li><strong>Supportive Care</strong> — Managing side effects, nutrition, and psychological support.</li>
+                <li><strong>Long-Term Follow-Up</strong> — Monitoring survivors into adulthood.</li>
+            </ul>
+        `
+    }
+};
+
+// Open / Close floating popup near Read More
+function toggleFloatPopup(link, specialty) {
+    const popup = link.querySelector('.hero-float-popup');
+    if (!popup) return;
+
+    // If already open, close it
+    if (popup.classList.contains('active')) {
+        popup.classList.remove('active');
+        resetHeroTimer();
+        return;
+    }
+
+    // Close ALL other popups first
+    closeAllFloatPopups();
+    closeDonatePopups();
+    closeLoginPopup();
+
+    // Fill content
+    const data = heroPopupData[specialty];
+    if (!data) return;
+    popup.innerHTML = '<button class="float-popup-close" onclick="event.stopPropagation(); closeAllFloatPopups();">&times;</button>'
+        + '<h3>' + data.title + '</h3>' + data.content;
+
+    popup.classList.add('active');
+    clearInterval(heroTimer);
+
+    // Auto-scroll so popup is visible
+    setTimeout(function() {
+        popup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    }, 50);
+}
+
+function closeAllFloatPopups() {
+    document.querySelectorAll('.hero-float-popup.active').forEach(function(p) {
+        p.classList.remove('active');
+    });
+    resetHeroTimer();
+}
+
+// Close floating popups on click outside
+document.addEventListener('click', function(e) {
+    if (!e.target.closest('.hero-readmore')) {
+        closeAllFloatPopups();
+    }
+});
+
+// Close floating popups on Escape — handled by unified Escape above
+
+// Smooth scrolling
+document.querySelectorAll('a[href^="#"]').forEach(anchor => {
+    anchor.addEventListener('click', function(e) {
+        const targetId = this.getAttribute('href');
+        if (targetId === '#') return;
+        
+        e.preventDefault();
+        const targetElement = document.querySelector(targetId);
+        if (targetElement) {
+            const headerOffset = 70;
+            const elementPosition = targetElement.getBoundingClientRect().top;
+            const offsetPosition = elementPosition + window.pageYOffset - headerOffset;
+            
+            window.scrollTo({
+                top: offsetPosition,
+                behavior: 'smooth'
+            });
+            
+            
+            // Close mobile menu after clicking
+            var _nl = document.querySelector('.nav-links');
+            var _mt = document.querySelector('.menu-toggle');
+            if (_nl) _nl.classList.remove('active');
+            if (_mt) { _mt.setAttribute('aria-expanded', 'false'); _mt.innerHTML = '☰'; }
+        }
+    });
+});
+
+// Back to top button
+const backToTopButton = document.querySelector('.back-to-top');
+
+window.addEventListener('scroll', () => {
+    if (window.pageYOffset > 300) {
+        backToTopButton.classList.add('visible');
+    } else {
+        backToTopButton.classList.remove('visible');
+    }
+});
+
+// Tab navigation is handled by hero slideshow sync above
+
+// ENHANCED carousel functionality with interactive elements
+// document.addEventListener('DOMContentLoaded', function() {
+//     // Carousel variables
+//     const carousel = document.querySelector('.events-carousel');
+//     const slides = document.querySelectorAll('.carousel-slide');
+//     const carouselNav = document.getElementById('carousel-nav');
+//     const prevButton = document.querySelector('.carousel-arrow.prev');
+//     const nextButton = document.querySelector('.carousel-arrow.next');
+//     const progressBar = document.querySelector('.carousel-progress');
+//     const positionIndicator = document.querySelector('.carousel-position-indicator-progress');
+    
+//     if (!carousel || !slides.length) return;
+    
+//     // Check for empty slides and mark them
+//     slides.forEach((slide, index) => {
+//         const hasEvents = slide.querySelectorAll('.event-card').length > 0;
+//         if (!hasEvents) {
+//             slide.classList.add('empty');
+//         } else {
+//             slide.setAttribute('data-has-content', 'true');
+//         }
+//     });
+    
+//     // Get only non-empty slides
+//     const nonEmptySlides = document.querySelectorAll('.carousel-slide[data-has-content="true"]');
+    
+//     // Generate dots only for slides with content
+//     nonEmptySlides.forEach((slide, index) => {
+//         const dot = document.createElement('span');
+//         dot.className = index === 0 ? 'carousel-dot has-content active' : 'carousel-dot has-content';
+//         dot.setAttribute('data-slide', index);
+//         dot.setAttribute('tabindex', '0');
+//         dot.setAttribute('role', 'button');
+//         dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
+//         carouselNav.appendChild(dot);
+//     });
+    
+//     // Get the generated dots
+//     const dots = document.querySelectorAll('.carousel-dot.has-content');
+    
+//     let currentSlide = 0;
+//     let autoScrollTimer;
+//     let isDragging = false;
+//     let startPos = 0;
+//     let currentTranslate = 0;
+//     let prevTranslate = 0;
+//     let animationID = 0;
+//     const totalSlides = nonEmptySlides.length;
+//     const scrollDuration = 5000; // 5 seconds per slide
+//     let isPaused = false;
+    
+//     // Function to show a specific slide with enhanced transitions
+//     function showSlide(index, direction = null) {
+//         // Handle looping
+//         if (index < 0) index = totalSlides - 1;
+//         if (index >= totalSlides) index = 0;
+        
+//         // Set transition classes based on direction
+//         slides.forEach(slide => {
+//             slide.classList.remove('active-slide', 'prev-slide', 'next-slide');
+//         });
+        
+//         // Find the actual slide index in the original slides collection
+//         let actualIndex = 0;
+//         let count = 0;
+//         for (let i = 0; i < slides.length; i++) {
+//             if (slides[i].getAttribute('data-has-content') === 'true') {
+//                 if (count === index) {
+//                     actualIndex = i;
+//                     break;
+//                 }
+//                 count++;
+//             }
+//         }
+        
+//         // Apply transition classes
+//         if (direction === 'next' || (direction === null && index > currentSlide)) {
+//             slides[actualIndex].classList.add('next-slide');
+//         } else if (direction === 'prev' || (direction === null && index < currentSlide)) {
+//             slides[actualIndex].classList.add('prev-slide');
+//         }
+        
+//         // Force reflow to ensure transition works
+//         void slides[actualIndex].offsetWidth;
+        
+//         currentSlide = index;
+        
+//         // Move carousel with transition
+//         carousel.style.transform = `translateX(-${actualIndex * 100}%)`;
+//         slides[actualIndex].classList.add('active-slide');
+        
+//         // Update dots
+//         dots.forEach((dot, i) => {
+//             dot.classList.toggle('active', i === currentSlide);
+//             dot.setAttribute('aria-selected', i === currentSlide ? 'true' : 'false');
+//         });
+        
+//         // Update position indicator
+//         if (positionIndicator) {
+//             positionIndicator.style.width = `${((currentSlide + 1) / totalSlides) * 100}%`;
+//         }
+        
+//         // Reset and start progress bar
+//         resetProgressBar();
+//     }
+    
+//     // Reset and animate progress bar
+//     function resetProgressBar() {
+//         if (!progressBar) return;
+//         progressBar.style.width = '0';
+//         // Force a reflow to ensure the transition works
+//         void progressBar.offsetWidth;
+        
+//         if (!isPaused) {
+//             progressBar.style.transition = `width ${scrollDuration}ms linear`;
+//             progressBar.style.width = '100%';
+//         }
+//     }
+    
+//     // Start auto-scrolling
+//     function startCarouselAutoCycle() {
+//         if (isPaused) return;
+        
+//         clearTimeout(autoScrollTimer);
+//         resetProgressBar();
+        
+//         autoScrollTimer = setTimeout(() => {
+//             showSlide(currentSlide + 1, 'next');
+//             startCarouselAutoCycle();
+//         }, scrollDuration);
+//     }
+    
+//     // Stop auto-scrolling
+//     function stopCarouselAutoCycle() {
+//         clearTimeout(autoScrollTimer);
+//         if (progressBar) {
+//             progressBar.style.transition = 'none';
+//             progressBar.style.width = '0';
+//         }
+//     }
+    
+//     // Pause auto-scrolling
+//     function pauseCarousel() {
+//         isPaused = true;
+//         stopCarouselAutoCycle();
+//         if (progressBar) {
+//             const computedStyle = window.getComputedStyle(progressBar);
+//             const width = computedStyle.getPropertyValue('width');
+//             progressBar.style.transition = 'none';
+//             progressBar.style.width = width;
+//         }
+//     }
+    
+//     // Resume auto-scrolling
+//     function resumeCarousel() {
+//         isPaused = false;
+//         startCarouselAutoCycle();
+//     }
+    
+//     // Drag functionality
+//     function touchStart(e) {
+//         if (isPaused) return;
+        
+//         pauseCarousel();
+        
+//         startPos = getPositionX(e);
+//         isDragging = true;
+//         animationID = requestAnimationFrame(animation);
+//         carousel.classList.add('dragging');
+//     }
+    
+//     function touchMove(e) {
+//         if (isDragging) {
+//             const currentPosition = getPositionX(e);
+//             currentTranslate = prevTranslate + currentPosition - startPos;
+//         }
+//     }
+    
+//     function touchEnd() {
+//         cancelAnimationFrame(animationID);
+//         isDragging = false;
+//         carousel.classList.remove('dragging');
+        
+//         const movedBy = currentTranslate - prevTranslate;
+        
+//         // Determine if we should change slides based on drag distance
+//         if (movedBy < -100) {
+//             showSlide(currentSlide + 1, 'next');
+//         } else if (movedBy > 100) {
+//             showSlide(currentSlide - 1, 'prev');
+//         } else {
+//             // Return to current slide if not dragged far enough
+//             showSlide(currentSlide);
+//         }
+        
+//         resumeCarousel();
+//     }
+    
+//     function getPositionX(e) {
+//         return e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+//     }
+    
+//     function animation() {
+//         if (isDragging) {
+//             const slideWidth = carousel.clientWidth;
+//             const currentSlideIndex = currentSlide;
+//             const offset = (currentTranslate / slideWidth) * 100;
+//             carousel.style.transform = `translateX(calc(-${currentSlideIndex * 100}% + ${offset}px))`;
+//             requestAnimationFrame(animation);
+//         }
+//     }
+    
+//     // Keyboard navigation
+//     function handleKeyDown(e) {
+//         if (e.key === 'ArrowLeft') {
+//             stopCarouselAutoCycle();
+//             showSlide(currentSlide - 1, 'prev');
+//             startCarouselAutoCycle();
+//         } else if (e.key === 'ArrowRight') {
+//             stopCarouselAutoCycle();
+//             showSlide(currentSlide + 1, 'next');
+//             startCarouselAutoCycle();
+//         } else if (e.key === 'Space') {
+//             e.preventDefault();
+//             if (isPaused) {
+//                 resumeCarousel();
+//             } else {
+//                 pauseCarousel();
+//             }
+//         }
+//     }
+    
+//     // Initialize carousel
+//     function initCarousel() {
+//         // Set initial slide
+//         showSlide(0);
+        
+//         // Add event listeners for navigation
+//         if (prevButton) {
+//             prevButton.addEventListener('click', () => {
+//                 prevButton.classList.add('clicked');
+//                 setTimeout(() => prevButton.classList.remove('clicked'), 300);
+                
+//                 stopCarouselAutoCycle();
+//                 showSlide(currentSlide - 1, 'prev');
+//                 startCarouselAutoCycle();
+//             });
+//         }
+        
+//         if (nextButton) {
+//             nextButton.addEventListener('click', () => {
+//                 nextButton.classList.add('clicked');
+//                 setTimeout(() => nextButton.classList.remove('clicked'), 300);
+                
+//                 stopCarouselAutoCycle();
+//                 showSlide(currentSlide + 1, 'next');
+//                 startCarouselAutoCycle();
+//             });
+//         }
+        
+//         dots.forEach((dot, index) => {
+//             dot.addEventListener('click', () => {
+//                 dot.classList.add('clicked');
+//                 setTimeout(() => dot.classList.remove('clicked'), 300);
+                
+//                 stopCarouselAutoCycle();
+//                 showSlide(index, index > currentSlide ? 'next' : 'prev');
+//                 startCarouselAutoCycle();
+//             });
+            
+//             // Keyboard accessibility for dots
+//             dot.addEventListener('keydown', (e) => {
+//                 if (e.key === 'Enter' || e.key === ' ') {
+//                     e.preventDefault();
+//                     dot.click();
+//                 }
+//             });
+//         });
+        
+//         // Add touch/drag support
+//         carousel.addEventListener('mousedown', touchStart);
+//         carousel.addEventListener('touchstart', touchStart, { passive: true });
+        
+//         window.addEventListener('mousemove', touchMove);
+//         window.addEventListener('touchmove', touchMove, { passive: true });
+        
+//         window.addEventListener('mouseup', touchEnd);
+//         window.addEventListener('touchend', touchEnd);
+        
+//         // Add keyboard navigation
+//         document.addEventListener('keydown', handleKeyDown);
+        
+//         // Pause on hover
+//         carousel.addEventListener('mouseenter', pauseCarousel);
+//         carousel.addEventListener('mouseleave', resumeCarousel);
+        
+//         // Start auto-scrolling
+//         startCarouselAutoCycle();
+        
+//         // Add scroll snap for smoother scrolling
+//         carousel.style.scrollSnapType = 'x mandatory';
+//         slides.forEach(slide => {
+//             slide.style.scrollSnapAlign = 'start';
+//         });
+//     }
+    
+//     // Initialize the carousel if there are non-empty slides
+//     if (nonEmptySlides.length > 0) {
+//         initCarousel();
+//     }
+    
+//     // Event filtering with interactive effects
+//     const filterButtons = document.querySelectorAll('.filter-button');
+//     const eventCards = document.querySelectorAll('.event-card');
+    
+//     filterButtons.forEach(button => {
+//         button.addEventListener('click', function() {
+//             // Add click effect
+//             this.classList.add('clicked');
+//             setTimeout(() => this.classList.remove('clicked'), 300);
+            
+//             // Update active button
+//             filterButtons.forEach(btn => btn.classList.remove('active'));
+//             this.classList.add('active');
+            
+//             const filterType = this.getAttribute('data-filter');
+            
+//             // Show/hide events based on filter with animation
+//             eventCards.forEach(card => {
+//                 if (filterType === 'all' || card.getAttribute('data-type') === filterType) {
+//                     card.style.display = '';
+//                     setTimeout(() => {
+//                         card.style.opacity = '1';
+//                         card.style.transform = 'scale(0.98)';
+//                     }, 50);
+//                 } else {
+//                     card.style.opacity = '0';
+//                     card.style.transform = 'scale(0.9)';
+//                     setTimeout(() => {
+//                         card.style.display = 'none';
+//                     }, 300);
+//                 }
+//             });
+            
+//             // Reset carousel
+//             stopCarouselAutoCycle();
+//             showSlide(0);
+//             startCarouselAutoCycle();
+//         });
+        
+//         // Keyboard accessibility for filter buttons
+//         button.addEventListener('keydown', (e) => {
+//             if (e.key === 'Enter' || e.key === ' ') {
+//                 e.preventDefault();
+//                 button.click();
+//             }
+//         });
+//     });
+    
+//     // Auto-cycling filters
+//     let currentFilterIndex = 0;
+//     let autoFilterInterval;
+//     const filterCycleTime = 5000; // 5 seconds per filter
+    
+//     function startFilterAutoCycle() {
+//         autoFilterInterval = setInterval(() => {
+//             currentFilterIndex = (currentFilterIndex + 1) % filterButtons.length;
+//             filterButtons[currentFilterIndex].click();
+//         }, filterCycleTime);
+//     }
+    
+//     // Start auto-cycling filters when not interacting
+//     startFilterAutoCycle();
+    
+//     // Pause cycling on interaction
+//     eventsSection.addEventListener('mouseenter', () => {
+//         clearInterval(autoFilterInterval);
+//     });
+    
+//     eventsSection.addEventListener('mouseleave', () => {
+//         startFilterAutoCycle();
+//     });
+    
+//     // Check URL hash for direct linking
+//     if (window.location.hash) {
+//         const eventId = window.location.hash.substring(1);
+//         const matchingCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
+        
+//         if (matchingCard) {
+//             // Find which slide contains this card
+//             slides.forEach((slide, index) => {
+//                 if (slide.contains(matchingCard)) {
+//                     showSlide(index);
+                    
+//                     // Highlight the card
+//                     matchingCard.classList.add('cursor-active');
+//                     setTimeout(() => {
+//                         matchingCard.classList.remove('cursor-active');
+//                     }, 2000);
+//                 }
+//             });
+//         }
+//     }
+// });
+
+
+document.addEventListener('DOMContentLoaded', function() {
+    // Function to parse event dates
+    function parseEventDate(dateString) {
+        try {
+            const [datePart] = dateString.split('-');
+            const cleanDate = datePart.trim();
+            const monthMap = {
+                'jan': '01', 'feb': '02', 'mar': '03', 'apr': '04', 'may': '05', 'jun': '06',
+                'june': '06', 'jul': '07', 'july': '07', 'aug': '08', 'sep': '09', 'sept': '09',
+                'oct': '10', 'nov': '11', 'dec': '12'
+            };
+            let [month, day, year] = cleanDate.split(/[\s,]+/);
+            month = monthMap[month.toLowerCase()] || month;
+            const dateStr = `${month}/${day}/${year}`;
+            const date = new Date(dateStr);
+            return isNaN(date) ? new Date(0) : date;
+        } catch (e) {
+            console.warn(`Failed to parse date: ${dateString}`, e);
+            return new Date(0);
+        }
+    }
+
+    // Shared carousel functionality
+    function setupCarousel(carouselSelector, navSelector, cardsPerSlide, prevButtonSelector, nextButtonSelector) {
+        const carousel = document.querySelector(carouselSelector);
+        const carouselNav = document.querySelector(navSelector);
+        const prevButton = document.querySelector(prevButtonSelector);
+        const nextButton = document.querySelector(nextButtonSelector);
+        if (!carousel) return { slides: [], dots: [], showSlide: () => {}, startAutoCycle: () => {}, updateSlides: () => {} };
+
+        let slides = Array.from(carousel.children);
+        let currentSlide = 0;
+        let autoScrollTimer;
+        let isDragging = false;
+        let startPos = 0;
+        let currentTranslate = 0;
+        let prevTranslate = 0;
+        let animationID = 0;
+        let totalSlides = slides.length;
+        const scrollDuration = 5000;
+        let isPaused = false;
+
+        // Generate navigation dots
+        function updateDots() {
+            carouselNav.innerHTML = '';
+            slides.forEach((slide, index) => {
+                const hasEvents = slide.querySelectorAll('.event-card').length > 0;
+                if (hasEvents) {
+                    const dot = document.createElement('span');
+                    dot.className = index === 0 ? 'carousel-dot active' : 'carousel-dot';
+                    dot.setAttribute('data-slide', index);
+                    dot.setAttribute('tabindex', '0');
+                    dot.setAttribute('role', 'button');
+                    dot.setAttribute('aria-label', `Go to slide ${index + 1}`);
+                    carouselNav.appendChild(dot);
+                }
+            });
+            return document.querySelectorAll(`${navSelector} .carousel-dot`);
+        }
+
+        let dots = updateDots();
+
+        function showSlide(index, direction = null) {
+            if (totalSlides === 0) return;
+            if (index < 0) index = totalSlides - 1;
+            if (index >= totalSlides) index = 0;
+
+            slides.forEach(slide => {
+                slide.classList.remove('active-slide', 'prev-slide', 'next-slide');
+            });
+
+            if (direction === 'next') {
+                slides[index].classList.add('next-slide');
+            } else if (direction === 'prev') {
+                slides[index].classList.add('prev-slide');
+            }
+
+            void slides[index].offsetWidth;
+
+            currentSlide = index;
+
+            carousel.style.transform = `translateX(-${index * 100}%)`;
+            slides[index].classList.add('active-slide');
+
+            dots.forEach((dot, i) => {
+                dot.classList.toggle('active', i === currentSlide);
+                dot.setAttribute('aria-selected', i === currentSlide ? 'true' : 'false');
+            });
+        }
+
+        function startAutoCycle() {
+            if (isPaused || totalSlides <= 1) return;
+            clearTimeout(autoScrollTimer);
+            autoScrollTimer = setTimeout(() => {
+                showSlide(currentSlide + 1, 'next');
+                startAutoCycle();
+            }, scrollDuration);
+        }
+
+        function stopAutoCycle() {
+            clearTimeout(autoScrollTimer);
+        }
+
+        function pauseCarousel() {
+            isPaused = true;
+            stopAutoCycle();
+        }
+
+        function resumeCarousel() {
+            isPaused = false;
+            startAutoCycle();
+        }
+
+        function touchStart(e) {
+            if (isPaused) return;
+            pauseCarousel();
+            startPos = getPositionX(e);
+            isDragging = true;
+            animationID = requestAnimationFrame(animation);
+            carousel.classList.add('dragging');
+        }
+
+        function touchMove(e) {
+            if (isDragging) {
+                const currentPosition = getPositionX(e);
+                currentTranslate = prevTranslate + currentPosition - startPos;
+            }
+        }
+
+        function touchEnd() {
+            cancelAnimationFrame(animationID);
+            isDragging = false;
+            carousel.classList.remove('dragging');
+            const movedBy = currentTranslate - prevTranslate;
+            if (movedBy < -100) {
+                showSlide(currentSlide + 1, 'next');
+            } else if (movedBy > 100) {
+                showSlide(currentSlide - 1, 'prev');
+            } else {
+                showSlide(currentSlide);
+            }
+            resumeCarousel();
+        }
+
+        function getPositionX(e) {
+            return e.type.includes('mouse') ? e.pageX : e.touches[0].clientX;
+        }
+
+        function animation() {
+            if (isDragging) {
+                const slideWidth = carousel.clientWidth;
+                const offset = (currentTranslate / slideWidth) * 100;
+                carousel.style.transform = `translateX(calc(-${currentSlide * 100}% + ${offset}px))`;
+                requestAnimationFrame(animation);
+            }
+        }
+
+        function updateSlides(newSlides) {
+            slides = newSlides;
+            totalSlides = slides.length;
+            dots = updateDots();
+            showSlide(0);
+            startAutoCycle();
+
+            // Reattach dot event listeners
+            dots.forEach((dot, index) => {
+                dot.addEventListener('click', () => {
+                    stopAutoCycle();
+                    showSlide(index, index > currentSlide ? 'next' : 'prev');
+                    startAutoCycle();
+                });
+                dot.addEventListener('keydown', (e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        dot.click();
+                    }
+                });
+            });
+        }
+
+        // Event listeners for navigation buttons
+        if (prevButton) {
+            prevButton.addEventListener('click', () => {
+                stopAutoCycle();
+                showSlide(currentSlide - 1, 'prev');
+                startAutoCycle();
+            });
+        }
+
+        if (nextButton) {
+            nextButton.addEventListener('click', () => {
+                stopAutoCycle();
+                showSlide(currentSlide + 1, 'next');
+                startAutoCycle();
+            });
+        }
+
+        // Event listeners for dots
+        dots.forEach((dot, index) => {
+            dot.addEventListener('click', () => {
+                stopAutoCycle();
+                showSlide(index, index > currentSlide ? 'next' : 'prev');
+                startAutoCycle();
+            });
+            dot.addEventListener('keydown', (e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                    e.preventDefault();
+                    dot.click();
+                }
+            });
+        });
+
+        // Drag and touch events
+        carousel.addEventListener('mousedown', touchStart);
+        carousel.addEventListener('touchstart', touchStart, { passive: true });
+        window.addEventListener('mousemove', touchMove);
+        window.addEventListener('touchmove', touchMove, { passive: true });
+        window.addEventListener('mouseup', touchEnd);
+        window.addEventListener('touchend', touchEnd);
+        carousel.addEventListener('mouseenter', pauseCarousel);
+        carousel.addEventListener('mouseleave', resumeCarousel);
+
+        if (totalSlides > 0) {
+            showSlide(0);
+            startAutoCycle();
+        }
+
+        return { slides, dots, showSlide, startAutoCycle, stopAutoCycle, updateSlides };
+    }
+
+    // Setup Upcoming Events Carousel (shows events with closest dates first)
+    const today = new Date();
+    const allEventCards = Array.from(document.querySelectorAll('.event-card'));
+    
+    // Sort all events by date (closest first)
+    const sortedEventCards = allEventCards.sort((a, b) => {
+        const dateA = parseEventDate(a.querySelector('.event-date').textContent);
+        const dateB = parseEventDate(b.querySelector('.event-date').textContent);
+        return dateA - dateB; // Sort by date ascending (closest first)
+    });
+
+    // Filter upcoming events (today or future)
+    const upcomingEventCards = sortedEventCards.filter(card => {
+        const eventDate = parseEventDate(card.querySelector('.event-date').textContent);
+        return eventDate >= today;
+    });
+
+    // Populate upcoming events carousel
+    const upcomingCarousel = document.querySelector('.upcoming-events-carousel');
+    if (upcomingCarousel) {
+        const cardsPerSlide = 3;
+        for (let i = 0; i < upcomingEventCards.length; i += cardsPerSlide) {
+            const slide = document.createElement('div');
+            slide.className = 'carousel-slide';
+            slide.setAttribute('data-has-content', 'true');
+            const slideCards = upcomingEventCards.slice(i, i + cardsPerSlide);
+            slideCards.forEach(card => slide.appendChild(card.cloneNode(true)));
+            upcomingCarousel.appendChild(slide);
+        }
+    }
+
+    const upcomingCarouselInstance = setupCarousel('.upcoming-events-carousel', '.upcoming-carousel-nav', 3);
+
+    // Setup All Events Carousel (shows all events sorted by date)
+    function sortEvents(filterType = 'all') {
+        let filteredCards = sortedEventCards; // Use the pre-sorted cards
+
+        if (filterType === 'upcoming') {
+            filteredCards = sortedEventCards.filter(card => {
+                const eventDate = parseEventDate(card.querySelector('.event-date').textContent);
+                return eventDate >= today;
+            });
+        } else if (filterType !== 'all') {
+            filteredCards = sortedEventCards.filter(card => card.getAttribute('data-type') === filterType);
+        }
+
+        const carousel = document.querySelector('.events-carousel');
+        carousel.innerHTML = '';
+
+        const cardsPerSlide = 2;
+        for (let i = 0; i < filteredCards.length; i += cardsPerSlide) {
+            const slide = document.createElement('div');
+            slide.className = 'carousel-slide';
+            slide.setAttribute('data-has-content', 'true');
+            const slideCards = filteredCards.slice(i, i + cardsPerSlide);
+            slideCards.forEach(card => slide.appendChild(card.cloneNode(true)));
+            carousel.appendChild(slide);
+        }
+
+        return document.querySelectorAll('.events-carousel .carousel-slide');
+    }
+
+    let sortedSlides = sortEvents();
+    const allEventsCarouselInstance = setupCarousel('.events-carousel', '.carousel-nav', 3, '.carousel-arrow.prev', '.carousel-arrow.next');
+
+    // Event filtering for All Events
+    const filterButtons = document.querySelectorAll('.filter-button');
+    filterButtons.forEach(button => {
+        button.addEventListener('click', function() {
+            this.classList.add('clicked');
+            setTimeout(() => this.classList.remove('clicked'), 300);
+
+            filterButtons.forEach(btn => btn.classList.remove('active'));
+            this.classList.add('active');
+
+            const filterType = this.getAttribute('data-filter');
+
+            // Update carousel with filtered slides
+            allEventsCarouselInstance.stopAutoCycle();
+            sortedSlides = sortEvents(filterType);
+            allEventsCarouselInstance.updateSlides(sortedSlides);
+        });
+
+        button.addEventListener('keydown', (e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+                e.preventDefault();
+                button.click();
+            }
+        });
+    });
+
+    // Auto-cycling filters
+    let currentFilterIndex = 0;
+    let autoFilterInterval;
+    const filterCycleTime = 12000;
+    const shouldAutoRotateFilters = false;
+
+    function startFilterAutoCycle() {
+        if (!shouldAutoRotateFilters || filterButtons.length <= 1) return;
+        clearInterval(autoFilterInterval);
+        autoFilterInterval = setInterval(() => {
+            currentFilterIndex = (currentFilterIndex + 1) % filterButtons.length;
+            filterButtons[currentFilterIndex].click();
+        }, filterCycleTime);
+    }
+
+    const eventsSection = document.getElementById('events');
+    if (eventsSection && shouldAutoRotateFilters) {
+        startFilterAutoCycle();
+        eventsSection.addEventListener('mouseenter', () => {
+            clearInterval(autoFilterInterval);
+        });
+
+        eventsSection.addEventListener('mouseleave', () => {
+            startFilterAutoCycle();
+        });
+    }
+
+    if (window.location.hash) {
+        const eventId = window.location.hash.substring(1);
+        const matchingCard = document.querySelector(`.event-card[data-event-id="${eventId}"]`);
+        if (matchingCard) {
+            sortedSlides.forEach((slide, index) => {
+                if (slide.contains(matchingCard)) {
+                    allEventsCarouselInstance.showSlide(index);
+                    matchingCard.classList.add('cursor-active');
+                    setTimeout(() => {
+                        matchingCard.classList.remove('cursor-active');
+                    }, 2000);
+                }
+            });
+        }
+    }
+});
+
+/* ══════════════════════════════════════════════════════════════════
+   Featured Content - Dynamic Hero Slides
+   ══════════════════════════════════════════════════════════════════ */
+(function() {
+    function loadFeaturedHeroSlides() {
+        fetch('api.php?action=get_home_featured', { credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                if (!data.success || !data.featured) return;
+
+                var heroContent = document.querySelector('.hero-content');
+                var indicators = document.querySelector('.hero-indicators');
+                var bgContainer = document.querySelector('.hero-image-container');
+                if (!heroContent || !indicators) return;
+
+                var slidesAdded = 0;
+
+                // Add featured events as hero slides with their own images
+                if (data.featured.events && data.featured.events.length > 0) {
+                    data.featured.events.forEach(function(ev) {
+                        var slideHtml = createEventSlide(ev);
+                        var imageUrl = ev.image || null;
+                        // Events use their own image, or a default event-themed background
+                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, imageUrl, 'event-bg');
+                        slidesAdded++;
+                    });
+                }
+
+                // Add featured publications as hero slides
+                if (data.featured.publications && data.featured.publications.length > 0) {
+                    data.featured.publications.forEach(function(pub) {
+                        var slideHtml = createPublicationSlide(pub);
+                        // Publications use a default research-themed background
+                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, null, 'publication-bg');
+                        slidesAdded++;
+                    });
+                }
+
+                // Add featured grants as hero slides
+                if (data.featured.grants && data.featured.grants.length > 0) {
+                    data.featured.grants.forEach(function(grant) {
+                        var slideHtml = createGrantSlide(grant);
+                        // Grants use a default funding-themed background
+                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, null, 'grant-bg');
+                        slidesAdded++;
+                    });
+                }
+
+                // Reinitialize hero slideshow if slides were added
+                if (slidesAdded > 0 && typeof HeroSlideshow !== 'undefined') {
+                    HeroSlideshow.init();
+                }
+            })
+            .catch(function(err) {
+                console.error('Failed to load featured content for hero:', err);
+            });
+    }
+
+    function insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, imageUrl, bgClass) {
+        // Create slide element
+        var temp = document.createElement('div');
+        temp.innerHTML = slideHtml;
+        var newSlide = temp.firstElementChild;
+        
+        // Insert before indicators
+        heroContent.insertBefore(newSlide, indicators);
+
+        // Add new dot indicator
+        var dotCount = indicators.querySelectorAll('.hero-dot').length;
+        var newDot = document.createElement('span');
+        newDot.className = 'hero-dot';
+        newDot.setAttribute('data-index', dotCount);
+        indicators.appendChild(newDot);
+
+        // Add background image if container exists
+        if (bgContainer) {
+            var newBg = document.createElement('div');
+            newBg.className = 'hero-background';
+            if (imageUrl) {
+                // Use the actual event/content image (quote URL for paths with spaces)
+                newBg.style.backgroundImage = "url('" + imageUrl + "')";
+                newBg.style.backgroundSize = 'cover';
+                newBg.style.backgroundPosition = 'center';
+            } else if (bgClass) {
+                newBg.classList.add(bgClass);
+            } else {
+                // Default gradient background for content without images
+                newBg.classList.add('dynamic-bg');
+            }
+            bgContainer.appendChild(newBg);
+        }
+    }
+
+    function escHtml(str) {
+        if (!str) return '';
+        return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+
+    function createEventSlide(ev) {
+        var dateDisplay = ev.date || '';
+        var locationDisplay = ev.location || '';
+        var countdownBadge = ev.countdown ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
+
+        return '<div class="hero-slide featured-hero-slide" data-type="event">' +
+            '<span class="featured-label"><span class="featured-label-icon">📅</span> Featured Event</span>' +
+            '<h1>' + escHtml(ev.title) + '</h1>' +
+            '<div class="featured-meta">' +
+                (dateDisplay ? '<span class="featured-meta-item">🗓 ' + escHtml(dateDisplay) + '</span>' : '') +
+                (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
+            '</div>' +
+            '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
+            '<div class="featured-cta">' +
+                '<a href="events.html#' + escHtml(ev.id) + '" class="btn btn-primary">View Event Details</a>' +
+                countdownBadge +
+            '</div>' +
+        '</div>';
+    }
+
+    function createPublicationSlide(pub) {
+        var typeIcon = pub.pub_type === 'Conference' ? '🎤' : pub.pub_type === 'Review' ? '📖' : '📄';
+        var typeLabel = pub.pub_type || 'Publication';
+        var linkBtn = pub.link ? 
+            '<a href="' + escHtml(pub.link) + '" target="_blank" rel="noopener" class="btn btn-primary">' + escHtml(pub.link_label || 'Read Publication') + '</a>' : 
+            '<a href="research.html#publications" class="btn btn-primary">View All Publications</a>';
+
+        return '<div class="hero-slide featured-hero-slide" data-type="publication">' +
+            '<span class="featured-label"><span class="featured-label-icon">' + typeIcon + '</span> ' + escHtml(typeLabel) + '</span>' +
+            '<h1>' + escHtml(pub.title) + '</h1>' +
+            '<div class="featured-meta">' +
+                (pub.pub_date ? '<span class="featured-meta-item">📅 ' + escHtml(pub.pub_date) + '</span>' : '') +
+                (pub.authors ? '<span class="featured-meta-item">✍️ ' + escHtml(pub.authors) + '</span>' : '') +
+            '</div>' +
+            '<p>' + escHtml(pub.abstract || 'Read our latest research publication.') + '</p>' +
+            '<div class="featured-cta">' +
+                linkBtn +
+            '</div>' +
+        '</div>';
+    }
+
+    function createGrantSlide(grant) {
+        var statusClass = grant.status === 'open' ? 'featured-status--open' : grant.status === 'closing' ? 'featured-status--soon' : '';
+        var statusLabel = grant.status === 'open' ? 'Applications Open' : grant.status === 'closing' ? 'Closing Soon' : '';
+        var amountDisplay = grant.amount && parseFloat(grant.amount) > 0 ? (grant.currency || 'UGX') + ' ' + Number(grant.amount).toLocaleString() : '';
+
+        return '<div class="hero-slide featured-hero-slide" data-type="grant">' +
+            '<span class="featured-label"><span class="featured-label-icon">💰</span> Grant Opportunity</span>' +
+            '<h1>' + escHtml(grant.title) + '</h1>' +
+            '<div class="featured-meta">' +
+                (amountDisplay ? '<span class="featured-meta-item featured-amount">💵 ' + escHtml(amountDisplay) + '</span>' : '') +
+                (grant.deadline ? '<span class="featured-meta-item">⏰ Deadline: ' + escHtml(grant.deadline) + '</span>' : '') +
+            '</div>' +
+            '<p>' + escHtml(grant.description || 'Explore this funding opportunity.') + '</p>' +
+            '<div class="featured-cta">' +
+                '<a href="research.html#grants" class="btn btn-primary">Learn More</a>' +
+                (statusClass ? '<span class="featured-status ' + statusClass + '">' + statusLabel + '</span>' : '') +
+            '</div>' +
+        '</div>';
+    }
+
+    // Load after HeroSlideshow is ready
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', function() {
+            setTimeout(loadFeaturedHeroSlides, 100);
+        });
+    } else {
+        setTimeout(loadFeaturedHeroSlides, 100);
+    }
+})();
+</script>
+<script src="intl-phone.js?v=2026040404"></script>
+<script src="shared-components.js?v=2026040701"></script>
+<script src="shared-login.js?v=2026040404"></script>
+<script src="donate-float.js?v=2026040404"></script>
+</body>
+</html>

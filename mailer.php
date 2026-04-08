@@ -1,254 +1,90 @@
-/* ============================================================
-   SHARED NAVBAR STYLES — navbar.css
-   Single-row: Logo left, nav links right
-   Include in ALL pages for a uniform navigation look.
-   ============================================================ */
+<?php
+/**
+ * mailer.php — SMTP email helper using PHPMailer.
+ *
+ * Drop-in replacement for PHP mail(). Reads SMTP config from .env via env.php.
+ *
+ * Usage:
+ *   require_once 'mailer.php';
+ *   hosuMail($to, $subject, $htmlBody);             // simple
+ *   hosuMail($to, $subject, $htmlBody, $fromName);  // custom sender name
+ */
 
-/* Navbar */
-.navbar {
-    background: rgba(247, 250, 252, 0.65) !important;
-    -webkit-backdrop-filter: blur(18px) !important;
-    backdrop-filter: blur(18px) !important;
-    padding: 0 3% !important;
-    display: flex !important;
-    justify-content: center !important;
-    align-items: center !important;
-    position: fixed !important;
-    width: 100% !important;
-    top: 0 !important;
-    z-index: 3000 !important;
-    height: 90px !important;
-    transition: all 0.3s ease !important;
-    border-bottom: none !important;
-    box-shadow: none !important;
-}
+require_once __DIR__ . '/vendor/autoload.php';
+require_once __DIR__ . '/env.php';
 
-.navbar.scrolled {
-    background: rgba(255, 255, 255, 0.92) !important;
-    box-shadow: 0 1px 8px rgba(0, 0, 0, 0.06) !important;
-    border-bottom: 1px solid rgba(0, 0, 0, 0.05) !important;
-}
+use PHPMailer\PHPMailer\PHPMailer;
+use PHPMailer\PHPMailer\SMTP;
+use PHPMailer\PHPMailer\Exception;
 
-.navbar .navbar-container {
-    display: flex !important;
-    flex-direction: row !important;
-    justify-content: space-between !important;
-    align-items: center !important;
-    width: 100% !important;
-    max-width: 1400px !important;
-    margin: 0 auto !important;
-    padding: 0 !important;
-}
+/**
+ * Send an HTML email via SMTP.
+ *
+ * @param string $to        Recipient email
+ * @param string $subject   Email subject
+ * @param string $htmlBody  Full HTML body
+ * @param string $fromName  Sender display name (default: HOSU)
+ * @return bool             True on success
+ */
+function hosuMail(string $to, string $subject, string $htmlBody, string $fromName = 'HOSU'): bool
+{
+    $mail = new PHPMailer(true);
 
-/* Logo */
-.navbar .logo {
-    display: flex !important;
-    align-items: center !important;
-    flex-shrink: 0 !important;
-}
+    try {
+        // SMTP configuration from environment
+        $smtpHost = getenv('SMTP_HOST') ?: 'smtp.gmail.com';
+        $smtpPort = (int)(getenv('SMTP_PORT') ?: 587);
+        $smtpUser = getenv('SMTP_USER') ?: 'info@hosu.or.ug';
+        $smtpPass = getenv('SMTP_PASS') ?: '';
+        $smtpFrom = getenv('SMTP_FROM') ?: ($smtpUser ?: 'info@hosu.or.ug');
+        $smtpReplyTo = getenv('SMTP_REPLY_TO') ?: $smtpFrom;
+        $smtpFromName = getenv('SMTP_FROM_NAME') ?: $fromName;
+        $smtpEncryption = getenv('SMTP_ENCRYPTION') ?: 'tls';
 
-.navbar .logo a {
-    display: flex;
-    align-items: center;
-    text-decoration: none;
-}
+        // If no SMTP credentials configured, fall back to PHP mail()
+        if (empty($smtpUser) || empty($smtpPass)) {
+            error_log('HOSU Mailer: No SMTP credentials configured, falling back to mail()');
+            $headers  = "MIME-Version: 1.0\r\n";
+            $headers .= "Content-Type: text/html; charset=UTF-8\r\n";
+            $headers .= "From: " . $smtpFromName . " <" . $smtpFrom . ">\r\n";
+            $headers .= "Reply-To: <" . $smtpReplyTo . ">\r\n";
+            return @mail($to, $subject, $htmlBody, $headers);
+        }
 
-.navbar .logo img {
-    height: 80px !important;
-    width: auto !important;
-    object-fit: contain !important;
-    transition: transform 0.3s ease !important;
-}
+        // Server settings
+        $mail->isSMTP();
+        $mail->Host       = $smtpHost;
+        $mail->SMTPAuth   = true;
+        $mail->Username   = $smtpUser;
+        $mail->Password   = $smtpPass;
+        $mail->Port       = $smtpPort;
 
-/* Nav Links */
-.navbar .nav-links {
-    display: flex !important;
-    gap: 1.75rem !important;
-    align-items: center !important;
-    list-style: none !important;
-    margin: 0 !important;
-    padding: 0 !important;
-}
+        if ($smtpEncryption === 'tls') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_STARTTLS;
+        } elseif ($smtpEncryption === 'ssl') {
+            $mail->SMTPSecure = PHPMailer::ENCRYPTION_SMTPS;
+        }
 
-.navbar .nav-links a {
-    text-decoration: none !important;
-    color: #12294a !important;
-    font-weight: 400 !important;
-    font-size: 0.88rem !important;
-    transition: color 0.3s ease !important;
-    position: relative !important;
-    padding: 0.4rem 0.15rem !important;
-    white-space: nowrap !important;
-}
+        // Timeout
+        $mail->Timeout = 30;
 
-.navbar .nav-links a:not(.cta-button)::after {
-    content: '' !important;
-    position: absolute !important;
-    width: 0 !important;
-    height: 2.5px !important;
-    bottom: -3px !important;
-    left: 0 !important;
-    background-color: #e63946 !important;
-    transition: width 0.3s ease !important;
-    border-radius: 2px !important;
-}
+        // Recipients
+        $mail->setFrom($smtpFrom, $smtpFromName);
+        $mail->addReplyTo($smtpReplyTo, $smtpFromName);
+        $mail->addAddress($to);
 
-.navbar .nav-links a:not(.cta-button):hover::after {
-    width: 100% !important;
-}
+        // Content
+        $mail->isHTML(true);
+        $mail->CharSet = 'UTF-8';
+        $mail->Subject = $subject;
+        $mail->Body    = $htmlBody;
+        // Plain text fallback
+        $mail->AltBody = strip_tags(str_replace(['<br>', '<br/>', '<br />'], "\n", $htmlBody));
 
-.navbar .nav-links a:not(.cta-button):hover {
-    color: #e63946 !important;
-}
-
-.navbar .nav-links .cta-button {
-    background: #e63946 !important;
-    color: #ffffff !important;
-    padding: 0.6rem 1.4rem !important;
-    border-radius: 30px !important;
-    font-weight: 700 !important;
-    font-size: 0.95rem !important;
-    display: inline-flex !important;
-    align-items: center !important;
-    justify-content: center !important;
-    box-shadow: 0 2px 8px rgba(230, 57, 70, 0.25) !important;
-    border: none !important;
-    transition: all 0.3s ease !important;
-    white-space: nowrap !important;
-}
-
-.navbar .nav-links .cta-button:hover {
-    background: #c81d2a !important;
-    transform: translateY(-2px) !important;
-    box-shadow: 0 4px 12px rgba(230, 57, 70, 0.35) !important;
-}
-
-.navbar .nav-links .cta-button::after {
-    display: none !important;
-}
-
-/* Menu Toggle */
-.navbar .menu-toggle {
-    display: none !important;
-    cursor: pointer !important;
-    font-size: 1.5rem !important;
-    width: 44px !important;
-    height: 44px !important;
-    align-items: center !important;
-    justify-content: center !important;
-    border-radius: 8px !important;
-    transition: background-color 0.3s ease !important;
-    color: #12294a !important;
-    background: transparent !important;
-    border: none !important;
-    flex-shrink: 0 !important;
-}
-
-.navbar .menu-toggle:hover {
-    background-color: #edf2f7 !important;
-}
-
-/* ============================================================
-   RESPONSIVE
-   ============================================================ */
-@media (max-width: 1100px) {
-    .navbar .nav-links {
-        gap: 1.25rem !important;
-    }
-
-    .navbar .nav-links a {
-        font-size: 0.92rem !important;
-    }
-
-    .navbar .logo img {
-        height: 62px !important;
-    }
-}
-
-@media (max-width: 768px) {
-    .navbar {
-        height: 80px !important;
-        padding: 0 1rem !important;
-    }
-
-    .navbar .logo img {
-        height: 58px !important;
-    }
-
-    .navbar .nav-links {
-        position: fixed !important;
-        top: 80px !important;
-        left: 0 !important;
-        width: 100% !important;
-        background: #ffffff !important;
-        flex-direction: column !important;
-        padding: 0.5rem 0 !important;
-        box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12) !important;
-        z-index: 3000 !important;
-        opacity: 0 !important;
-        visibility: hidden !important;
-        transform: translateY(-10px) !important;
-        transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease !important;
-        gap: 0 !important;
-        border-top: 1px solid #edf2f7 !important;
-        display: flex !important;
-    }
-
-    .navbar .nav-links.active {
-        opacity: 1 !important;
-        visibility: visible !important;
-        transform: translateY(0) !important;
-    }
-
-    .navbar .nav-links a {
-        font-size: 1rem !important;
-        padding: 0.85rem 1.5rem !important;
-        width: 100% !important;
-        text-align: center !important;
-        border-bottom: 1px solid #edf2f7 !important;
-    }
-
-    .navbar .nav-links a:last-child {
-        border-bottom: none !important;
-    }
-
-    .navbar .nav-links a:not(.cta-button)::after {
-        display: none !important;
-    }
-
-    .navbar .nav-links a:not(.cta-button):hover {
-        background-color: #f7fafc !important;
-    }
-
-    .navbar .nav-links .cta-button {
-        margin: 0.5rem 1.5rem !important;
-        width: calc(100% - 3rem) !important;
-        text-align: center !important;
-        justify-content: center !important;
-    }
-
-    .navbar .menu-toggle {
-        display: flex !important;
-    }
-}
-
-@media (max-width: 480px) {
-    .navbar {
-        height: 64px !important;
-        padding: 0 0.75rem !important;
-    }
-
-    .navbar .logo img {
-        width: 150px !important;
-        height: 50px !important;
-    }
-
-    .navbar .nav-links {
-        top: 64px !important;
-    }
-
-    .navbar .nav-links a {
-        font-size: 0.9rem !important;
-        padding: 0.75rem 1.25rem !important;
+        $mail->send();
+        return true;
+    } catch (Exception $e) {
+        error_log('HOSU Mailer Error: ' . $e->getMessage());
+        return false;
     }
 }
