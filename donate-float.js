@@ -110,7 +110,7 @@
                     '<div class="hp-sd" id="_hpD3">3</div>' +
                 '</div>' +
                 '<div id="_hpLabels">' +
-                    '<span class="hp-lbl hp-a" id="_hpLbl1">Register</span>' +
+                    '<span class="hp-lbl hp-a" id="_hpLbl1">Pay</span>' +
                     '<span class="hp-lbl" id="_hpLbl2">Authorize</span>' +
                     '<span class="hp-lbl" id="_hpLbl3">Receipt</span>' +
                 '</div>' +
@@ -733,7 +733,7 @@
                 st.receiptToken = preRes.receipt_token;
                 st.paymentId    = preRes.payment_id;
             } else {
-                HosuPay.error(preRes.error || 'Registration failed. Please try again.');
+                HosuPay.error(preRes.error || 'Payment could not be started. Please try again.');
                 return;
             }
         } catch (e) { HosuPay.error('Connection error. Please check your network and try again.'); return; }

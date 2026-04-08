@@ -1240,12 +1240,12 @@ HTML;
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('API pre_register DB: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => 'Registration could not be saved. Please try again or contact info@hosu.or.ug.']);
+            echo json_encode(['error' => 'Payment could not be started. Please try again or contact info@hosu.or.ug.']);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
             error_log('API pre_register: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => 'Registration failed. Please try again or contact info@hosu.or.ug.']);
+            echo json_encode(['error' => 'Payment could not be started. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 

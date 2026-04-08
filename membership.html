@@ -1745,7 +1745,7 @@
             <div id="paySteps">
                 <div class="pay-step" id="pstep-1">
                     <div class="pay-step-dot active" id="psdot-1">1</div>
-                    <span class="pay-step-label">Register</span>
+                    <span class="pay-step-label">Pay</span>
                 </div>
                 <div class="pay-step-line" id="psline-1"></div>
                 <div class="pay-step" id="pstep-2">
@@ -2285,7 +2285,7 @@ async function initiateRealBankTransfer(transferDetails) {
                 step:      1,
                 title:     'Processing Membership',
                 purpose:   _payPurpose,
-                message:   'Preparing your registration\u2026',
+                message:   'Preparing your payment\u2026',
                 onSuccess: resetForm,
                 onCancel:  function () {}
             });
@@ -2317,7 +2317,7 @@ async function initiateRealBankTransfer(transferDetails) {
                     _receiptToken = preRes.receipt_token;
                     _paymentId    = preRes.payment_id;
                 } else {
-                    HosuPay.error(preRes.error || 'Registration failed. Please try again.');
+                    HosuPay.error(preRes.error || 'Payment could not be started. Please try again.');
                     return;
                 }
             } catch(e) {
