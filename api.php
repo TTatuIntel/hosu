@@ -40,12 +40,20 @@ if (!empty($_SESSION['user_id']) && !empty($_SESSION['last_activity'])) {
     $_SESSION['last_activity'] = time();
 }
 
+// ── Auto-purge stale pending payments (older than 2 days) ──
+try {
+    $pdo->exec("DELETE FROM payments WHERE status = 'pending' AND paid_at < DATE_SUB(NOW(), INTERVAL 2 DAY)");
+    $pdo->exec("DELETE FROM event_registrants WHERE payment_status = 'pending' AND registered_at < DATE_SUB(NOW(), INTERVAL 2 DAY)");
+} catch (Exception $e) {
+    error_log('Auto-purge error: ' . $e->getMessage());
+}
+
 // Get action from either GET or POST
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
 // ── CSRF protection for all mutation (POST) requests ──
 // Exempt actions that don't require authentication (public submissions)
-$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant', 'pre_register'];
+$csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant', 'pre_register', 'cancel_pending_payment'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $csrfExemptActions)) {
     if (!empty($_SESSION['user_id'])) {
         $csrfToken = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
@@ -2589,6 +2597,56 @@ HTML;
             echo json_encode(['success' => true, 'logs' => $stmt->fetchAll(PDO::FETCH_ASSOC), 'total' => $total, 'page' => $page]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ── Cancel a pending payment (user-initiated, no auth needed — uses receipt_token) ──
+    case 'cancel_pending_payment':
+        try {
+            $paymentId    = (int)($_POST['payment_id'] ?? 0);
+            $receiptToken = trim($_POST['receipt_token'] ?? '');
+
+            if (!$paymentId || strlen($receiptToken) !== 64) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid payment reference.']);
+                break;
+            }
+
+            // Only allow cancellation of pending payments, verified by receipt_token
+            $stmt = $pdo->prepare("SELECT id, member_id, payment_type, event_id FROM payments WHERE id = ? AND receipt_token = ? AND status = 'pending'");
+            $stmt->execute([$paymentId, $receiptToken]);
+            $pay = $stmt->fetch(PDO::FETCH_ASSOC);
+
+            if (!$pay) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Payment not found, already processed, or cannot be cancelled.']);
+                break;
+            }
+
+            $pdo->beginTransaction();
+
+            // If event registration, also delete the pending registrant
+            if ($pay['payment_type'] === 'event_registration' && !empty($pay['event_id'])) {
+                $pdo->prepare("DELETE FROM event_registrants WHERE event_id = ? AND payment_status = 'pending' AND email = (SELECT email FROM members WHERE id = ? LIMIT 1)")->execute([$pay['event_id'], $pay['member_id']]);
+            }
+
+            // Delete the pending payment
+            $pdo->prepare("DELETE FROM payments WHERE id = ? AND status = 'pending'")->execute([$pay['id']]);
+
+            // Check if the member has any other payments — if not, remove orphan member
+            $otherPay = $pdo->prepare("SELECT COUNT(*) FROM payments WHERE member_id = ?");
+            $otherPay->execute([$pay['member_id']]);
+            if ((int)$otherPay->fetchColumn() === 0) {
+                $pdo->prepare("DELETE FROM members WHERE id = ? AND status = 'pending'")->execute([$pay['member_id']]);
+            }
+
+            $pdo->commit();
+            echo json_encode(['success' => true, 'message' => 'Pending payment cancelled. You can initiate a new payment.']);
+        } catch (Exception $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            error_log('cancel_pending_payment error: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to cancel payment. Please try again.']);
         }
         break;
 

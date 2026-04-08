@@ -14,6 +14,8 @@
     var _cbSuccess  = null;
     var _cbError    = null;
     var _cbCancel   = null;
+    var _lastPayId  = null;
+    var _lastRecTok = null;
 
     /* ── Inject DOM (once, lazily) ────────────────────────────── */
     function _build() {
@@ -270,6 +272,7 @@
     function _showOk(tok) {
         _stopAll();
         _ifrClose();
+        _lastPayId = null; _lastRecTok = null;
         _step(3);
         _spin(false);
         _cd('');
@@ -295,13 +298,50 @@
         _spin(false);
         _cd('');
         _msg('\u274C ' + (msg || 'Payment could not be completed.'), '#dc2626');
-        _sub(detail ||
+        var helpHtml = detail ||
             'If you completed payment by mobile money, provide your proof of payment on ' +
             '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
             ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
-            'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.');
+            'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.';
+        if (_lastPayId && _lastRecTok) {
+            helpHtml += '<br><br><button id="_hpCancelPend" style="background:#ef4444;color:#fff;border:none;' +
+                'padding:8px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.85rem;">' +
+                '\u274C Cancel Pending Payment</button>' +
+                '<br><small style="color:#94a3b8;">Cancel to start a fresh payment. Uncancelled pending payments auto-expire after 2 days.</small>';
+        }
+        _sub(helpHtml);
         _btn(true, 'Close');
         _on();
+        if (_lastPayId && _lastRecTok) {
+            var cancelBtn = _g('_hpCancelPend');
+            if (cancelBtn) {
+                var pid = _lastPayId, tok = _lastRecTok;
+                cancelBtn.addEventListener('click', function () {
+                    cancelBtn.disabled = true;
+                    cancelBtn.textContent = 'Cancelling\u2026';
+                    var fd = new FormData();
+                    fd.append('action', 'cancel_pending_payment');
+                    fd.append('payment_id', pid);
+                    fd.append('receipt_token', tok);
+                    fetch('api.php', { method: 'POST', body: fd })
+                        .then(function (r) { return r.json(); })
+                        .then(function (d) {
+                            if (d.success) {
+                                _lastPayId = null; _lastRecTok = null;
+                                _msg('\u2705 Pending payment cancelled.', '#16a34a');
+                                _sub('<strong>You can now initiate a new payment.</strong>');
+                            } else {
+                                cancelBtn.disabled = false;
+                                cancelBtn.textContent = '\u274C Cancel Pending Payment';
+                                _msg('\u274C ' + (d.error || 'Could not cancel. It may have already been processed.'), '#dc2626');
+                            }
+                        }).catch(function () {
+                            cancelBtn.disabled = false;
+                            cancelBtn.textContent = '\u274C Cancel Pending Payment';
+                        });
+                });
+            }
+        }
         if (_cbError) _cbError(msg);
     }
 
@@ -518,6 +558,8 @@
         var paymentId    = preRes.payment_id    || 0;
         var registrantId = preRes.registrant_id || 0;
         var receiptToken = preRes.receipt_token || '';
+        _lastPayId  = paymentId;
+        _lastRecTok = receiptToken;
 
         /* Step 2 */
         _step(2);
