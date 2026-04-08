@@ -1,123 +1,250 @@
 <?php
 /**
- * contact_handler.php — Processes the public contact form and forwards
- * the message to info@hosu.or.ug via PHPMailer / SMTP.
+ * HOSU Database Connection Diagnostics
+ * ---------------------------------------------------
+ * Visit this page ONCE to diagnose and fix the DB issue.
+ * DELETE or password-protect this file after use.
+ *
+ * Usage: https://hosu.or.ug/db_check.php?key=HOSU_DIAG_2026
  */
 
-ini_set('session.use_strict_mode', '1');
-ini_set('session.cookie_httponly', '1');
-ini_set('session.cookie_samesite', 'Strict');
-ini_set('session.use_only_cookies', '1');
-if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
-    ini_set('session.cookie_secure', '1');
-}
-session_start();
-
-header("Content-Type: application/json");
-header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: DENY");
-header("Referrer-Policy: strict-origin-when-cross-origin");
-header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
-
-require_once __DIR__ . '/mailer.php';
-
-if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
-    http_response_code(405);
-    echo json_encode(['success' => false, 'message' => 'Method not allowed.']);
-    exit;
+// Simple access key — prevents public access
+if (($_GET['key'] ?? '') !== 'HOSU_DIAG_2026') {
+    http_response_code(403);
+    die('403 Forbidden. Append ?key=HOSU_DIAG_2026 to the URL.');
 }
 
-// ── Rate limiting: max 5 submissions per hour per session ──
-if (!isset($_SESSION['contact_attempts'], $_SESSION['contact_window_start'])) {
-    $_SESSION['contact_attempts']     = 0;
-    $_SESSION['contact_window_start'] = time();
-}
-if (time() - $_SESSION['contact_window_start'] >= 3600) {
-    $_SESSION['contact_attempts']     = 0;
-    $_SESSION['contact_window_start'] = time();
-}
-if ($_SESSION['contact_attempts'] >= 5) {
-    http_response_code(429);
-    echo json_encode(['success' => false, 'message' => 'Too many requests. Please try again later.']);
-    exit;
+require_once __DIR__ . '/env.php';
+
+$host   = getenv('DB_HOST') ?: 'localhost';
+$dbname = getenv('DB_NAME') ?: 'hosuweb_db';
+$user   = getenv('DB_USER') ?: 'root';
+$pass   = getenv('DB_PASS') ?: '';
+
+header('Content-Type: text/html; charset=utf-8');
+$ok   = '&#9989;';  // ✅
+$fail = '&#10060;'; // ❌
+$warn = '&#9888;';  // ⚠️
+
+function row(string $icon, string $label, string $value, string $note = ''): void {
+    $c = $icon === '&#9989;' ? '#15803d' : ($icon === '&#10060;' ? '#dc2626' : '#b45309');
+    echo "<tr><td style='padding:8px 12px;font-weight:600;'>{$icon} {$label}</td>"
+       . "<td style='padding:8px 12px;font-family:monospace;color:{$c};'>" . htmlspecialchars($value, ENT_QUOTES, 'UTF-8') . "</td>"
+       . "<td style='padding:8px 12px;color:#64748b;font-size:.82rem;'>{$note}</td></tr>";
 }
 
-// ── Validate & sanitise inputs ────────────────────────────────────────
-$name    = trim(strip_tags($_POST['name']    ?? ''));
-$email   = trim($_POST['email']   ?? '');
-$subject = trim(strip_tags($_POST['subject'] ?? ''));
-$message = trim(strip_tags($_POST['message'] ?? ''));
+?><!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<title>HOSU DB Diagnostics</title>
+<style>
+body{font-family:system-ui,sans-serif;background:#f8fafc;color:#1e293b;margin:0;padding:2rem;}
+h1{color:#0d4593;margin-bottom:.25rem;}
+.card{background:#fff;border-radius:12px;box-shadow:0 2px 12px rgba(0,0,0,.07);padding:1.5rem 2rem;margin-bottom:1.5rem;max-width:860px;}
+table{width:100%;border-collapse:collapse;}
+tr{border-bottom:1px solid #f1f5f9;}
+tr:last-child{border-bottom:none;}
+th{text-align:left;padding:8px 12px;background:#f8fafc;font-size:.8rem;color:#64748b;text-transform:uppercase;letter-spacing:.04em;}
+pre{background:#1e293b;color:#86efac;border-radius:8px;padding:1rem 1.2rem;font-size:.83rem;overflow-x:auto;white-space:pre-wrap;word-break:break-all;}
+.fix-box{background:#fef2f2;border-left:4px solid #dc2626;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+.ok-box{background:#f0fdf4;border-left:4px solid #15803d;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+.warn-box{background:#fffbeb;border-left:4px solid #d97706;border-radius:0 8px 8px 0;padding:.8rem 1rem;margin:.6rem 0;}
+code{background:#f1f5f9;padding:.1rem .4rem;border-radius:4px;font-size:.88em;}
+</style>
+</head>
+<body>
+<div class="card">
+<h1>&#x1F4BB; HOSU Database Diagnostics</h1>
+<p style="color:#64748b;font-size:.85rem;">Run this page to diagnose the "Database connection failed" error on your payment pages.</p>
 
-$allowedSubjects = ['Membership Inquiry', 'Research Collaboration', 'Events Information', 'Other'];
+<table>
+<thead><tr><th>Check</th><th>Value</th><th>Notes</th></tr></thead>
+<tbody>
+<?php
 
-if (empty($name) || strlen($name) > 100) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Please enter a valid name.']);
-    exit;
+// 1. PHP version
+$phpVer = PHP_VERSION;
+$phpOk  = version_compare($phpVer, '7.4', '>=');
+row($phpOk ? $ok : $fail, 'PHP Version', $phpVer, $phpOk ? 'OK' : 'Requires PHP 7.4+');
+
+// 2. PDO extension
+$pdoOk = extension_loaded('pdo') && extension_loaded('pdo_mysql');
+row($pdoOk ? $ok : $fail, 'PDO + pdo_mysql', $pdoOk ? 'Loaded' : 'MISSING', $pdoOk ? '' : 'Enable pdo_mysql in php.ini');
+
+// 3. .env file
+$envPath = __DIR__ . '/.env';
+$envExists = file_exists($envPath);
+row($envExists ? $ok : $fail, '.env file', $envExists ? 'Found at ' . $envPath : 'NOT FOUND', $envExists ? '' : 'Create .env from the template below');
+
+// 4. Loaded env values (masked password)
+row($warn, 'DB_HOST (loaded)', $host ?: '(empty)');
+row($warn, 'DB_NAME (loaded)', $dbname ?: '(empty)', empty($dbname) ? 'Set DB_NAME in .env' : '');
+row($warn, 'DB_USER (loaded)', $user ?: '(empty)', empty($user) ? 'Set DB_USER in .env' : '');
+row($warn, 'DB_PASS (loaded)', empty($pass) ? '(empty)' : str_repeat('*', min(strlen($pass), 8)) . '…', '');
+
+// 5. TCP connection to MySQL host
+$tcpOk = false;
+$errno = 0; $errstr = '';
+try {
+    $sock = @fsockopen($host, 3306, $errno, $errstr, 3);
+    $tcpOk = ($sock !== false);
+    if ($sock) fclose($sock);
+} catch (\Throwable $e) { $tcpOk = false; }
+row($tcpOk ? $ok : $fail, 'TCP to MySQL :3306', $tcpOk ? "Reachable ($host:3306)" : "UNREACHABLE — $errstr",
+    $tcpOk ? '' : 'MySQL is not running, or host/port is wrong');
+
+// 6. Authenticate (no database selected)
+$authOk = false; $authErr = '';
+try {
+    $tmp = new PDO("mysql:host=$host;charset=utf8", $user, $pass);
+    $tmp->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+    $authOk = true;
+} catch (PDOException $e) {
+    $authErr = $e->getMessage();
 }
-if (!filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($email) > 254) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Please enter a valid email address.']);
-    exit;
+row($authOk ? $ok : $fail, 'Auth (user/password)', $authOk ? "User '$user' authenticated OK" : "FAILED: $authErr",
+    $authOk ? '' : 'Wrong username or password for MySQL user');
+
+// 7. Database exists
+$dbExists = false; $dbErr = ''; $availableDbs = [];
+if ($authOk) {
+    try {
+        $dbs = $tmp->query("SHOW DATABASES")->fetchAll(PDO::FETCH_COLUMN);
+        $availableDbs = $dbs;
+        $dbExists = in_array($dbname, $dbs);
+    } catch (PDOException $e) { $dbErr = $e->getMessage(); }
 }
-if (!in_array($subject, $allowedSubjects, true)) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Please select a valid subject.']);
-    exit;
+row($dbExists ? $ok : $fail, "Database '$dbname' exists",
+    $dbExists ? "Found" : ($dbErr ?: "NOT FOUND"),
+    $dbExists ? '' : "Create the database or update DB_NAME in .env");
+
+// 8. User has access to the database
+$hasAccess = false;
+if ($authOk && $dbExists) {
+    try {
+        $tmp2 = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+        $tmp2->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $hasAccess = true;
+    } catch (PDOException $e) {
+        row($fail, 'DB Access', $e->getMessage(), "Grant user '$user' privileges on '$dbname'");
+    }
 }
-if (empty($message) || strlen($message) > 5000) {
-    http_response_code(422);
-    echo json_encode(['success' => false, 'message' => 'Message is required and must be under 5000 characters.']);
-    exit;
+if ($authOk && $dbExists) {
+    row($hasAccess ? $ok : $fail, "User access to '$dbname'",
+        $hasAccess ? "Full access confirmed" : "ACCESS DENIED",
+        $hasAccess ? '' : "Run: GRANT ALL ON `$dbname`.* TO '$user'@'localhost';");
 }
 
-$_SESSION['contact_attempts']++;
+// 9. Full connection (same as db.php)
+$fullOk = false; $fullErr = '';
+if ($authOk && $dbExists && $hasAccess) {
+    try {
+        $pdo = new PDO("mysql:host=$host;dbname=$dbname;charset=utf8", $user, $pass);
+        $pdo->setAttribute(PDO::ATTR_ERRMODE, PDO::ERRMODE_EXCEPTION);
+        $fullOk = true;
+    } catch (PDOException $e) { $fullErr = $e->getMessage(); }
+}
+row($fullOk ? $ok : ($authOk ? $fail : $warn), 'Full Connection (db.php test)',
+    $fullOk ? 'SUCCESS — db.php will work' : ($fullOk === false && $authOk ? "FAILED: $fullErr" : 'Skipped (auth failed)'));
 
-// ── Build HTML email body ─────────────────────────────────────────────
-$safeName    = htmlspecialchars($name,    ENT_QUOTES, 'UTF-8');
-$safeEmail   = htmlspecialchars($email,   ENT_QUOTES, 'UTF-8');
-$safeSubject = htmlspecialchars($subject, ENT_QUOTES, 'UTF-8');
-$safeMessage = nl2br(htmlspecialchars($message, ENT_QUOTES, 'UTF-8'));
+// 10. Payments table exists
+if ($fullOk) {
+    try {
+        $tbls = $pdo->query("SHOW TABLES LIKE 'payments'")->fetchAll(PDO::FETCH_COLUMN);
+        $paytbl = count($tbls) > 0;
+        row($paytbl ? $ok : $fail, "Table 'payments' exists",
+            $paytbl ? 'Found' : 'MISSING — run setup_db.php',
+            $paytbl ? '' : 'Payment features will fail without this table');
+    } catch (\Throwable $e) {
+        row($fail, "Table check", $e->getMessage());
+    }
+}
 
-$htmlBody = <<<HTML
-<div style="font-family:Inter,Arial,sans-serif;max-width:620px;margin:auto;background:#f1faee;border-radius:12px;overflow:hidden;">
-  <div style="background:#0d4593;padding:18px 24px;">
-    <h2 style="color:#fff;margin:0;font-size:18px;">New Contact Form Message</h2>
-    <p style="color:rgba(255,255,255,0.7);margin:4px 0 0;font-size:13px;">Sent via the HOSU website contact form</p>
-  </div>
-  <div style="background:#ffffff;padding:24px;border:1px solid #e2e8f0;border-top:none;">
-    <table style="width:100%;border-collapse:collapse;font-size:14px;margin-bottom:18px;">
-      <tr>
-        <td style="padding:8px 0;color:#4a5568;font-weight:600;width:90px;vertical-align:top;">Name:</td>
-        <td style="padding:8px 0;color:#001848;">{$safeName}</td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;color:#4a5568;font-weight:600;vertical-align:top;">Email:</td>
-        <td style="padding:8px 0;"><a href="mailto:{$safeEmail}" style="color:#0d4593;">{$safeEmail}</a></td>
-      </tr>
-      <tr>
-        <td style="padding:8px 0;color:#4a5568;font-weight:600;vertical-align:top;">Subject:</td>
-        <td style="padding:8px 0;color:#001848;">{$safeSubject}</td>
-      </tr>
-    </table>
-    <hr style="border:none;border-top:1px solid #e2e8f0;margin:0 0 16px;">
-    <h4 style="color:#0d4593;margin:0 0 10px;font-size:14px;">Message:</h4>
-    <p style="color:#001848;line-height:1.7;font-size:14px;margin:0;">{$safeMessage}</p>
-    <hr style="border:none;border-top:1px solid #e2e8f0;margin:20px 0 14px;">
-    <p style="color:#a0aec0;font-size:12px;margin:0;">
-      Reply directly to <a href="mailto:{$safeEmail}" style="color:#0d4593;">{$safeEmail}</a> to respond to this enquiry.
-    </p>
-  </div>
+echo '</tbody></table>';
+
+// ── Diagnosis summary ──────────────────────────────────────────────
+echo '<hr style="margin:1.5rem 0;border:none;border-top:1px solid #f1f5f9;">';
+if ($fullOk) {
+    echo '<div class="ok-box"><strong>&#9989; All checks passed.</strong> The database connection is working. '
+       . 'The payment error may have been a temporary outage. '
+       . 'If it still occurs, check PHP error logs at: <code>/var/log/apache2/error.log</code> or cPanel Error Log.</div>';
+} elseif (!$tcpOk) {
+    echo '<div class="fix-box"><strong>&#10060; MySQL is not reachable.</strong><br>
+    <strong>On cPanel shared hosting:</strong> DB_HOST is almost always <code>localhost</code>.<br>
+    <strong>On VPS:</strong> Make sure MySQL is running: <code>sudo systemctl start mysql</code></div>';
+} elseif (!$authOk) {
+    echo '<div class="fix-box"><strong>&#10060; Authentication failed.</strong><br>
+    The username/password in <code>.env</code> is wrong.<br>
+    <strong>On cPanel:</strong> Go to cPanel &#8594; MySQL Databases &#8594; verify/reset the user password, then update <code>.env</code>.<br>
+    <strong>On XAMPP:</strong> Use <code>DB_USER=root</code> and <code>DB_PASS=</code> (blank).</div>';
+} elseif (!$dbExists) {
+    echo '<div class="fix-box"><strong>&#10060; Database not found.</strong><br>';
+    if (!empty($availableDbs)) {
+        echo 'Available databases for this user:<br><code>' . implode('</code>, <code>', array_map('htmlspecialchars', $availableDbs)) . '</code><br><br>';
+        echo '<strong>On cPanel hosting</strong>, the database name is prefixed with your cPanel username.<br>'
+           . 'Example: if your cPanel username is <code>hosumain</code>, the real DB name would be <code>hosumain_hosu_blog</code>.<br>'
+           . 'Update <code>DB_NAME</code> in <code>.env</code> to match, then re-run this page.';
+    } else {
+        echo 'No databases visible. The user may not have SHOW DATABASES privilege, or no databases exist.<br>'
+           . 'Create the database in cPanel &#8594; MySQL Databases, then run <code>setup_db.php</code>.';
+    }
+    echo '</div>';
+} elseif (!$hasAccess) {
+    echo '<div class="fix-box"><strong>&#10060; User has no access to the database.</strong><br>
+    In cPanel &#8594; MySQL Databases &#8594; scroll to "Add User To Database" &#8594; select the user and database &#8594; grant ALL PRIVILEGES.</div>';
+}
+
+echo '</div>';
+
+// ── Fix instructions ───────────────────────────────────────────────
+?>
+<div class="card">
+<h2 style="margin-top:0;">&#x1F527; How to Fix on cPanel Hosting</h2>
+<ol style="line-height:1.9;font-size:.9rem;">
+<li>Log in to <strong>cPanel</strong> at <code>https://hosu.or.ug:2083</code></li>
+<li>Go to <strong>MySQL Databases</strong></li>
+<li>Under <em>"Create New Database"</em>, type <code>hosu_blog</code> &rarr; click <strong>Create Database</strong><br>
+    <span style="color:#64748b;font-size:.82rem;">cPanel will auto-prefix it: e.g. <code>hosumain_hosu_blog</code></span></li>
+<li>Under <em>"MySQL Users"</em>, create user <code>hosu_user</code> with a strong password</li>
+<li>Under <em>"Add User To Database"</em>, add <code>hosu_user</code> to <code>hosu_blog</code> with <strong>ALL PRIVILEGES</strong></li>
+<li>Update <code>.env</code> with the <strong>full prefixed names</strong>:<br>
+<pre>DB_HOST=localhost
+DB_NAME=hosumain_hosu_blog   # replace hosumain with your cPanel username
+DB_USER=hosumain_hosu_user   # same prefix
+DB_PASS=YourChosenPassword</pre></li>
+<li>Run <a href="setup_db.php" target="_blank"><strong>setup_db.php</strong></a> to create all tables</li>
+<li>Re-run this page to confirm everything is green &#9989;</li>
+</ol>
+<div class="warn-box">&#9888; <strong>Delete or rename this file</strong> (<code>db_check.php</code>) after fixing the issue. It exposes database name details.</div>
 </div>
-HTML;
 
-// ── Send the email to HOSU inbox ──────────────────────────────────────
-$emailSubject = "Contact Form [{$subject}] — {$name}";
-$sent = hosuMail('info@hosu.or.ug', $emailSubject, $htmlBody, "HOSU Website");
+<div class="card">
+<h2 style="margin-top:0;">&#x1F4E6; Correct .env for cPanel (template)</h2>
+<p style="font-size:.83rem;color:#64748b;">Copy this to your <code>.env</code> file on the server, replacing the values with your real cPanel ones:</p>
+<pre># Database — replace PREFIX_ with your cPanel username + underscore
+DB_HOST=localhost
+DB_NAME=PREFIX_hosu_blog
+DB_USER=PREFIX_hosu_user
+DB_PASS=YourStrongPassword
 
-if ($sent) {
-    echo json_encode(['success' => true, 'message' => 'Thank you! Your message has been sent. We will get back to you soon.']);
-} else {
-    http_response_code(500);
-    echo json_encode(['success' => false, 'message' => 'Could not send your message right now. Please email us directly at info@hosu.or.ug.']);
-}
+# PesaPal v3 (production)
+PESAPAL_CONSUMER_KEY=lk7lFpodKnEq9mJyjwOBrr/9Ot/Lofof
+PESAPAL_CONSUMER_SECRET=3JZdXlVouyKIbGu1pdg71cwwi4c=
+PESAPAL_ENV=production
+
+# App
+APP_ENV=production
+APP_DOMAIN=hosu.or.ug</pre>
+</div>
+
+<?php if ($authOk && !empty($availableDbs)): ?>
+<div class="card">
+<h2 style="margin-top:0;">&#x1F4CB; All Databases Visible to '<?= htmlspecialchars($user) ?>'</h2>
+<code><?= implode('</code><br><code>', array_map('htmlspecialchars', $availableDbs)) ?></code>
+<p style="font-size:.82rem;color:#64748b;margin-top:.8rem;">Update <code>DB_NAME</code> in <code>.env</code> to match the database you want to use.</p>
+</div>
+<?php endif; ?>
+
+</body>
+</html>

@@ -1,167 +1,83 @@
-/* ============================================================
-   SHARED LOGIN POPUP — shared-login.css
-   Include on ALL pages alongside shared-login.js
-   ============================================================ */
+<?php
+/**
+ * Secure file upload helper.
+ * Validates type, size, and re-encodes images to strip metadata/payloads.
+ */
 
-/* Login Floating Popup */
-.login-trigger-wrap {
-    position: relative;
-    display: inline-block;
-}
-.login-float-popup {
-    display: none;
-    position: absolute;
-    top: calc(100% + 14px);
-    right: 0;
-    z-index: 1001;
-    width: 300px;
-    background: rgba(255, 255, 255, 0.78);
-    -webkit-backdrop-filter: blur(24px) saturate(1.4);
-    backdrop-filter: blur(24px) saturate(1.4);
-    border: 1px solid rgba(255, 255, 255, 0.55);
-    border-radius: 14px;
-    padding: 1.2rem 1.3rem 1.1rem;
-    box-shadow:
-        0 12px 40px rgba(0, 0, 0, 0.14),
-        0 4px 12px rgba(0, 0, 0, 0.06),
-        inset 0 1px 0 rgba(255, 255, 255, 0.6);
-    animation: loginPopUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
-    text-align: left;
-}
-.login-float-popup.active {
-    display: block;
-}
-/* Arrow pointing up */
-.login-float-popup::after {
-    content: '';
-    position: absolute;
-    top: -7px;
-    right: 24px;
-    width: 14px;
-    height: 14px;
-    background: rgba(255, 255, 255, 0.78);
-    border-top: 1px solid rgba(255, 255, 255, 0.55);
-    border-left: 1px solid rgba(255, 255, 255, 0.55);
-    transform: rotate(45deg);
-    -webkit-backdrop-filter: blur(24px);
-    backdrop-filter: blur(24px);
-}
-.login-float-popup .lfp-close {
-    position: absolute;
-    top: 0.55rem;
-    right: 0.6rem;
-    width: 22px;
-    height: 22px;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    background: rgba(0, 0, 0, 0.06);
-    border: none;
-    border-radius: 50%;
-    font-size: 0.9rem;
-    color: var(--text-light);
-    cursor: pointer;
-    line-height: 1;
-    transition: all 0.2s ease;
-}
-.login-float-popup .lfp-close:hover {
-    background: var(--primary-color);
-    color: var(--white);
-}
-.login-float-popup h3 {
-    font-size: 0.92rem;
-    font-weight: 700;
-    color: var(--secondary-color);
-    margin-bottom: 0.15rem;
-    padding-right: 1.8rem;
-}
-.login-float-popup .lfp-subtitle {
-    font-size: 0.75rem;
-    color: var(--text-light);
-    margin-bottom: 0.7rem;
-}
-.login-float-popup .lfp-label {
-    font-size: 0.72rem;
-    font-weight: 600;
-    color: var(--text-color);
-    margin-bottom: 0.25rem;
-    display: block;
-}
-.login-float-popup .lfp-input {
-    width: 100%;
-    padding: 0.45rem 0.6rem;
-    border: 1.5px solid var(--gray-300);
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-family: inherit;
-    outline: none;
-    transition: border-color 0.2s;
-    background: rgba(255,255,255,0.6);
-    box-sizing: border-box;
-}
-.login-float-popup .lfp-input:focus {
-    border-color: var(--secondary-color);
-}
-.login-float-popup .lfp-field {
-    margin-bottom: 0.5rem;
-}
-.login-float-popup .lfp-options {
-    display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 0.6rem;
-    font-size: 0.72rem;
-}
-.login-float-popup .lfp-options label {
-    display: flex;
-    align-items: center;
-    gap: 0.3rem;
-    color: var(--text-light);
-    cursor: pointer;
-}
-.login-float-popup .lfp-options label input {
-    accent-color: var(--secondary-color);
-}
-.login-float-popup .lfp-options a {
-    color: var(--secondary-color);
-    text-decoration: none;
-    font-weight: 500;
-}
-.login-float-popup .lfp-options a:hover {
-    text-decoration: underline;
-}
-.login-float-popup .lfp-submit {
-    width: 100%;
-    padding: 0.5rem;
-    background: var(--secondary-color);
-    color: var(--white);
-    border: none;
-    border-radius: 8px;
-    font-size: 0.8rem;
-    font-weight: 600;
-    cursor: pointer;
-    transition: all 0.2s;
-    font-family: inherit;
-}
-.login-float-popup .lfp-submit:hover {
-    background: var(--secondary-dark);
-    transform: translateY(-1px);
-}
-.login-float-popup .lfp-footer {
-    text-align: center;
-    margin-top: 0.6rem;
-    font-size: 0.72rem;
-    color: var(--text-light);
-}
-.login-float-popup .lfp-footer a {
-    color: var(--primary-color);
-    font-weight: 600;
-    text-decoration: none;
-}
-.login-float-popup .lfp-footer a:hover {
-    text-decoration: underline;
-}
-@keyframes loginPopUp {
-    from { opacity: 0; transform: translateY(8px) scale(0.97); }
-    to   { opacity: 1; transform: translateY(0) scale(1); }
+define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 MB
+
+define('UPLOAD_ALLOWED_IMAGES', [
+    'image/jpeg' => 'jpg',
+    'image/png'  => 'png',
+    'image/gif'  => 'gif',
+    'image/webp' => 'webp',
+]);
+
+define('UPLOAD_ALLOWED_DOCS', [
+    'application/pdf' => 'pdf',
+]);
+
+/**
+ * Securely handle an uploaded file.
+ *
+ * @param array  $file        $_FILES['field']
+ * @param string $destDir     e.g. 'uploads/posts/'
+ * @param bool   $allowDocs   Also allow PDF uploads
+ * @param int    $maxSize     Max bytes (default 5 MB)
+ * @return string|false       Relative path on success, false on failure
+ */
+function secureUpload(array $file, string $destDir, bool $allowDocs = false, int $maxSize = UPLOAD_MAX_SIZE)
+{
+    if ($file['error'] !== UPLOAD_ERR_OK) return false;
+    if ($file['size'] > $maxSize) return false;
+
+    // Detect real MIME type from file content
+    $finfo = finfo_open(FILEINFO_MIME_TYPE);
+    $mime = finfo_file($finfo, $file['tmp_name']);
+    finfo_close($finfo);
+
+    $allowed = UPLOAD_ALLOWED_IMAGES;
+    if ($allowDocs) $allowed = array_merge($allowed, UPLOAD_ALLOWED_DOCS);
+
+    if (!isset($allowed[$mime])) return false;
+
+    // Create directory if needed
+    if (!is_dir($destDir)) mkdir($destDir, 0755, true);
+
+    // Generate a safe random filename — never trust the original name
+    $ext = $allowed[$mime];
+    $safeName = bin2hex(random_bytes(16)) . '.' . $ext;
+    $targetPath = rtrim($destDir, '/') . '/' . $safeName;
+
+    // For images: re-encode to strip metadata and any embedded payloads
+    if (isset(UPLOAD_ALLOWED_IMAGES[$mime])) {
+        $img = @imagecreatefromstring(file_get_contents($file['tmp_name']));
+        if (!$img) return false;
+
+        // Preserve transparency for PNG/GIF/WebP
+        imagesavealpha($img, true);
+
+        switch ($ext) {
+            case 'png':
+                imagepng($img, $targetPath, 9);
+                break;
+            case 'gif':
+                imagegif($img, $targetPath);
+                break;
+            case 'webp':
+                imagewebp($img, $targetPath, 85);
+                break;
+            default: // jpg
+                imagejpeg($img, $targetPath, 85);
+                break;
+        }
+        imagedestroy($img);
+    } else {
+        // For PDFs: move without re-encoding but verify it starts with %PDF
+        $header = file_get_contents($file['tmp_name'], false, null, 0, 5);
+        if (substr($header, 0, 5) !== '%PDF-') return false;
+        if (!move_uploaded_file($file['tmp_name'], $targetPath)) return false;
+    }
+
+    return $targetPath;
 }

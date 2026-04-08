@@ -1,261 +1,597 @@
 <?php
 /**
- * pesapal_callback.php — PesaPal payment redirect handler
+ * receipt.php — One-time printable receipt with QR code + barcode
+ * URL: receipt.php?token=<64-char-hex-token>
  *
- * PesaPal redirects the user here after they complete (or cancel) payment.
- * URL params from PesaPal: OrderTrackingId, OrderMerchantReference
- * Our params (passed in the callback_url we gave PesaPal): payment_id,
- * registrant_id, receipt_token, type
+ * First access: displays receipt, marks scan flag.
+ * Repeated scans of the QR still display the receipt (read-only after first scan).
  */
 
-require_once __DIR__ . '/env.php';
-require_once __DIR__ . '/db.php';
-require_once __DIR__ . '/mailer.php';
+session_start();
 
-// ── Re-use PesaPal helpers from payment.php ───────────────────────────
-define('PESAPAL_ENV',             getenv('PESAPAL_ENV') ?: 'production');
-define('PESAPAL_BASE',            PESAPAL_ENV === 'sandbox'
-    ? 'https://cybqa.pesapal.com/pesapalv3'
-    : 'https://pay.pesapal.com/v3');
-define('PESAPAL_CONSUMER_KEY',    getenv('PESAPAL_CONSUMER_KEY') ?: '');
-define('PESAPAL_CONSUMER_SECRET', getenv('PESAPAL_CONSUMER_SECRET') ?: '');
+require_once 'db.php';
 
-function pesapalRequest(string $method, string $endpoint, ?array $body, string $token = ''): array
-{
-    $url     = PESAPAL_BASE . $endpoint;
-    $headers = ['Content-Type: application/json', 'Accept: application/json'];
-    if ($token) $headers[] = 'Authorization: Bearer ' . $token;
-    $ch = curl_init($url);
-    curl_setopt_array($ch, [
-        CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 30,
-        CURLOPT_SSL_VERIFYPEER => true,
-        CURLOPT_HTTPHEADER     => $headers,
-    ]);
-    if ($method === 'POST') {
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body ?? new stdClass()));
-    }
-    $resp     = curl_exec($ch);
-    $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err      = curl_error($ch);
-    curl_close($ch);
-    if ($err) throw new RuntimeException('PesaPal connection error: ' . $err);
-    $data = json_decode($resp, true);
-    if (!is_array($data)) throw new RuntimeException("PesaPal invalid response (HTTP $httpCode)");
-    return $data;
+$token = trim($_GET['token'] ?? '');
+
+if (!$token || strlen($token) !== 64 || !ctype_xdigit($token)) {
+    http_response_code(400);
+    die(renderError('Invalid receipt link. Please contact HOSU support at info@hosu.or.ug.'));
 }
 
-function pesapalGetToken(): string
-{
-    $cache = sys_get_temp_dir() . '/hosu_pp_token.json';
-    if (is_file($cache)) {
-        $c = json_decode(file_get_contents($cache), true);
-        if ($c && !empty($c['token']) && !empty($c['exp']) && time() < $c['exp']) return $c['token'];
-        @unlink($cache);
+try {
+    // Backward-compatible migration for older event_registrants tables
+    try {
+        $erCols = array_column($pdo->query("DESCRIBE event_registrants")->fetchAll(PDO::FETCH_ASSOC), 'Field');
+        if (!in_array('qr_scanned', $erCols)) {
+            $pdo->exec("ALTER TABLE event_registrants ADD COLUMN qr_scanned TINYINT(1) NOT NULL DEFAULT 0 AFTER receipt_token");
+        }
+        if (!in_array('scanned_at', $erCols)) {
+            $pdo->exec("ALTER TABLE event_registrants ADD COLUMN scanned_at TIMESTAMP NULL DEFAULT NULL AFTER qr_scanned");
+        }
+    } catch (Exception $_e) {
+        // Non-fatal: receipt lookup can still proceed for payments rows
     }
-    $res = pesapalRequest('POST', '/api/Auth/RequestToken', [
-        'consumer_key'    => PESAPAL_CONSUMER_KEY,
-        'consumer_secret' => PESAPAL_CONSUMER_SECRET,
-    ], '');
-    if (($res['status'] ?? '') !== '200' || empty($res['token'])) {
-        @unlink($cache);
-        error_log('PesaPal auth failed (callback): ' . json_encode($res));
-        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? 'Invalid credentials or service unavailable'));
+
+    // First try payments table (memberships, donations)
+    $stmt = $pdo->prepare("
+        SELECT p.*, m.full_name, m.email, m.phone, m.membership_type, m.profession, m.institution,
+               DATE_FORMAT(p.paid_at, '%d %b %Y %H:%i') AS paid_formatted,
+               DATE_FORMAT(p.scanned_at, '%d %b %Y %H:%i') AS scanned_formatted,
+               'payments' AS _source
+        FROM payments p
+        JOIN members m ON m.id = p.member_id
+        WHERE p.receipt_token = ?
+    ");
+    $stmt->execute([$token]);
+    $r = $stmt->fetch(PDO::FETCH_ASSOC);
+
+    // If not found, try event_registrants table
+    if (!$r) {
+        $stmt2 = $pdo->prepare("
+            SELECT er.*,
+                   er.full_name, er.email, er.phone, er.profession, er.institution,
+                   er.payment_status AS status,
+                   DATE_FORMAT(er.registered_at, '%d %b %Y %H:%i') AS paid_formatted,
+                   DATE_FORMAT(er.scanned_at, '%d %b %Y %H:%i') AS scanned_formatted,
+                   er.qr_scanned,
+                   er.scanned_at,
+                   'event_registration' AS payment_type,
+                   NULL AS membership_period,
+                   NULL AS membership_expires_at,
+                   0 AS invoice_sent,
+                   'event_registrant' AS membership_type,
+                   'event_registrants' AS _source
+            FROM event_registrants er
+            WHERE er.receipt_token = ?
+        ");
+        $stmt2->execute([$token]);
+        $r = $stmt2->fetch(PDO::FETCH_ASSOC);
     }
-    file_put_contents($cache, json_encode(['token' => $res['token'], 'exp' => time() + 240]));
-    return $res['token'];
+} catch (PDOException $e) {
+    http_response_code(500);
+    die(renderError('Database error. Please try again.'));
 }
 
-// ── Output helper ─────────────────────────────────────────────────────
-function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593', array $pmData = []): void
-{
-    echo <<<HTML
+if (!$r) {
+    http_response_code(404);
+    die(renderError('Receipt not found. The link may be invalid or expired.'));
+}
+
+// Mark as scanned on first legitimate load
+$alreadyScanned = (bool)$r['qr_scanned'];
+if (!$alreadyScanned) {
+    try {
+        $scanTable = ($r['_source'] ?? '') === 'event_registrants' ? 'event_registrants' : 'payments';
+        $pdo->prepare("UPDATE $scanTable SET qr_scanned=1, scanned_at=NOW() WHERE receipt_token=?")
+            ->execute([$token]);
+    } catch (PDOException $e) { /* non-fatal */ }
+}
+
+// ── Build data for display ───────────────────────────────────────────────
+$receiptNum   = htmlspecialchars($r['receipt_number'] ?: ('HOSU-MEM-' . date('Y') . '-' . str_pad($r['id'], 5, '0', STR_PAD_LEFT)));
+$memberName   = htmlspecialchars($r['full_name']);
+$memberEmail  = htmlspecialchars($r['email']);
+$memberPhone  = htmlspecialchars($r['phone']);
+$memberType   = htmlspecialchars(ucfirst($r['membership_type']));
+$profession   = htmlspecialchars($r['profession']);
+$institution  = htmlspecialchars($r['institution']);
+$amount       = number_format((float)($r['amount'] ?? 100000), 0) . ' ' . htmlspecialchars($r['currency'] ?? 'UGX');
+$paidDate     = htmlspecialchars($r['paid_formatted'] ?? $r['paid_at']);
+$payMethod    = htmlspecialchars(ucfirst(str_replace(['UGMTNMOMODIR','UGAIRTELMODIR'], ['MTN Mobile Money','Airtel Money'], $r['payment_method'] ?? '')));
+$txRef        = htmlspecialchars($r['transaction_ref'] ?? '');
+$txId         = htmlspecialchars($r['transaction_id'] ?? $r['transaction_ref'] ?? '');
+$status       = htmlspecialchars(ucfirst($r['status'] ?? 'pending'));
+
+// Payment type fields
+$paymentType  = $r['payment_type'] ?? 'membership';
+$memPeriod    = $r['membership_period'] ?? '1_year';
+$eventTitle   = htmlspecialchars($r['event_title'] ?? '');
+$eventDate    = htmlspecialchars($r['event_date'] ?? '');
+
+// Membership expiry
+$memExpiresAt = $r['membership_expires_at'] ?? null;
+$memExpiry    = ($memPeriod === 'lifetime') ? 'Lifetime Membership' : ($memExpiresAt ? date('d M Y', strtotime($memExpiresAt)) : '—');
+
+// Period label
+$periodLabels = ['1_year'=>'1 Year','2_years'=>'2 Years','3_years'=>'3 Years','lifetime'=>'Lifetime'];
+$periodLabel  = $periodLabels[$memPeriod] ?? ucfirst(str_replace('_',' ',$memPeriod));
+
+// Document type label & sub-heading
+$docTypes = [
+    'membership'         => ['title'=>'Membership Certificate', 'sub'=>'Official Society Membership'],
+    'event_registration' => ['title'=>'Event Registration',     'sub'=>'Event Attendance Confirmation'],
+    'donation'           => ['title'=>'Donation Receipt',       'sub'=>'Charitable Contribution'],
+];
+$docInfo  = $docTypes[$paymentType] ?? $docTypes['membership'];
+$docTitle = $docInfo['title'];
+$docSub   = $docInfo['sub'];
+
+// QR code points to this same receipt URL (Google Charts API — no library needed)
+$receiptUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
+                . '://' . $_SERVER['HTTP_HOST']
+                . $_SERVER['REQUEST_URI'];
+$qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=' . rawurlencode($receiptUrl);
+
+// Status badge colour
+$statusColour = match($status) {
+    'Verified' => '#16a34a',
+    'Rejected' => '#dc2626',
+    default    => '#d97706',
+};
+
+function renderError(string $msg): string {
+    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt Error</title>
+    <style>body{font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7fafc;margin:0}
+    .box{background:#fff;border-radius:12px;padding:2.5rem 3rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:440px}
+    h2{color:#dc2626;margin-bottom:.75rem}p{color:#4a5568}</style></head>
+    <body><div class="box"><h2>&#9888; Receipt Error</h2><p>' . htmlspecialchars($msg) . '</p>
+    <p style="margin-top:1.5rem"><a href="events.html" style="color:#0d4593;font-weight:600">← Back to HOSU</a></p>
+    </div></body></html>';
+}
+?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>{$title} — HOSU</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Receipt <?= $receiptNum ?> — HOSU</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
-  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-  .card{background:#fff;border-radius:12px;box-shadow:0 3px 16px rgba(0,0,0,.10);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
-  .icon{font-size:2rem;margin-bottom:8px;}
-  h1{margin:0 0 8px;font-size:1.15rem;color:{$color};}
-  p{color:#555;line-height:1.55;margin:0 0 18px;font-size:0.88rem;}
-  a.btn{display:inline-block;padding:9px 26px;background:{$color};color:#fff;border-radius:7px;text-decoration:none;font-weight:700;font-size:0.88rem;}
-  a.btn:hover{opacity:.9;}
-  .logo{margin-bottom:14px;}
-  .logo img{height:34px;}
-  a.contact-link{color:{$color};font-weight:600;text-decoration:none;white-space:nowrap;}
-  a.contact-link:hover{text-decoration:underline;}
+:root {
+    --primary: #e63946;
+    --primary-dark: #c81d2a;
+    --secondary: #0d4593;
+    --secondary-dark: #072a5e;
+    --text: #0f172a;
+    --text-light: #475569;
+    --text-muted: #94a3b8;
+    --border: #e2e8f0;
+    --border-light: #f1f5f9;
+    --bg: #ffffff;
+    --bg-page: #f8fafc;
+}
+*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
+body {
+    font-family: 'Inter', sans-serif;
+    background: var(--bg-page);
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    padding: 1rem .75rem 2rem;
+    color: var(--text);
+    -webkit-font-smoothing: antialiased;
+}
+
+/* ── Scan banner ── */
+.scan-warning {
+    max-width: 640px;
+    width: 100%;
+    background: #fffbeb;
+    border: 1px solid #fde68a;
+    border-radius: 10px;
+    padding: .55rem 1rem;
+    font-size: .75rem;
+    font-weight: 500;
+    color: #92400e;
+    margin-bottom: .6rem;
+    display: flex;
+    align-items: center;
+    gap: .45rem;
+    line-height: 1.4;
+}
+.scan-warning svg { flex-shrink: 0; }
+
+/* ── Receipt card ── */
+.receipt {
+    background: var(--bg);
+    border-radius: 16px;
+    border: 1px solid var(--border);
+    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 24px rgba(0,0,0,.06);
+    max-width: 640px;
+    width: 100%;
+    overflow: hidden;
+    position: relative;
+}
+
+/* ── Actions dropdown (top-right) ── */
+.actions-wrap {
+    position: absolute;
+    top: .75rem;
+    right: .75rem;
+    z-index: 10;
+}
+.actions-trigger {
+    width: 32px; height: 32px;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    background: var(--bg);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: background .15s, box-shadow .15s;
+    color: var(--text-light);
+}
+.actions-trigger:hover {
+    background: var(--border-light);
+    box-shadow: 0 2px 8px rgba(0,0,0,.08);
+}
+.actions-trigger svg { pointer-events: none; }
+.actions-menu {
+    display: none;
+    position: absolute;
+    top: calc(100% + 4px);
+    right: 0;
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    box-shadow: 0 8px 24px rgba(0,0,0,.12);
+    min-width: 150px;
+    padding: .3rem;
+    z-index: 20;
+}
+.actions-menu.open { display: block; }
+.actions-menu button,
+.actions-menu a {
+    display: flex;
+    align-items: center;
+    gap: .5rem;
+    width: 100%;
+    padding: .5rem .7rem;
+    border: none;
+    background: none;
+    font-family: inherit;
+    font-size: .78rem;
+    font-weight: 500;
+    color: var(--text);
+    cursor: pointer;
+    border-radius: 7px;
+    text-decoration: none;
+    transition: background .12s;
+}
+.actions-menu button:hover,
+.actions-menu a:hover { background: var(--border-light); }
+.actions-menu svg { color: var(--text-muted); flex-shrink: 0; }
+
+/* ── Header ── */
+.receipt-header {
+    padding: 1.15rem 1.5rem;
+    padding-right: 3.25rem;
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+.header-logo {
+    height: 52px;
+    width: auto;
+    object-fit: contain;
+    flex-shrink: 0;
+}
+.header-text .org-name {
+    font-size: .88rem;
+    font-weight: 700;
+    color: var(--secondary);
+    line-height: 1.25;
+}
+.header-text .doc-type {
+    font-size: .66rem;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: .7px;
+    margin-top: .15rem;
+}
+
+/* ── Accent line ── */
+.accent-line {
+    height: 3px;
+    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
+}
+
+/* ── Status bar ── */
+.receipt-status {
+    padding: .5rem 1.5rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: var(--border-light);
+}
+.status-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: .25rem;
+    font-weight: 700;
+    font-size: .65rem;
+    text-transform: uppercase;
+    letter-spacing: .5px;
+    padding: .2rem .6rem;
+    border-radius: 6px;
+    color: #fff;
+    background: <?= $statusColour ?>;
+}
+.receipt-date {
+    font-size: .72rem;
+    color: var(--text-light);
+    font-weight: 500;
+}
+
+/* ── Body ── */
+.receipt-body { padding: 1rem 1.5rem .75rem; }
+
+.section-label {
+    font-size: .6rem;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--text-muted);
+    margin-bottom: .55rem;
+}
+
+.info-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: .6rem 1.25rem;
+    margin-bottom: .25rem;
+}
+.info-cell .lbl {
+    font-size: .58rem;
+    color: var(--text-muted);
+    font-weight: 600;
+    text-transform: uppercase;
+    letter-spacing: .4px;
+    margin-bottom: .1rem;
+}
+.info-cell .val {
+    font-size: .8rem;
+    font-weight: 600;
+    color: var(--text);
+    word-break: break-word;
+    line-height: 1.35;
+}
+.info-cell .val.highlight { font-weight: 700; }
+
+/* ── QR compact ── */
+.qr-section {
+    padding: .85rem 1.5rem;
+    border-top: 1px solid var(--border);
+    display: flex;
+    align-items: center;
+    gap: .85rem;
+}
+.qr-box {
+    flex-shrink: 0;
+}
+.qr-box img {
+    width: 100px;
+    height: 100px;
+    aspect-ratio: 1 / 1;
+    object-fit: contain;
+    border-radius: 8px;
+    border: 1px solid var(--border);
+    padding: 4px;
+    background: #fff;
+    image-rendering: pixelated;
+}
+.qr-meta {
+    flex: 1;
+    min-width: 0;
+}
+.qr-meta .receipt-num-display {
+    font-size: .78rem;
+    font-weight: 700;
+    color: var(--secondary);
+    margin-bottom: .15rem;
+}
+.qr-meta .qr-hint {
+    font-size: .66rem;
+    color: var(--text-muted);
+    line-height: 1.5;
+}
+
+/* ── Footer ── */
+.receipt-footer {
+    padding: .6rem 1.5rem;
+    border-top: 1px solid var(--border);
+    font-size: .62rem;
+    color: var(--text-muted);
+    text-align: center;
+    line-height: 1.6;
+}
+.receipt-footer a { color: var(--secondary); font-weight: 600; text-decoration: none; }
+.receipt-footer a:hover { text-decoration: underline; }
+
+/* ── Print ── */
+@media print {
+    body { background: #fff; padding: 0; }
+    .scan-warning, .actions-wrap { display: none !important; }
+    .receipt { box-shadow: none; border: 1px solid #ccc; max-width: 100%; border-radius: 0; }
+}
+
+/* ── Mobile ── */
+@media (max-width: 520px) {
+    body { padding: .5rem .4rem 1.5rem; }
+    .receipt-header { padding: .85rem 1rem; padding-right: 2.75rem; }
+    .header-logo { height: 42px; }
+    .info-grid { grid-template-columns: 1fr; gap: .45rem; }
+    .receipt-body { padding: .85rem 1rem .6rem; }
+    .qr-section { padding: .7rem 1rem; }
+    .receipt-status { padding: .4rem 1rem; flex-wrap: wrap; gap: .3rem; }
+    .receipt-footer { padding: .5rem 1rem; }
+}
 </style>
 </head>
 <body>
-<div class="card">
-  <div class="logo"><img src="img/hosu-logo.png" alt="HOSU" onerror="this.style.display='none'"></div>
-  <div class="icon">{$icon}</div>
-  <h1>{$heading}</h1>
-  <p>{$body}</p>
-  <a href="{$btnHref}" class="btn">{$btnLabel}</a>
+
+<?php if ($alreadyScanned): ?>
+<div class="scan-warning">
+    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+    QR scanned on <?= htmlspecialchars($r['scanned_formatted'] ?? '') ?> &mdash; read-only mode.
 </div>
-HTML;
-    if (!empty($pmData)) {
-        $pm = json_encode($pmData, JSON_HEX_TAG | JSON_HEX_AMP);
-        echo "<script>try{window.parent.postMessage($pm,'*');}catch(e){}</script>\n";
+<?php endif; ?>
+
+<div class="receipt">
+
+    <!-- Actions dropdown -->
+    <div class="actions-wrap">
+        <button class="actions-trigger" id="actionsBtn" aria-label="Actions">
+            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
+        </button>
+        <div class="actions-menu" id="actionsMenu">
+            <button onclick="window.print()">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="14" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
+                Print
+            </button>
+            <button onclick="downloadReceipt()">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Download
+            </button>
+            <button onclick="shareReceipt()">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" stroke-width="1.5"/></svg>
+                Share
+            </button>
+            <a href="membership.html">
+                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+                Back
+            </a>
+        </div>
+    </div>
+
+    <!-- Header -->
+    <div class="receipt-header">
+        <img class="header-logo" src="img/logo2.png" alt="HOSU Logo">
+        <div class="header-text">
+            <div class="org-name">Hematology &amp; Oncology Society of Uganda</div>
+            <div class="doc-type"><?= htmlspecialchars($docTitle) ?></div>
+        </div>
+    </div>
+
+    <div class="accent-line"></div>
+
+    <!-- Status -->
+    <div class="receipt-status">
+        <span class="status-pill">
+            <?= $status === 'Verified' ? '&#10003;' : ($status === 'Rejected' ? '&#10007;' : '&#9711;') ?>
+            <?= $status ?>
+        </span>
+        <span class="receipt-date"><?= $paidDate ?></span>
+    </div>
+
+    <!-- Body -->
+    <div class="receipt-body">
+        <div class="section-label"><?= $paymentType === 'event_registration' ? 'Registrant Details' : 'Member Details' ?></div>
+        <div class="info-grid">
+            <div class="info-cell">
+                <div class="lbl">Full Name</div>
+                <div class="val"><?= $memberName ?></div>
+            </div>
+            <div class="info-cell">
+                <div class="lbl">Email</div>
+                <div class="val"><?= $memberEmail ?></div>
+            </div>
+            <div class="info-cell">
+                <div class="lbl">Phone</div>
+                <div class="val"><?= $memberPhone ?: '—' ?></div>
+            </div>
+            <div class="info-cell">
+                <div class="lbl">Profession</div>
+                <div class="val"><?= $profession ?: '—' ?></div>
+            </div>
+            <?php if ($institution): ?>
+            <div class="info-cell">
+                <div class="lbl">Institution</div>
+                <div class="val"><?= $institution ?></div>
+            </div>
+            <?php endif; ?>
+            <?php if ($paymentType === 'membership'): ?>
+            <div class="info-cell">
+                <div class="lbl">Membership Plan</div>
+                <div class="val"><?= $periodLabel ?> Membership</div>
+            </div>
+            <div class="info-cell">
+                <div class="lbl">Valid Until</div>
+                <div class="val highlight" style="color:<?= $memPeriod === 'lifetime' ? '#0d4593' : '#16a34a' ?>"><?= $memExpiry ?></div>
+            </div>
+            <?php elseif ($paymentType === 'event_registration' && $eventTitle): ?>
+            <div class="info-cell" style="grid-column:1/-1;">
+                <div class="lbl">Event</div>
+                <div class="val"><?= $eventTitle ?><?= $eventDate ? ' &middot; ' . $eventDate : '' ?></div>
+            </div>
+            <?php endif; ?>
+        </div>
+    </div>
+
+    <!-- QR -->
+    <div class="qr-section">
+        <div class="qr-box">
+            <img src="<?= $qrUrl ?>" alt="QR Code — Receipt <?= $receiptNum ?>">
+        </div>
+        <div class="qr-meta">
+            <div class="receipt-num-display"><?= $receiptNum ?></div>
+            <div class="qr-hint">Scan QR to verify this receipt online</div>
+        </div>
+    </div>
+
+    <!-- Footer -->
+    <div class="receipt-footer">
+        Official receipt &mdash; Hematology &amp; Oncology Society of Uganda
+        &middot; <a href="mailto:info@hosu.or.ug">info@hosu.or.ug</a>
+        &middot; <a href="https://hosu.or.ug">www.hosu.or.ug</a>
+
+</div>
+
+<script>
+// Dropdown toggle
+const btn = document.getElementById('actionsBtn');
+const menu = document.getElementById('actionsMenu');
+btn.addEventListener('click', function(e) {
+    e.stopPropagation();
+    menu.classList.toggle('open');
+});
+document.addEventListener('click', function() { menu.classList.remove('open'); });
+
+// Download as image (uses print as fallback)
+function downloadReceipt() {
+    menu.classList.remove('open');
+    window.print();
+}
+
+// Share via Web Share API or fallback to clipboard
+function shareReceipt() {
+    menu.classList.remove('open');
+    const url = window.location.href;
+    if (navigator.share) {
+        navigator.share({ title: 'HOSU Receipt <?= addslashes($receiptNum) ?>', url: url });
+    } else if (navigator.clipboard) {
+        navigator.clipboard.writeText(url).then(function() {
+            const t = btn.cloneNode(false);
+            btn.style.background = '#dcfce7';
+            setTimeout(function() { btn.style.background = ''; }, 1200);
+        });
     }
-    echo <<<HTML
+}
+</script>
 </body>
 </html>
-HTML;
-    exit;
-}
-
-// ── Read parameters ───────────────────────────────────────────────────
-$orderTrackingId = trim($_GET['OrderTrackingId'] ?? '');
-$payId           = (int)($_GET['payment_id']    ?? 0);
-$regId           = (int)($_GET['registrant_id'] ?? 0);
-$receiptToken    = trim($_GET['receipt_token']  ?? '');
-$type            = trim($_GET['type']           ?? 'membership');
-
-// Guard: no tracking ID means PesaPal never processed
-if (!$orderTrackingId) {
-    renderPage('Payment Error', '⚠️', 'Missing Payment Reference',
-        'We could not find a valid payment reference. If you completed a payment, contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-        'Return to Home', 'index.html', '#e63946');
-}
-
-// ── Verify with PesaPal API ───────────────────────────────────────────
-try {
-    $ppToken = pesapalGetToken();
-    $status  = pesapalRequest('GET',
-        '/api/Transactions/GetTransactionStatus?orderTrackingId=' . urlencode($orderTrackingId),
-        null, $ppToken);
-
-    $statusCode  = (int)($status['status_code'] ?? -1);
-    $paymentDesc = htmlspecialchars($status['payment_status_description'] ?? '', ENT_QUOTES, 'UTF-8');
-    $confCode    = htmlspecialchars($status['confirmation_code']          ?? '', ENT_QUOTES, 'UTF-8');
-    $merchantRef = $status['merchant_reference'] ?? '';
-
-    if ($statusCode === 1) {
-        // ── COMPLETED ────────────────────────────────────────────────
-        // Mark verified in DB
-        if ($regId) {
-            $sets   = ["payment_status = 'verified'", "transaction_id = ?"];
-            $params = [$orderTrackingId, $regId];
-            $pdo->prepare("UPDATE event_registrants SET " . implode(', ', $sets) . " WHERE id = ?")
-                ->execute($params);
-        }
-        if ($payId) {
-            $pdo->beginTransaction();
-            $row = $pdo->prepare("SELECT id, member_id, status FROM payments WHERE id = ? FOR UPDATE");
-            $row->execute([$payId]);
-            $pay = $row->fetch(PDO::FETCH_ASSOC);
-            if ($pay && $pay['status'] !== 'verified') {
-                $pdo->prepare("UPDATE payments SET status='verified', paid_at=NOW(), transaction_id=? WHERE id=?")
-                    ->execute([$orderTrackingId, $payId]);
-                if ($pay['member_id']) {
-                    $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
-                }
-            }
-            $pdo->commit();
-        }
-
-        // Send receipt email
-        if ($regId) {
-            try {
-                // Inline minimal receipt email for events
-                $r = $pdo->prepare("SELECT * FROM event_registrants WHERE id = ?");
-                $r->execute([$regId]);
-                $row = $r->fetch(PDO::FETCH_ASSOC);
-                if ($row && !empty($row['email'])) {
-                    $name    = htmlspecialchars($row['full_name'],    ENT_QUOTES, 'UTF-8');
-                    $receipt = htmlspecialchars($row['receipt_number'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $evTitle = htmlspecialchars($row['event_title']   ?? '', ENT_QUOTES, 'UTF-8');
-                    $amount  = number_format((float)$row['amount'], 0, '.', ',');
-                    $recUrl  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                             . '://' . preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost')
-                             . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')
-                             . '/receipt.php?token=' . urlencode($receiptToken);
-                    hosuMail($row['email'], "HOSU Event Receipt — $receipt",
-                        "<p>Dear $name,</p><p>Your payment of UGX $amount for <strong>$evTitle</strong> has been confirmed (Receipt: $receipt).</p>"
-                        . "<p><a href='$recUrl'>View your receipt</a></p>");
-                }
-            } catch (\Throwable $e) { error_log('Callback event email: ' . $e->getMessage()); }
-        }
-        if ($payId) {
-            try {
-                $r = $pdo->prepare("SELECT p.*, m.full_name, m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
-                $r->execute([$payId]);
-                $row = $r->fetch(PDO::FETCH_ASSOC);
-                if ($row && !empty($row['email'])) {
-                    $name    = htmlspecialchars($row['full_name']     ?? '', ENT_QUOTES, 'UTF-8');
-                    $receipt = htmlspecialchars($row['receipt_number'] ?? '', ENT_QUOTES, 'UTF-8');
-                    $amount  = number_format((float)$row['amount'], 0, '.', ',');
-                    $ptype   = $row['payment_type'] ?? 'payment';
-                    $labels  = ['membership'=>'Membership','donation'=>'Donation','event_registration'=>'Event'];
-                    $label   = $labels[$ptype] ?? 'Payment';
-                    $recUrl  = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off' ? 'https' : 'http')
-                             . '://' . preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost')
-                             . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/')
-                             . '/receipt.php?token=' . urlencode($receiptToken);
-                    hosuMail($row['email'], "HOSU Receipt — $receipt",
-                        "<p>Dear $name,</p><p>Your $label payment of UGX $amount has been confirmed (Receipt: $receipt).</p>"
-                        . "<p><a href='$recUrl'>View your receipt</a></p>");
-                    $pdo->prepare("UPDATE payments SET invoice_sent=1 WHERE id=?")->execute([$payId]);
-                }
-            } catch (\Throwable $e) { error_log('Callback pay email: ' . $e->getMessage()); }
-        }
-
-        // Notify parent window if inside iframe, then redirect/render
-        $jsToken  = json_encode($receiptToken);
-        $safeHref = htmlspecialchars(
-            $receiptToken ? 'receipt.php?token=' . urlencode($receiptToken) : 'index.html',
-            ENT_QUOTES, 'UTF-8'
-        );
-        echo <<<HTML
-<!DOCTYPE html><html lang="en"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Payment Confirmed \u2014 HOSU</title>
-<style>body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-.card{background:#fff;border-radius:12px;box-shadow:0 3px 16px rgba(0,0,0,.10);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
-.icon{font-size:2rem;margin-bottom:8px;}h1{margin:0 0 8px;font-size:1.15rem;color:#27ae60;}
-p{color:#555;font-size:0.88rem;line-height:1.55;margin:0;}</style></head>
-<body><div class="card"><div class="icon">&#x2705;</div><h1>Payment Confirmed!</h1><p>Completing&hellip;</p></div>
-<script>
-(function(){
-  var tok=$jsToken;
-  try{window.parent.postMessage({type:'hosu_payment',status:'success',receiptToken:tok},'*');}catch(e){}
-  try{if(window.self===window.top){window.location.href='$safeHref';}}catch(e){window.location.href='$safeHref';}
-})();
-</script></body></html>
-HTML;
-        exit;
-
-    } elseif ($statusCode === 2) {
-        // FAILED
-        renderPage('Payment Failed', '&#x274C;', 'Payment Failed',
-            'Your payment was not completed. Please try again or contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Try Again', 'membership.html', '#e63946',
-            ['type' => 'hosu_payment', 'status' => 'failed', 'message' => 'Payment was not completed. Please try again.']);
-
-    } elseif ($statusCode === 3) {
-        // REVERSED
-        renderPage('Payment Reversed', '&#x21A9;', 'Payment Reversed',
-            'Your payment was reversed. Please contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Contact Us', 'contact.html', '#e63946',
-            ['type' => 'hosu_payment', 'status' => 'failed', 'message' => 'Payment was reversed.']);
-
-    } else {
-        // PENDING
-        renderPage('Payment Pending', '&#x23F3;', 'Payment Pending',
-            "Your payment is still being processed (status: $paymentDesc). If you completed payment, your receipt will be sent to your email. Contact us at <a class='contact-link' href='mailto:info@hosu.or.ug'>info@hosu.or.ug</a> or <a class='contact-link' href='https://wa.me/256709752107'>WhatsApp +256 709 752107</a> if you need help.",
-            'Return to Home', 'index.html', '#f39c12',
-            ['type' => 'hosu_payment', 'status' => 'pending', 'message' => 'Payment is still being processed.']);
-    }
-
-} catch (\Throwable $e) {
-    error_log('PesaPal callback error: ' . $e->getMessage());
-    renderPage('Payment Error', '&#x26A0;', 'Server Error',
-        'We could not verify your payment at this time. If money was deducted, provide proof of payment to <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-        'Return to Home', 'index.html', '#e63946');
-}

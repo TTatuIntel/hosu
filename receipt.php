@@ -1,597 +1,1357 @@
-<?php
-/**
- * receipt.php — One-time printable receipt with QR code + barcode
- * URL: receipt.php?token=<64-char-hex-token>
- *
- * First access: displays receipt, marks scan flag.
- * Repeated scans of the QR still display the receipt (read-only after first scan).
- */
-
-session_start();
-
-require_once 'db.php';
-
-$token = trim($_GET['token'] ?? '');
-
-if (!$token || strlen($token) !== 64 || !ctype_xdigit($token)) {
-    http_response_code(400);
-    die(renderError('Invalid receipt link. Please contact HOSU support at info@hosu.or.ug.'));
-}
-
-try {
-    // Backward-compatible migration for older event_registrants tables
-    try {
-        $erCols = array_column($pdo->query("DESCRIBE event_registrants")->fetchAll(PDO::FETCH_ASSOC), 'Field');
-        if (!in_array('qr_scanned', $erCols)) {
-            $pdo->exec("ALTER TABLE event_registrants ADD COLUMN qr_scanned TINYINT(1) NOT NULL DEFAULT 0 AFTER receipt_token");
-        }
-        if (!in_array('scanned_at', $erCols)) {
-            $pdo->exec("ALTER TABLE event_registrants ADD COLUMN scanned_at TIMESTAMP NULL DEFAULT NULL AFTER qr_scanned");
-        }
-    } catch (Exception $_e) {
-        // Non-fatal: receipt lookup can still proceed for payments rows
-    }
-
-    // First try payments table (memberships, donations)
-    $stmt = $pdo->prepare("
-        SELECT p.*, m.full_name, m.email, m.phone, m.membership_type, m.profession, m.institution,
-               DATE_FORMAT(p.paid_at, '%d %b %Y %H:%i') AS paid_formatted,
-               DATE_FORMAT(p.scanned_at, '%d %b %Y %H:%i') AS scanned_formatted,
-               'payments' AS _source
-        FROM payments p
-        JOIN members m ON m.id = p.member_id
-        WHERE p.receipt_token = ?
-    ");
-    $stmt->execute([$token]);
-    $r = $stmt->fetch(PDO::FETCH_ASSOC);
-
-    // If not found, try event_registrants table
-    if (!$r) {
-        $stmt2 = $pdo->prepare("
-            SELECT er.*,
-                   er.full_name, er.email, er.phone, er.profession, er.institution,
-                   er.payment_status AS status,
-                   DATE_FORMAT(er.registered_at, '%d %b %Y %H:%i') AS paid_formatted,
-                   DATE_FORMAT(er.scanned_at, '%d %b %Y %H:%i') AS scanned_formatted,
-                   er.qr_scanned,
-                   er.scanned_at,
-                   'event_registration' AS payment_type,
-                   NULL AS membership_period,
-                   NULL AS membership_expires_at,
-                   0 AS invoice_sent,
-                   'event_registrant' AS membership_type,
-                   'event_registrants' AS _source
-            FROM event_registrants er
-            WHERE er.receipt_token = ?
-        ");
-        $stmt2->execute([$token]);
-        $r = $stmt2->fetch(PDO::FETCH_ASSOC);
-    }
-} catch (PDOException $e) {
-    http_response_code(500);
-    die(renderError('Database error. Please try again.'));
-}
-
-if (!$r) {
-    http_response_code(404);
-    die(renderError('Receipt not found. The link may be invalid or expired.'));
-}
-
-// Mark as scanned on first legitimate load
-$alreadyScanned = (bool)$r['qr_scanned'];
-if (!$alreadyScanned) {
-    try {
-        $scanTable = ($r['_source'] ?? '') === 'event_registrants' ? 'event_registrants' : 'payments';
-        $pdo->prepare("UPDATE $scanTable SET qr_scanned=1, scanned_at=NOW() WHERE receipt_token=?")
-            ->execute([$token]);
-    } catch (PDOException $e) { /* non-fatal */ }
-}
-
-// ── Build data for display ───────────────────────────────────────────────
-$receiptNum   = htmlspecialchars($r['receipt_number'] ?: ('HOSU-MEM-' . date('Y') . '-' . str_pad($r['id'], 5, '0', STR_PAD_LEFT)));
-$memberName   = htmlspecialchars($r['full_name']);
-$memberEmail  = htmlspecialchars($r['email']);
-$memberPhone  = htmlspecialchars($r['phone']);
-$memberType   = htmlspecialchars(ucfirst($r['membership_type']));
-$profession   = htmlspecialchars($r['profession']);
-$institution  = htmlspecialchars($r['institution']);
-$amount       = number_format((float)($r['amount'] ?? 100000), 0) . ' ' . htmlspecialchars($r['currency'] ?? 'UGX');
-$paidDate     = htmlspecialchars($r['paid_formatted'] ?? $r['paid_at']);
-$payMethod    = htmlspecialchars(ucfirst(str_replace(['UGMTNMOMODIR','UGAIRTELMODIR'], ['MTN Mobile Money','Airtel Money'], $r['payment_method'] ?? '')));
-$txRef        = htmlspecialchars($r['transaction_ref'] ?? '');
-$txId         = htmlspecialchars($r['transaction_id'] ?? $r['transaction_ref'] ?? '');
-$status       = htmlspecialchars(ucfirst($r['status'] ?? 'pending'));
-
-// Payment type fields
-$paymentType  = $r['payment_type'] ?? 'membership';
-$memPeriod    = $r['membership_period'] ?? '1_year';
-$eventTitle   = htmlspecialchars($r['event_title'] ?? '');
-$eventDate    = htmlspecialchars($r['event_date'] ?? '');
-
-// Membership expiry
-$memExpiresAt = $r['membership_expires_at'] ?? null;
-$memExpiry    = ($memPeriod === 'lifetime') ? 'Lifetime Membership' : ($memExpiresAt ? date('d M Y', strtotime($memExpiresAt)) : '—');
-
-// Period label
-$periodLabels = ['1_year'=>'1 Year','2_years'=>'2 Years','3_years'=>'3 Years','lifetime'=>'Lifetime'];
-$periodLabel  = $periodLabels[$memPeriod] ?? ucfirst(str_replace('_',' ',$memPeriod));
-
-// Document type label & sub-heading
-$docTypes = [
-    'membership'         => ['title'=>'Membership Certificate', 'sub'=>'Official Society Membership'],
-    'event_registration' => ['title'=>'Event Registration',     'sub'=>'Event Attendance Confirmation'],
-    'donation'           => ['title'=>'Donation Receipt',       'sub'=>'Charitable Contribution'],
-];
-$docInfo  = $docTypes[$paymentType] ?? $docTypes['membership'];
-$docTitle = $docInfo['title'];
-$docSub   = $docInfo['sub'];
-
-// QR code points to this same receipt URL (Google Charts API — no library needed)
-$receiptUrl   = (isset($_SERVER['HTTPS']) && $_SERVER['HTTPS'] === 'on' ? 'https' : 'http')
-                . '://' . $_SERVER['HTTP_HOST']
-                . $_SERVER['REQUEST_URI'];
-$qrUrl = 'https://api.qrserver.com/v1/create-qr-code/?size=300x300&format=png&data=' . rawurlencode($receiptUrl);
-
-// Status badge colour
-$statusColour = match($status) {
-    'Verified' => '#16a34a',
-    'Rejected' => '#dc2626',
-    default    => '#d97706',
-};
-
-function renderError(string $msg): string {
-    return '<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Receipt Error</title>
-    <style>body{font-family:Inter,sans-serif;display:flex;align-items:center;justify-content:center;min-height:100vh;background:#f7fafc;margin:0}
-    .box{background:#fff;border-radius:12px;padding:2.5rem 3rem;text-align:center;box-shadow:0 4px 20px rgba(0,0,0,.1);max-width:440px}
-    h2{color:#dc2626;margin-bottom:.75rem}p{color:#4a5568}</style></head>
-    <body><div class="box"><h2>&#9888; Receipt Error</h2><p>' . htmlspecialchars($msg) . '</p>
-    <p style="margin-top:1.5rem"><a href="events.html" style="color:#0d4593;font-weight:600">← Back to HOSU</a></p>
-    </div></body></html>';
-}
-?>
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Receipt <?= $receiptNum ?> — HOSU</title>
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
-<style>
-:root {
-    --primary: #e63946;
-    --primary-dark: #c81d2a;
-    --secondary: #0d4593;
-    --secondary-dark: #072a5e;
-    --text: #0f172a;
-    --text-light: #475569;
-    --text-muted: #94a3b8;
-    --border: #e2e8f0;
-    --border-light: #f1f5f9;
-    --bg: #ffffff;
-    --bg-page: #f8fafc;
-}
-*, *::before, *::after { margin: 0; padding: 0; box-sizing: border-box; }
-body {
-    font-family: 'Inter', sans-serif;
-    background: var(--bg-page);
-    min-height: 100vh;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    padding: 1rem .75rem 2rem;
-    color: var(--text);
-    -webkit-font-smoothing: antialiased;
-}
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HOSU Research - Advancing oncology through innovative research and collaboration">
+    <title>Research - HOSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="navbar.css?v=2026040404">
+    <link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --primary-light: #f8d7da;
+            --primary-dark: #c81d2a;
+            --secondary-color: #0d4593;
+            --secondary-light: #e6f0ff;
+            --secondary-dark: #072a5e;
+            --text-color: #001848;
+            --text-light: #4a5568;
+            --background-light: #f1faee;
+            --background-dark: #1d3557;
+            --white: #ffffff;
+            --accent-color: #a8dadc;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --gray-400: #cbd5e0;
+            --gray-500: #a0aec0;
+            --transition: all 0.3s ease;
+            --shadow-sm: 0 1px 3px rgba(0,0,0,0.12), 0 1px 2px rgba(0,0,0,0.24);
+            --shadow-md: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+            --shadow-lg: 0 10px 15px -3px rgba(0,0,0,0.1), 0 4px 6px -2px rgba(0,0,0,0.05);
+            --navbar-height: 90px;
+            --border-radius: 8px;
+            --spacing-sm: 1rem;
+            --section-width: 92%;
+            --section-max-width: 1280px;
+        }
 
-/* ── Scan banner ── */
-.scan-warning {
-    max-width: 640px;
-    width: 100%;
-    background: #fffbeb;
-    border: 1px solid #fde68a;
-    border-radius: 10px;
-    padding: .55rem 1rem;
-    font-size: .75rem;
-    font-weight: 500;
-    color: #92400e;
-    margin-bottom: .6rem;
-    display: flex;
-    align-items: center;
-    gap: .45rem;
-    line-height: 1.4;
-}
-.scan-warning svg { flex-shrink: 0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        html { scroll-behavior: smooth; overflow-x: hidden; }
 
-/* ── Receipt card ── */
-.receipt {
-    background: var(--bg);
-    border-radius: 16px;
-    border: 1px solid var(--border);
-    box-shadow: 0 1px 2px rgba(0,0,0,.04), 0 4px 24px rgba(0,0,0,.06);
-    max-width: 640px;
-    width: 100%;
-    overflow: hidden;
-    position: relative;
-}
+        body {
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background: linear-gradient(180deg, var(--gray-100) 0%, var(--white) 8%);
+            overflow-x: hidden;
+        }
 
-/* ── Actions dropdown (top-right) ── */
-.actions-wrap {
-    position: absolute;
-    top: .75rem;
-    right: .75rem;
-    z-index: 10;
-}
-.actions-trigger {
-    width: 32px; height: 32px;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    background: var(--bg);
-    cursor: pointer;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    transition: background .15s, box-shadow .15s;
-    color: var(--text-light);
-}
-.actions-trigger:hover {
-    background: var(--border-light);
-    box-shadow: 0 2px 8px rgba(0,0,0,.08);
-}
-.actions-trigger svg { pointer-events: none; }
-.actions-menu {
-    display: none;
-    position: absolute;
-    top: calc(100% + 4px);
-    right: 0;
-    background: var(--bg);
-    border: 1px solid var(--border);
-    border-radius: 10px;
-    box-shadow: 0 8px 24px rgba(0,0,0,.12);
-    min-width: 150px;
-    padding: .3rem;
-    z-index: 20;
-}
-.actions-menu.open { display: block; }
-.actions-menu button,
-.actions-menu a {
-    display: flex;
-    align-items: center;
-    gap: .5rem;
-    width: 100%;
-    padding: .5rem .7rem;
-    border: none;
-    background: none;
-    font-family: inherit;
-    font-size: .78rem;
-    font-weight: 500;
-    color: var(--text);
-    cursor: pointer;
-    border-radius: 7px;
-    text-decoration: none;
-    transition: background .12s;
-}
-.actions-menu button:hover,
-.actions-menu a:hover { background: var(--border-light); }
-.actions-menu svg { color: var(--text-muted); flex-shrink: 0; }
+        a { text-decoration: none; color: inherit; }
+        img { max-width: 100%; height: auto; }
 
-/* ── Header ── */
-.receipt-header {
-    padding: 1.15rem 1.5rem;
-    padding-right: 3.25rem;
-    display: flex;
-    align-items: center;
-    gap: .85rem;
-}
-.header-logo {
-    height: 52px;
-    width: auto;
-    object-fit: contain;
-    flex-shrink: 0;
-}
-.header-text .org-name {
-    font-size: .88rem;
-    font-weight: 700;
-    color: var(--secondary);
-    line-height: 1.25;
-}
-.header-text .doc-type {
-    font-size: .66rem;
-    font-weight: 600;
-    color: var(--text-muted);
-    text-transform: uppercase;
-    letter-spacing: .7px;
-    margin-top: .15rem;
-}
+        /* Navbar styles handled by navbar.css */
 
-/* ── Accent line ── */
-.accent-line {
-    height: 3px;
-    background: linear-gradient(90deg, var(--primary) 0%, var(--secondary) 100%);
-}
+        .hero {
+            position: relative;
+            color: var(--text-color);
+            padding-top: var(--navbar-height);
+            overflow: visible;
+            background-color: var(--gray-100);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            min-height: 390px;
+            z-index: 20;
+        }
 
-/* ── Status bar ── */
-.receipt-status {
-    padding: .5rem 1.5rem;
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    background: var(--border-light);
-}
-.status-pill {
-    display: inline-flex;
-    align-items: center;
-    gap: .25rem;
-    font-weight: 700;
-    font-size: .65rem;
-    text-transform: uppercase;
-    letter-spacing: .5px;
-    padding: .2rem .6rem;
-    border-radius: 6px;
-    color: #fff;
-    background: <?= $statusColour ?>;
-}
-.receipt-date {
-    font-size: .72rem;
-    color: var(--text-light);
-    font-weight: 500;
-}
+        .hero-container {
+            display: flex;
+            flex-direction: row;
+            max-width: var(--section-max-width);
+            width: var(--section-width);
+            margin: 0 auto;
+            position: relative;
+            overflow: visible;
+            padding: 1rem 0;
+            gap: 3%;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 340px;
+        }
 
-/* ── Body ── */
-.receipt-body { padding: 1rem 1.5rem .75rem; }
+        .hero-content {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0.25rem 0;
+            z-index: 10;
+            text-align: left;
+            position: relative;
+            min-height: 240px;
+            margin-left: auto;
+        }
 
-.section-label {
-    font-size: .6rem;
-    font-weight: 700;
-    text-transform: uppercase;
-    letter-spacing: 1px;
-    color: var(--text-muted);
-    margin-bottom: .55rem;
-}
+        .hero-slide {
+            display: none;
+            flex-direction: column;
+            animation: heroFadeIn 0.6s ease;
+        }
 
-.info-grid {
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: .6rem 1.25rem;
-    margin-bottom: .25rem;
-}
-.info-cell .lbl {
-    font-size: .58rem;
-    color: var(--text-muted);
-    font-weight: 600;
-    text-transform: uppercase;
-    letter-spacing: .4px;
-    margin-bottom: .1rem;
-}
-.info-cell .val {
-    font-size: .8rem;
-    font-weight: 600;
-    color: var(--text);
-    word-break: break-word;
-    line-height: 1.35;
-}
-.info-cell .val.highlight { font-weight: 700; }
+        .hero-slide.active { display: flex; }
 
-/* ── QR compact ── */
-.qr-section {
-    padding: .85rem 1.5rem;
-    border-top: 1px solid var(--border);
-    display: flex;
-    align-items: center;
-    gap: .85rem;
-}
-.qr-box {
-    flex-shrink: 0;
-}
-.qr-box img {
-    width: 100px;
-    height: 100px;
-    aspect-ratio: 1 / 1;
-    object-fit: contain;
-    border-radius: 8px;
-    border: 1px solid var(--border);
-    padding: 4px;
-    background: #fff;
-    image-rendering: pixelated;
-}
-.qr-meta {
-    flex: 1;
-    min-width: 0;
-}
-.qr-meta .receipt-num-display {
-    font-size: .78rem;
-    font-weight: 700;
-    color: var(--secondary);
-    margin-bottom: .15rem;
-}
-.qr-meta .qr-hint {
-    font-size: .66rem;
-    color: var(--text-muted);
-    line-height: 1.5;
-}
+        @keyframes heroFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-/* ── Footer ── */
-.receipt-footer {
-    padding: .6rem 1.5rem;
-    border-top: 1px solid var(--border);
-    font-size: .62rem;
-    color: var(--text-muted);
-    text-align: center;
-    line-height: 1.6;
-}
-.receipt-footer a { color: var(--secondary); font-weight: 600; text-decoration: none; }
-.receipt-footer a:hover { text-decoration: underline; }
+        .hero-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
 
-/* ── Print ── */
-@media print {
-    body { background: #fff; padding: 0; }
-    .scan-warning, .actions-wrap { display: none !important; }
-    .receipt { box-shadow: none; border: 1px solid #ccc; max-width: 100%; border-radius: 0; }
-}
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(255,255,255,0.85);
+            color: var(--secondary-color);
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.3rem 0.6rem;
+            border-radius: 16px;
+            border: 1px solid rgba(13,69,147,0.12);
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
 
-/* ── Mobile ── */
-@media (max-width: 520px) {
-    body { padding: .5rem .4rem 1.5rem; }
-    .receipt-header { padding: .85rem 1rem; padding-right: 2.75rem; }
-    .header-logo { height: 42px; }
-    .info-grid { grid-template-columns: 1fr; gap: .45rem; }
-    .receipt-body { padding: .85rem 1rem .6rem; }
-    .qr-section { padding: .7rem 1rem; }
-    .receipt-status { padding: .4rem 1rem; flex-wrap: wrap; gap: .3rem; }
-    .receipt-footer { padding: .5rem 1rem; }
-}
-</style>
+        .hero-readmore {
+            display: inline-flex;
+            align-items: center;
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.85rem;
+            text-decoration: none;
+            transition: all 0.3s ease;
+            margin-top: 0.25rem;
+            position: relative;
+        }
+
+        .hero-readmore:hover {
+            color: #c81d2a;
+            transform: translateX(4px);
+        }
+
+        .hero-float-popup {
+            display: none;
+            position: absolute;
+            top: calc(100% + 12px);
+            left: -8px;
+            z-index: 200;
+            width: 360px;
+            max-height: 320px;
+            overflow-y: auto;
+            background: rgba(255, 255, 255, 0.72);
+            -webkit-backdrop-filter: blur(24px) saturate(1.4);
+            backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid rgba(255, 255, 255, 0.55);
+            border-radius: 14px;
+            padding: 1.1rem 1.3rem 1.2rem;
+            box-shadow:
+                0 12px 40px rgba(0, 0, 0, 0.12),
+                0 4px 12px rgba(0, 0, 0, 0.06),
+                inset 0 1px 0 rgba(255, 255, 255, 0.6);
+            animation: floatPopDown 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+        }
+
+        .hero-float-popup.active { display: block; }
+
+        .hero-float-popup::before {
+            content: '';
+            position: absolute;
+            top: -7px;
+            left: 20px;
+            width: 14px;
+            height: 14px;
+            background: rgba(255, 255, 255, 0.72);
+            border-top: 1px solid rgba(255, 255, 255, 0.55);
+            border-left: 1px solid rgba(255, 255, 255, 0.55);
+            transform: rotate(45deg);
+            -webkit-backdrop-filter: blur(24px);
+            backdrop-filter: blur(24px);
+        }
+
+        .hero-float-popup::-webkit-scrollbar { width: 4px; }
+        .hero-float-popup::-webkit-scrollbar-track { background: transparent; }
+        .hero-float-popup::-webkit-scrollbar-thumb {
+            background: rgba(13, 69, 147, 0.15);
+            border-radius: 4px;
+        }
+
+        .float-popup-close {
+            position: absolute;
+            top: 0.55rem;
+            right: 0.6rem;
+            width: 22px;
+            height: 22px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: rgba(0, 0, 0, 0.05);
+            border: none;
+            border-radius: 50%;
+            font-size: 0.9rem;
+            color: var(--text-light);
+            cursor: pointer;
+            line-height: 1;
+            transition: all 0.2s ease;
+        }
+
+        .float-popup-close:hover {
+            background: var(--primary-color);
+            color: var(--white);
+        }
+
+        .hero-float-popup h3 {
+            font-size: 0.9rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin-bottom: 0.4rem;
+            padding-right: 1.8rem;
+            letter-spacing: -0.01em;
+        }
+
+        .hero-float-popup p {
+            font-size: 0.76rem;
+            color: var(--text-color);
+            line-height: 1.55;
+            margin-bottom: 0.35rem;
+            opacity: 0.9;
+        }
+
+        .hero-float-popup h4 {
+            font-size: 0.78rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            margin: 0.45rem 0 0.25rem;
+            padding-bottom: 0.2rem;
+            border-bottom: 1.5px solid rgba(13, 69, 147, 0.1);
+            display: inline-block;
+        }
+
+        .hero-float-popup ul {
+            padding-left: 0.9rem;
+            margin-bottom: 0.35rem;
+        }
+
+        .hero-float-popup li {
+            font-size: 0.73rem;
+            color: var(--text-color);
+            line-height: 1.5;
+            margin-bottom: 0.15rem;
+            opacity: 0.88;
+        }
+
+        .hero-float-popup li strong {
+            color: var(--secondary-color);
+            font-weight: 600;
+        }
+
+        @keyframes floatPopDown {
+            from { opacity: 0; transform: translateY(-8px) scale(0.97); }
+            to   { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        .hero-content h1 {
+            font-size: clamp(1.15rem, 2.1vw, 1.45rem);
+            line-height: 1.2;
+            margin-bottom: 0.5rem;
+            color: var(--secondary-color);
+            font-weight: 700;
+            position: relative;
+            display: inline-block;
+        }
+
+        .hero-content h1::after {
+            content: '';
+            position: absolute;
+            bottom: -8px;
+            left: 0;
+            width: 80px;
+            height: 3px;
+            background: var(--primary-color);
+        }
+
+        .hero-content p {
+            font-size: clamp(0.78rem, 1.1vw, 0.84rem);
+            margin-bottom: 0.8rem;
+            color: var(--text-light);
+            line-height: 1.55;
+            margin-top: 0.85rem;
+        }
+
+        .hero-stats {
+            display: flex;
+            gap: 1.4rem;
+            margin-top: 0.9rem;
+        }
+
+        .hero-stat-number {
+            font-size: 1.25rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            display: block;
+            line-height: 1.2;
+        }
+
+        .hero-stat-label {
+            font-size: 0.66rem;
+            color: var(--text-light);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            font-weight: 600;
+        }
+
+        .hero-indicators {
+            display: flex;
+            gap: 0.4rem;
+            margin-top: 0.75rem;
+        }
+
+        .hero-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: rgba(18, 41, 74, 0.2);
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+
+        .hero-dot.active {
+            background: var(--primary-color);
+            width: 22px;
+            border-radius: 4px;
+        }
+
+        .hero-image-container {
+            position: absolute;
+            left: -5%;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 58%;
+            aspect-ratio: 4/3;
+            overflow: hidden;
+            border-radius: 0;
+            animation: heroImgFadeIn 1s ease-out 0.3s forwards;
+            opacity: 0;
+            z-index: 0;
+            max-height: 360px;
+        }
+
+        .hero-image-container::after {
+            content: '';
+            position: absolute;
+            top: -1px;
+            left: -1px;
+            right: -1px;
+            bottom: -1px;
+            z-index: 2;
+            pointer-events: none;
+            background:
+                linear-gradient(to left, #f7fafc 0%, rgba(247,250,252,0.85) 8%, rgba(247,250,252,0.5) 18%, rgba(247,250,252,0.15) 30%, transparent 45%),
+                linear-gradient(to right, #f7fafc 0%, rgba(247,250,252,0.4) 3%, transparent 10%),
+                linear-gradient(to bottom, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%),
+                linear-gradient(to top, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%);
+        }
+
+        @keyframes heroImgFadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+
+        .hero-background {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-size: cover;
+            background-position: center;
+            transition: opacity 1s ease, transform 8s ease;
+            opacity: 0;
+            transform: scale(1.05);
+        }
+
+        .hero-background.bg-1 { background-image: url('img/IMG_7770.jpg'); }
+        .hero-background.bg-2 { background-image: url('img/IMG_8316.jpg'); }
+        .hero-background.bg-3 { background-image: url('img/IMG_7891.jpg'); }
+        .hero-background.bg-4 { background-image: url('img/IMG_7825.webp'); }
+        .hero-background.bg-5 { background-image: url('img/IMG_8005.jpg'); }
+
+        .hero-background.active {
+            opacity: 1;
+            transform: scale(1);
+        }
+
+        .research-areas,
+        .updates-section {
+            padding: 0.85rem 0 0.75rem;
+        }
+
+        .updates-section { background: rgba(241, 250, 238, 0.5); }
+
+        .section-title {
+            text-align: center;
+            font-size: clamp(1.2rem, 2.4vw, 1.5rem);
+            color: var(--secondary-color);
+            margin-bottom: 0.85rem;
+            position: relative;
+        }
+
+        .section-title::after {
+            content: '';
+            display: block;
+            width: 45px;
+            height: 2.5px;
+            background: var(--primary-color);
+            margin: 0.45rem auto 0;
+        }
+
+        .updates-grid {
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            margin: 0 auto;
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.5rem;
+            align-items: start;
+        }
+
+        .updates-col {
+            display: flex;
+            flex-direction: column;
+        }
+
+        .updates-col-title {
+            font-size: 0.75rem;
+            font-weight: 700;
+            color: var(--secondary-color);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-bottom: 0.5rem;
+            display: flex;
+            align-items: center;
+            gap: 0.35rem;
+        }
+
+        .updates-col-title .col-icon {
+            font-size: 0.8rem;
+        }
+
+        .publication-card,
+        .grant-card {
+            border-radius: 12px;
+            border: 1px solid rgba(13, 69, 147, 0.08);
+            box-shadow: var(--shadow-sm);
+            background: var(--white);
+            padding: 0.85rem 1rem;
+            margin-bottom: 0.5rem;
+            transition: var(--transition);
+        }
+
+        .publication-card:last-of-type,
+        .grant-card:last-of-type {
+            margin-bottom: 0;
+        }
+
+        .updates-loading-card {
+            text-align: center;
+            color: var(--text-light);
+            font-size: 0.8rem;
+            padding: 1.5rem;
+        }
+
+        .publication-meta {
+            display: flex;
+            gap: 0.4rem;
+            margin-bottom: 0.35rem;
+            flex-wrap: wrap;
+            align-items: center;
+        }
+
+        .publication-tag {
+            background: var(--accent-color);
+            color: var(--secondary-color);
+            padding: 0.12rem 0.5rem;
+            border-radius: 10px;
+            font-size: 0.68rem;
+            font-weight: 600;
+        }
+
+        .publication-date {
+            color: var(--primary-color);
+            font-weight: 600;
+            font-size: 0.7rem;
+        }
+
+        .publication-title {
+            font-size: 0.82rem;
+            color: var(--secondary-color);
+            margin-bottom: 0.15rem;
+            line-height: 1.3;
+        }
+
+        .publication-authors {
+            color: var(--text-light);
+            font-style: italic;
+            margin-bottom: 0.25rem;
+            font-size: 0.72rem;
+        }
+
+        .publication-link {
+            color: var(--primary-color);
+            font-weight: 600;
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.72rem;
+        }
+
+        .publication-link:hover { text-decoration: underline; }
+
+        .grant-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+            margin-bottom: 0.25rem;
+            gap: 0.5rem;
+        }
+
+        .grant-header h3 {
+            font-size: 0.82rem;
+            line-height: 1.3;
+            flex: 1;
+        }
+
+        .grant-amount {
+            background: var(--primary-color);
+            color: var(--white);
+            padding: 0.18rem 0.5rem;
+            border-radius: 14px;
+            font-size: 0.65rem;
+            font-weight: 600;
+            white-space: nowrap;
+            flex-shrink: 0;
+        }
+
+        .grant-deadline {
+            color: var(--primary-color);
+            font-size: 0.7rem;
+            font-weight: 600;
+            margin-bottom: 0.25rem;
+        }
+
+        .grant-card p {
+            font-size: 0.74rem;
+            line-height: 1.45;
+            color: var(--text-light);
+        }
+
+        .grant-apply {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            margin-top: 0.45rem;
+            padding: 0.3rem 0.7rem;
+            background: var(--secondary-color);
+            color: var(--white);
+            border-radius: 5px;
+            font-size: 0.7rem;
+            font-weight: 600;
+            transition: var(--transition);
+        }
+
+        .grant-apply:hover {
+            background: var(--secondary-dark);
+        }
+
+        .grant-status {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            font-size: 0.65rem;
+            font-weight: 600;
+            color: #16a34a;
+            margin-bottom: 0.3rem;
+        }
+
+        .grant-status .status-dot {
+            width: 5px;
+            height: 5px;
+            border-radius: 50%;
+            background: #16a34a;
+            display: inline-block;
+        }
+
+        .grant-note {
+            text-align: center;
+            font-size: 0.7rem;
+            color: var(--text-light);
+            margin-top: 0.4rem;
+            margin-bottom: 0;
+            font-style: italic;
+        }
+
+        footer {
+            background: var(--gray-100);
+            color: var(--text-color);
+            padding: 1rem 0 0.6rem;
+            position: relative;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            flex-direction: column;
+            border-top: 1px solid var(--gray-300);
+        }
+
+        .footer-content {
+            display: grid;
+            grid-template-columns: 1fr 1.2fr 1.4fr 1fr;
+            gap: 1.25rem;
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            margin: 0 auto;
+        }
+
+        .footer-section h4 {
+            color: var(--secondary-color);
+            font-size: 0.95rem;
+            margin-bottom: 0.75rem;
+            font-weight: 600;
+            position: relative;
+            display: inline-block;
+        }
+
+        .footer-section h4::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 24px;
+            height: 2px;
+            background: var(--primary-color);
+            border-radius: 2px;
+        }
+
+        .footer-section ul { list-style: none; margin: 0; padding: 0; }
+        .footer-section li { margin-bottom: 0.45rem; }
+
+        .footer-section a {
+            color: var(--text-light);
+            transition: var(--transition);
+            display: inline-block;
+            padding: 0.15rem 0;
+            font-size: 0.88rem;
+        }
+
+        .footer-section a:hover {
+            color: var(--primary-color);
+            transform: translateX(3px);
+        }
+
+        .footer-section address {
+            font-style: normal;
+            font-size: 0.88rem;
+            color: var(--text-light);
+            line-height: 1.6;
+        }
+
+        .footer-section p {
+            font-size: 0.85rem;
+            color: var(--text-light);
+            line-height: 1.5;
+            margin-bottom: 0.35rem;
+        }
+
+        .social-links {
+            display: flex;
+            gap: 0.5rem;
+            margin-top: 0.75rem;
+            flex-wrap: wrap;
+        }
+
+        .social-links a {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            background: var(--gray-200);
+            transition: var(--transition);
+            color: var(--secondary-color);
+        }
+
+        .social-links a:hover {
+            background: var(--secondary-color);
+            transform: translateY(-2px);
+            color: var(--white);
+        }
+
+        .copyright {
+            text-align: center;
+            margin-top: 1rem;
+            padding-top: 0.75rem;
+            border-top: 1px solid var(--gray-300);
+            font-size: 0.78rem;
+            color: var(--text-light);
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            margin-left: auto;
+            margin-right: auto;
+        }
+
+        .footer-dev-info p { margin: 0; }
+        .footer-dev-name { font-size: 0.88rem; font-weight: 600; color: var(--secondary-color); margin-bottom: 0.35rem; }
+        .footer-dev-contact { font-size: 0.82rem; color: var(--text-light); margin-bottom: 0.25rem; }
+        .footer-dev-contact:last-child { margin-bottom: 0; }
+        .footer-dev-contact a { color: var(--text-light); }
+
+        .back-to-top {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            width: 40px;
+            height: 40px;
+            border-radius: 50%;
+            background: var(--primary-color);
+            color: var(--white);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            opacity: 0;
+            visibility: hidden;
+            transition: opacity 0.3s ease, visibility 0.3s ease, background-color 0.3s ease;
+            z-index: 999;
+            box-shadow: var(--shadow-md);
+            font-size: 1.1rem;
+            border: none;
+        }
+
+        .back-to-top.visible {
+            opacity: 1;
+            visibility: visible;
+        }
+
+        .back-to-top:hover { background: var(--primary-dark); }
+
+        .login-trigger-wrap { position: relative; display: inline-block; }
+        .login-float-popup {
+            display: none; position: absolute; top: calc(100% + 14px); right: 0; z-index: 1001; width: 300px;
+            background: rgba(255,255,255,0.78); -webkit-backdrop-filter: blur(24px) saturate(1.4); backdrop-filter: blur(24px) saturate(1.4);
+            border: 1px solid rgba(255,255,255,0.55); border-radius: 14px; padding: 1.2rem 1.3rem 1.1rem;
+            box-shadow: 0 12px 40px rgba(0,0,0,0.14), 0 4px 12px rgba(0,0,0,0.06), inset 0 1px 0 rgba(255,255,255,0.6);
+            animation: loginPopUp 0.3s cubic-bezier(0.22,1,0.36,1); text-align: left;
+        }
+        .login-float-popup.active { display: block; }
+        .login-float-popup::after {
+            content: ''; position: absolute; top: -7px; right: 24px; width: 14px; height: 14px;
+            background: rgba(255,255,255,0.78); border-top: 1px solid rgba(255,255,255,0.55);
+            border-left: 1px solid rgba(255,255,255,0.55); transform: rotate(45deg);
+            -webkit-backdrop-filter: blur(24px); backdrop-filter: blur(24px);
+        }
+        .login-float-popup .lfp-close {
+            position: absolute; top: 0.55rem; right: 0.6rem; width: 22px; height: 22px;
+            display: flex; align-items: center; justify-content: center; background: rgba(0,0,0,0.06);
+            border: none; border-radius: 50%; font-size: 0.9rem; color: var(--text-light);
+            cursor: pointer; line-height: 1; transition: all 0.2s ease;
+        }
+        .login-float-popup .lfp-close:hover { background: var(--primary-color); color: var(--white); }
+        .login-float-popup h3 { font-size: 0.92rem; font-weight: 700; color: var(--secondary-color); margin-bottom: 0.15rem; padding-right: 1.8rem; }
+        .login-float-popup .lfp-subtitle { font-size: 0.75rem; color: var(--text-light); margin-bottom: 0.7rem; }
+        .login-float-popup .lfp-label { font-size: 0.72rem; font-weight: 600; color: var(--text-color); margin-bottom: 0.25rem; display: block; }
+        .login-float-popup .lfp-input {
+            width: 100%; padding: 0.45rem 0.6rem; border: 1.5px solid var(--gray-300); border-radius: 8px;
+            font-size: 0.8rem; font-family: inherit; outline: none; transition: border-color 0.2s;
+            background: rgba(255,255,255,0.6); box-sizing: border-box;
+        }
+        .login-float-popup .lfp-input:focus { border-color: var(--secondary-color); }
+        .login-float-popup .lfp-field { margin-bottom: 0.5rem; }
+        .login-float-popup .lfp-options { display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.6rem; font-size: 0.72rem; }
+        .login-float-popup .lfp-options label { display: flex; align-items: center; gap: 0.3rem; color: var(--text-light); cursor: pointer; }
+        .login-float-popup .lfp-options label input { accent-color: var(--secondary-color); }
+        .login-float-popup .lfp-options a { color: var(--secondary-color); text-decoration: none; font-weight: 500; }
+        .login-float-popup .lfp-options a:hover { text-decoration: underline; }
+        .login-float-popup .lfp-submit {
+            width: 100%; padding: 0.5rem; background: var(--secondary-color); color: var(--white);
+            border: none; border-radius: 8px; font-size: 0.8rem; font-weight: 600; cursor: pointer;
+            transition: all 0.2s; font-family: inherit;
+        }
+        .login-float-popup .lfp-submit:hover { background: var(--secondary-dark); transform: translateY(-1px); }
+        .login-float-popup .lfp-footer { text-align: center; margin-top: 0.6rem; font-size: 0.72rem; color: var(--text-light); }
+        .login-float-popup .lfp-footer a { color: var(--primary-color); font-weight: 600; text-decoration: none; }
+        .login-float-popup .lfp-footer a:hover { text-decoration: underline; }
+        @keyframes loginPopUp {
+            from { opacity: 0; transform: translateY(8px) scale(0.97); }
+            to { opacity: 1; transform: translateY(0) scale(1); }
+        }
+
+        @media (max-width: 1024px) {
+            .hero-container {
+                min-height: 360px;
+                gap: 1.5rem;
+            }
+
+            .hero-content { width: 50%; }
+            .hero-image-container { width: 56%; left: -6%; }
+        }
+
+        @media (max-width: 768px) {
+            .hero { min-height: 340px; }
+            .hero-container {
+                min-height: 300px;
+                padding: 1rem 0 1.5rem;
+            }
+
+            .hero-image-container {
+                position: absolute;
+                inset: 0;
+                width: 100%;
+                max-height: none;
+                opacity: 0.25;
+            }
+
+            .hero-content {
+                width: 100%;
+                margin-left: 0;
+                padding: 0 0.3rem;
+            }
+
+            .hero-stats { gap: 0.75rem; }
+            .footer-content { grid-template-columns: 1fr; }
+
+            .section-title {
+                margin-bottom: 0.7rem;
+            }
+
+            .updates-section {
+                padding: 0.75rem 0 0.6rem;
+            }
+
+            .updates-grid {
+                grid-template-columns: 1fr;
+                gap: 0.6rem;
+            }
+
+            .publication-card,
+            .grant-card {
+                padding: 0.75rem;
+            }
+        }
+    </style>
 </head>
 <body>
+<nav class="navbar"></nav>
 
-<?php if ($alreadyScanned): ?>
-<div class="scan-warning">
-    <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><path d="M12 9v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" stroke="#d97706" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
-    QR scanned on <?= htmlspecialchars($r['scanned_formatted'] ?? '') ?> &mdash; read-only mode.
+<section class="hero">
+    <div class="hero-container">
+        <div class="hero-image-container" id="heroImageContainer">
+            <div class="hero-background bg-1 active"></div>
+            <div class="hero-background bg-2"></div>
+            <div class="hero-background bg-3"></div>
+            <div class="hero-background bg-4"></div>
+            <div class="hero-background bg-5"></div>
+        </div>
+        <div class="hero-content">
+            <article class="hero-slide active" data-slide="intro">
+                <div class="hero-pills">
+                    <span class="hero-pill">Evidence-Based Care</span>
+                    <span class="hero-pill">National Impact</span>
+                </div>
+                <h1>Research & Innovation</h1>
+                <p>Driving evidence-based cancer care in Uganda through collaborative research, clinical studies, and partnerships with leading institutions across East Africa.</p>
+            </article>
+            <article class="hero-slide" data-slide="epidemiology">
+                <div class="hero-pills">
+                    <span class="hero-pill">Population Data</span>
+                    <span class="hero-pill">Risk Mapping</span>
+                </div>
+                <h1>Cancer Epidemiology</h1>
+                <p>We analyze incidence patterns, regional burden, and risk factors to guide prevention programs and earlier diagnosis pathways.</p>
+                <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'epidemiology'); return false;">Read More →
+                    <div class="hero-float-popup" data-popup="epidemiology"></div>
+                </a>
+            </article>
+            <article class="hero-slide" data-slide="hematological-malignancies">
+                <div class="hero-pills">
+                    <span class="hero-pill">Leukemia</span>
+                    <span class="hero-pill">Lymphoma</span>
+                </div>
+                <h1>Hematological Malignancies</h1>
+                <p>Focused studies on blood cancers improve treatment selection, access pathways, and long-term outcomes across East Africa.</p>
+                <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'hematological-malignancies'); return false;">Read More →
+                    <div class="hero-float-popup" data-popup="hematological-malignancies"></div>
+                </a>
+            </article>
+            <article class="hero-slide" data-slide="clinical-trials">
+                <div class="hero-pills">
+                    <span class="hero-pill">Protocol Design</span>
+                    <span class="hero-pill">Patient Outcomes</span>
+                </div>
+                <h1>Clinical Trials</h1>
+                <p>Trials and implementation studies test locally relevant interventions and translate findings into practical oncology protocols.</p>
+                <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'clinical-trials'); return false;">Read More →
+                    <div class="hero-float-popup" data-popup="clinical-trials"></div>
+                </a>
+            </article>
+            <article class="hero-slide" data-slide="palliative-supportive-care">
+                <div class="hero-pills">
+                    <span class="hero-pill">Quality of Life</span>
+                    <span class="hero-pill">Symptom Relief</span>
+                </div>
+                <h1>Palliative &amp; Supportive Care</h1>
+                <p>Research-driven supportive care models improve pain control, dignity, and whole-person outcomes for advanced cancer care.</p>
+                <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'palliative-supportive-care'); return false;">Read More →
+                    <div class="hero-float-popup" data-popup="palliative-supportive-care"></div>
+                </a>
+            </article>
+            <div class="hero-stats" id="researchStatsBar">
+                <div>
+                    <span class="hero-stat-number" id="rs-stat-0-val">–</span>
+                    <span class="hero-stat-label" id="rs-stat-0-lbl">Active Studies</span>
+                </div>
+                <div>
+                    <span class="hero-stat-number" id="rs-stat-1-val">–</span>
+                    <span class="hero-stat-label" id="rs-stat-1-lbl">Partner Centers</span>
+                </div>
+                <div>
+                    <span class="hero-stat-number" id="rs-stat-2-val">–</span>
+                    <span class="hero-stat-label" id="rs-stat-2-lbl">Focus Domains</span>
+                </div>
+            </div>
+            <div class="hero-indicators">
+                <span class="hero-dot active" data-index="0" aria-label="Hero slide 1"></span>
+                <span class="hero-dot" data-index="1" aria-label="Hero slide 2"></span>
+                <span class="hero-dot" data-index="2" aria-label="Hero slide 3"></span>
+                <span class="hero-dot" data-index="3" aria-label="Hero slide 4"></span>
+                <span class="hero-dot" data-index="4" aria-label="Hero slide 5"></span>
+            </div>
+        </div>
+    </div>
+</section>
+
+<section class="updates-section">
+    <h2 class="section-title">Publications &amp; Grants</h2>
+    <div class="updates-grid">
+        <div class="updates-col">
+            <div class="updates-col-title"><span class="col-icon">&#128196;</span> Recent Publications</div>
+            <div id="publications-container">
+                <div class="publication-card updates-loading-card">Loading publications…</div>
+            </div>
+        </div>
+        <div class="updates-col">
+            <div class="updates-col-title"><span class="col-icon">&#127942;</span> Grants &amp; Opportunities</div>
+            <div id="grants-container">
+                <div class="grant-card updates-loading-card">Loading grants…</div>
+            </div>
+        </div>
+    </div>
+    <p class="grant-note">More opportunities will be published as they are announced.</p>
+</section>
+
+<!-- Grant Application Modal -->
+<style>
+.ga-overlay{display:none;position:fixed;inset:0;z-index:9999;background:rgba(0,20,50,.5);-webkit-backdrop-filter:blur(5px);backdrop-filter:blur(5px);align-items:center;justify-content:center;animation:gaFadeIn .25s ease;}
+.ga-overlay.open{display:flex;}
+@keyframes gaFadeIn{from{opacity:0}to{opacity:1}}
+@keyframes gaSlideUp{from{transform:translateY(24px) scale(.97);opacity:0}to{transform:translateY(0) scale(1);opacity:1}}
+.ga-box{background:#fff;border-radius:16px;max-width:500px;width:92%;max-height:88vh;overflow-y:auto;padding:0;position:relative;box-shadow:0 20px 60px rgba(0,0,0,.2);animation:gaSlideUp .3s ease;}
+.ga-box::-webkit-scrollbar{width:5px;}.ga-box::-webkit-scrollbar-thumb{background:#cbd5e1;border-radius:10px;}
+.ga-header{position:sticky;top:0;z-index:1;background:linear-gradient(135deg,var(--secondary-color,#0d4593) 0%,#1a5fb4 100%);padding:1.4rem 1.6rem 1.2rem;border-radius:16px 16px 0 0;color:#fff;}
+.ga-header h3{margin:0;font-size:1.1rem;font-weight:700;display:flex;align-items:center;gap:.45rem;}
+.ga-header h3 .ga-icon{width:28px;height:28px;background:rgba(255,255,255,.18);border-radius:8px;display:flex;align-items:center;justify-content:center;font-size:.95rem;}
+.ga-header p{margin:.3rem 0 0;font-size:.78rem;opacity:.82;}
+.ga-close{position:absolute;top:1rem;right:1rem;width:30px;height:30px;border-radius:50%;border:none;background:rgba(255,255,255,.15);color:#fff;font-size:1.2rem;cursor:pointer;display:flex;align-items:center;justify-content:center;transition:background .2s;}
+.ga-close:hover{background:rgba(255,255,255,.3);}
+.ga-form-wrap{padding:1.4rem 1.6rem 1.6rem;}
+.ga-error{display:none;font-size:.8rem;color:var(--primary-color,#e63946);background:rgba(230,57,70,.06);border:1px solid rgba(230,57,70,.15);border-radius:8px;padding:.5rem .75rem;margin-bottom:.85rem;line-height:1.4;}
+.ga-success{display:none;text-align:center;padding:2rem 1rem;}
+.ga-success .ga-check{width:56px;height:56px;border-radius:50%;background:linear-gradient(135deg,#16a34a,#22c55e);color:#fff;font-size:1.6rem;display:flex;align-items:center;justify-content:center;margin:0 auto .8rem;}
+.ga-success h4{color:var(--secondary-color,#0d4593);margin:0 0 .35rem;font-size:1.05rem;}
+.ga-success p{font-size:.82rem;color:var(--text-light,#4a5568);line-height:1.5;margin:0;}
+.ga-field{margin-bottom:.75rem;}
+.ga-field label{display:block;font-size:.78rem;font-weight:600;color:var(--text-color,#001848);margin-bottom:.3rem;}
+.ga-field label .req{color:var(--primary-color,#e63946);margin-left:2px;}
+.ga-field input,.ga-field textarea{width:100%;padding:.5rem .7rem;border:1.5px solid #e2e8f0;border-radius:8px;font-size:.85rem;font-family:inherit;background:#f8fafc;color:var(--text-color,#001848);transition:border-color .2s,box-shadow .2s;box-sizing:border-box;}
+.ga-field input:focus,.ga-field textarea:focus{outline:none;border-color:var(--secondary-color,#0d4593);box-shadow:0 0 0 3px rgba(13,69,147,.08);background:#fff;}
+.ga-field .intl-phone-wrap{border:1.5px solid #e2e8f0;border-radius:8px;background:#f8fafc;}
+.ga-field .intl-phone-wrap:focus-within{border-color:var(--secondary-color,#0d4593);box-shadow:0 0 0 3px rgba(13,69,147,.08);}
+.ga-field .intl-phone-select{font-size:.78rem;padding:.4rem 3px .4rem 5px;width:64px;min-width:64px;max-width:64px;border-radius:8px 0 0 8px;}
+.ga-field .intl-phone-input{font-size:.85rem;padding:.5rem .7rem;}
+.ga-field input::placeholder,.ga-field textarea::placeholder{color:#94a3b8;}
+.ga-field textarea{resize:vertical;min-height:80px;}
+.ga-field small{display:block;margin-top:.2rem;font-size:.7rem;color:#94a3b8;}
+.ga-row{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;}
+.ga-submit{width:100%;padding:.65rem;background:linear-gradient(135deg,var(--secondary-color,#0d4593),#1a5fb4);color:#fff;border:none;border-radius:10px;font-weight:700;font-size:.9rem;cursor:pointer;font-family:inherit;transition:transform .15s,box-shadow .15s;margin-top:.3rem;}
+.ga-submit:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(13,69,147,.3);}
+.ga-submit:active{transform:translateY(0);}
+.ga-submit:disabled{opacity:.6;cursor:not-allowed;transform:none;box-shadow:none;}
+</style>
+
+<div id="grant-apply-modal" class="ga-overlay">
+  <div class="ga-box">
+    <div class="ga-header">
+      <button class="ga-close" onclick="closeGrantApplyModal()">&times;</button>
+      <h3 id="grant-apply-title"><span class="ga-icon">📋</span> Apply for Grant</h3>
+      <p id="grant-apply-subtitle">Complete the form below to submit your application.</p>
+    </div>
+    <div class="ga-form-wrap">
+      <div id="grant-apply-error" class="ga-error"></div>
+      <div id="grant-apply-success" class="ga-success">
+        <div class="ga-check">✓</div>
+        <h4>Application Submitted!</h4>
+        <p>Your application has been received and is under review.<br>We will contact you at the email provided.</p>
+      </div>
+      <form id="grant-apply-form" onsubmit="submitGrantApplication(event)">
+        <input type="hidden" id="ga-grant-id">
+        <div class="ga-row">
+          <div class="ga-field">
+            <label>Full Name <span class="req">*</span></label>
+            <input type="text" id="ga-name" required placeholder="e.g. Dr. John Doe">
+          </div>
+          <div class="ga-field">
+            <label>Email <span class="req">*</span></label>
+            <input type="email" id="ga-email" required placeholder="you@institution.ac.ug">
+          </div>
+        </div>
+        <div class="ga-field">
+          <label>Phone</label>
+          <input type="tel" id="ga-phone">
+        </div>
+        <div class="ga-row">
+          <div class="ga-field">
+            <label>Institution / Affiliation</label>
+            <input type="text" id="ga-institution" placeholder="e.g. Makerere University">
+          </div>
+        </div>
+        <div class="ga-field">
+          <label>Brief Proposal / Statement of Interest</label>
+          <textarea id="ga-proposal" rows="4" placeholder="Describe your research interest, objectives, and how this grant will support your work…"></textarea>
+          <small>Max 500 words recommended</small>
+        </div>
+        <button type="submit" id="ga-submit-btn" class="ga-submit">Submit Application →</button>
+      </form>
+    </div>
+  </div>
 </div>
-<?php endif; ?>
 
-<div class="receipt">
+<footer></footer>
 
-    <!-- Actions dropdown -->
-    <div class="actions-wrap">
-        <button class="actions-trigger" id="actionsBtn" aria-label="Actions">
-            <svg width="16" height="16" fill="none" viewBox="0 0 24 24"><circle cx="12" cy="5" r="1.5" fill="currentColor"/><circle cx="12" cy="12" r="1.5" fill="currentColor"/><circle cx="12" cy="19" r="1.5" fill="currentColor"/></svg>
-        </button>
-        <div class="actions-menu" id="actionsMenu">
-            <button onclick="window.print()">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M6 9V2h12v7M6 18H4a2 2 0 01-2-2v-5a2 2 0 012-2h16a2 2 0 012 2v5a2 2 0 01-2 2h-2" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/><rect x="6" y="14" width="12" height="8" rx="1" stroke="currentColor" stroke-width="1.5"/></svg>
-                Print
-            </button>
-            <button onclick="downloadReceipt()">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Download
-            </button>
-            <button onclick="shareReceipt()">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><circle cx="18" cy="5" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="6" cy="12" r="3" stroke="currentColor" stroke-width="1.5"/><circle cx="18" cy="19" r="3" stroke="currentColor" stroke-width="1.5"/><path d="M8.59 13.51l6.83 3.98M15.41 6.51l-6.82 3.98" stroke="currentColor" stroke-width="1.5"/></svg>
-                Share
-            </button>
-            <a href="membership.html">
-                <svg width="15" height="15" fill="none" viewBox="0 0 24 24"><path d="M19 12H5M12 19l-7-7 7-7" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
-                Back
-            </a>
-        </div>
-    </div>
-
-    <!-- Header -->
-    <div class="receipt-header">
-        <img class="header-logo" src="img/logo2.png" alt="HOSU Logo">
-        <div class="header-text">
-            <div class="org-name">Hematology &amp; Oncology Society of Uganda</div>
-            <div class="doc-type"><?= htmlspecialchars($docTitle) ?></div>
-        </div>
-    </div>
-
-    <div class="accent-line"></div>
-
-    <!-- Status -->
-    <div class="receipt-status">
-        <span class="status-pill">
-            <?= $status === 'Verified' ? '&#10003;' : ($status === 'Rejected' ? '&#10007;' : '&#9711;') ?>
-            <?= $status ?>
-        </span>
-        <span class="receipt-date"><?= $paidDate ?></span>
-    </div>
-
-    <!-- Body -->
-    <div class="receipt-body">
-        <div class="section-label"><?= $paymentType === 'event_registration' ? 'Registrant Details' : 'Member Details' ?></div>
-        <div class="info-grid">
-            <div class="info-cell">
-                <div class="lbl">Full Name</div>
-                <div class="val"><?= $memberName ?></div>
-            </div>
-            <div class="info-cell">
-                <div class="lbl">Email</div>
-                <div class="val"><?= $memberEmail ?></div>
-            </div>
-            <div class="info-cell">
-                <div class="lbl">Phone</div>
-                <div class="val"><?= $memberPhone ?: '—' ?></div>
-            </div>
-            <div class="info-cell">
-                <div class="lbl">Profession</div>
-                <div class="val"><?= $profession ?: '—' ?></div>
-            </div>
-            <?php if ($institution): ?>
-            <div class="info-cell">
-                <div class="lbl">Institution</div>
-                <div class="val"><?= $institution ?></div>
-            </div>
-            <?php endif; ?>
-            <?php if ($paymentType === 'membership'): ?>
-            <div class="info-cell">
-                <div class="lbl">Membership Plan</div>
-                <div class="val"><?= $periodLabel ?> Membership</div>
-            </div>
-            <div class="info-cell">
-                <div class="lbl">Valid Until</div>
-                <div class="val highlight" style="color:<?= $memPeriod === 'lifetime' ? '#0d4593' : '#16a34a' ?>"><?= $memExpiry ?></div>
-            </div>
-            <?php elseif ($paymentType === 'event_registration' && $eventTitle): ?>
-            <div class="info-cell" style="grid-column:1/-1;">
-                <div class="lbl">Event</div>
-                <div class="val"><?= $eventTitle ?><?= $eventDate ? ' &middot; ' . $eventDate : '' ?></div>
-            </div>
-            <?php endif; ?>
-        </div>
-    </div>
-
-    <!-- QR -->
-    <div class="qr-section">
-        <div class="qr-box">
-            <img src="<?= $qrUrl ?>" alt="QR Code — Receipt <?= $receiptNum ?>">
-        </div>
-        <div class="qr-meta">
-            <div class="receipt-num-display"><?= $receiptNum ?></div>
-            <div class="qr-hint">Scan QR to verify this receipt online</div>
-        </div>
-    </div>
-
-    <!-- Footer -->
-    <div class="receipt-footer">
-        Official receipt &mdash; Hematology &amp; Oncology Society of Uganda
-        &middot; <a href="mailto:info@hosu.or.ug">info@hosu.or.ug</a>
-        &middot; <a href="https://hosu.or.ug">www.hosu.or.ug</a>
-
-</div>
+<button class="back-to-top" aria-label="Back to top">↑</button>
 
 <script>
-// Dropdown toggle
-const btn = document.getElementById('actionsBtn');
-const menu = document.getElementById('actionsMenu');
-btn.addEventListener('click', function(e) {
-    e.stopPropagation();
-    menu.classList.toggle('open');
-});
-document.addEventListener('click', function() { menu.classList.remove('open'); });
 
-// Download as image (uses print as fallback)
-function downloadReceipt() {
-    menu.classList.remove('open');
-    window.print();
-}
 
-// Share via Web Share API or fallback to clipboard
-function shareReceipt() {
-    menu.classList.remove('open');
-    const url = window.location.href;
-    if (navigator.share) {
-        navigator.share({ title: 'HOSU Receipt <?= addslashes($receiptNum) ?>', url: url });
-    } else if (navigator.clipboard) {
-        navigator.clipboard.writeText(url).then(function() {
-            const t = btn.cloneNode(false);
-            btn.style.background = '#dcfce7';
-            setTimeout(function() { btn.style.background = ''; }, 1200);
+    window.addEventListener('scroll', function() {
+        if (window.pageYOffset > 300) {
+            backToTopBtn.classList.add('visible');
+        } else {
+            backToTopBtn.classList.remove('visible');
+        }
+    });
+
+    backToTopBtn.addEventListener('click', function() {
+        window.scrollTo({ top: 0, behavior: 'smooth' });
+    });
+
+    let heroIndex = 0;
+    const heroSlides = document.querySelectorAll('.hero-slide');
+    const heroBgs = document.querySelectorAll('.hero-background');
+    const heroDots = document.querySelectorAll('.hero-dot');
+
+    function showHeroSlide(index) {
+        document.querySelectorAll('.hero-float-popup.active').forEach(function(p) {
+            p.classList.remove('active');
         });
+
+        heroSlides.forEach(function(s) { s.classList.remove('active'); });
+        heroBgs.forEach(function(b) { b.classList.remove('active'); });
+        heroDots.forEach(function(d) { d.classList.remove('active'); });
+
+        heroSlides[index].classList.add('active');
+        heroBgs[index % heroBgs.length].classList.add('active');
+        heroDots[index].classList.add('active');
+
+        heroIndex = index;
     }
-}
+
+    let heroTimer = setInterval(function() {
+        showHeroSlide((heroIndex + 1) % heroSlides.length);
+    }, 6000);
+
+    function resetHeroTimer() {
+        clearInterval(heroTimer);
+        heroTimer = setInterval(function() {
+            showHeroSlide((heroIndex + 1) % heroSlides.length);
+        }, 6000);
+    }
+
+    heroDots.forEach(function(dot) {
+        dot.addEventListener('click', function() {
+            showHeroSlide(parseInt(dot.dataset.index, 10));
+            resetHeroTimer();
+        });
+    });
+
+    const heroPopupData = {
+        'hematological-malignancies': {
+            title: 'Hematological Malignancies',
+            content: '<p>Investigating blood cancers including leukemia, lymphoma, and myeloma with focus on treatment access and outcomes in East Africa.</p>'
+                + '<p>Our blood-cancer research also addresses diagnosis timing, treatment pathways, and survivorship outcomes in local care settings.</p>'
+                + '<h4>Priority Areas</h4>'
+                + '<ul>'
+                + '<li><strong>Leukemia Pathways</strong> — Earlier detection and referral optimization.</li>'
+                + '<li><strong>Lymphoma Outcomes</strong> — Regimen response tracking in regional centers.</li>'
+                + '<li><strong>Myeloma Care</strong> — Access barriers and continuity-of-care research.</li>'
+                + '</ul>'
+        },
+        'clinical-trials': {
+            title: 'Clinical Trials',
+            content: '<p>Conducting and participating in clinical trials to evaluate new treatments, improve protocols, and expand care options for Ugandan patients.</p>'
+                + '<p>Our clinical trials also evaluate practical treatment pathways in local contexts while preserving international quality standards.</p>'
+                + '<h4>Key Areas</h4>'
+                + '<ul>'
+                + '<li><strong>Protocol Adaptation</strong> — Context-aware trial designs for Uganda.</li>'
+                + '<li><strong>Outcome Monitoring</strong> — Real-world patient response tracking.</li>'
+                + '<li><strong>Access Equity</strong> — Expanding participation across regions.</li>'
+                + '</ul>'
+        },
+        'epidemiology': {
+            title: 'Cancer Epidemiology',
+            content: '<p>Studying cancer patterns, risk factors, and prevalence across Uganda to inform targeted prevention and early detection strategies.</p>'
+                + '<p>Population-level cancer intelligence helps target prevention, screening, and treatment resource allocation.</p>'
+                + '<h4>Focus</h4>'
+                + '<ul>'
+                + '<li><strong>Incidence Trends</strong> — Site-specific burden mapping.</li>'
+                + '<li><strong>Risk Profiles</strong> — Behavioral and environmental factors.</li>'
+                + '<li><strong>Registry Strengthening</strong> — Better data quality and completeness.</li>'
+                + '</ul>'
+        },
+        'palliative-supportive-care': {
+            title: 'Palliative & Supportive Care',
+            content: '<p>Researching pain management, quality of life, and holistic care approaches for patients with advanced cancers.</p>'
+                + '<p>Supportive-care research improves symptom management and patient experience across the full oncology journey.</p>'
+                + '<h4>Approach</h4>'
+                + '<ul>'
+                + '<li><strong>Pain & Symptom Control</strong> — Evidence-based relief protocols.</li>'
+                + '<li><strong>Psychosocial Support</strong> — Family and caregiver outcome tracking.</li>'
+                + '<li><strong>Integrated Services</strong> — Embedding supportive care into oncology workflows.</li>'
+                + '</ul>'
+        }
+    };
+
+    function toggleFloatPopup(link, specialty) {
+        const popup = link.querySelector('.hero-float-popup');
+        if (!popup) return;
+
+        if (popup.classList.contains('active')) {
+            popup.classList.remove('active');
+            resetHeroTimer();
+            return;
+        }
+
+        closeAllFloatPopups();
+        const data = heroPopupData[specialty];
+        if (!data) return;
+
+        popup.innerHTML = '<button class="float-popup-close" onclick="event.stopPropagation(); closeAllFloatPopups();">&times;</button>'
+            + '<h3>' + data.title + '</h3>' + data.content;
+
+        popup.classList.add('active');
+        clearInterval(heroTimer);
+        setTimeout(function() {
+            popup.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        }, 50);
+    }
+
+    function closeAllFloatPopups() {
+        document.querySelectorAll('.hero-float-popup.active').forEach(function(p) {
+            p.classList.remove('active');
+        });
+        resetHeroTimer();
+    }
+
+    document.addEventListener('click', function(e) {
+        if (!e.target.closest('.hero-readmore')) {
+            closeAllFloatPopups();
+        }
+    });
+
+    /* ── Dynamic Publications & Grants ── */
+    (function() {
+        function loadPublications() {
+            fetch('api.php?action=get_publications')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var box = document.getElementById('publications-container');
+                    if (!box) return;
+                    var list = d.publications || d.data || [];
+                    if (!d.success || list.length === 0) {
+                        box.innerHTML = '<p style="font-size:0.82rem;color:var(--text-light);padding:1rem;">No publications yet.</p>';
+                        return;
+                    }
+                    box.innerHTML = list.map(function(p) {
+                        var dateStr = p.pub_date || '';
+                        return '<article class="publication-card">'
+                            + '<div class="publication-meta">'
+                            + '<span class="publication-tag">' + (p.pub_type || 'Article') + '</span>'
+                            + (dateStr ? '<span class="publication-date">' + dateStr + '</span>' : '')
+                            + '</div>'
+                            + '<h3 class="publication-title">' + escH(p.title) + '</h3>'
+                            + '<p class="publication-authors">' + escH(p.authors || '') + '</p>'
+                            + (p.link ? '<a href="' + escH(p.link) + '" class="publication-link" target="_blank" rel="noopener">' + escH(p.link_label || 'Read more →') + '</a>' : '')
+                            + '</article>';
+                    }).join('');
+                })
+                .catch(function() {
+                    var box = document.getElementById('publications-container');
+                    if (box) box.innerHTML = '<p style="font-size:0.82rem;color:var(--text-light);padding:1rem;">Unable to load publications.</p>';
+                });
+        }
+
+        function loadGrants() {
+            fetch('api.php?action=get_grants')
+                .then(function(r) { return r.json(); })
+                .then(function(d) {
+                    var box = document.getElementById('grants-container');
+                    if (!box) return;
+                    var list = d.grants || d.data || [];
+                    if (!d.success || list.length === 0) {
+                        box.innerHTML = '<p style="font-size:0.82rem;color:var(--text-light);padding:1rem;">No grants available at this time.</p>';
+                        return;
+                    }
+                    box.innerHTML = list.map(function(g) {
+                        var statusLabel = g.status === 'open' ? 'Open for Applications'
+                            : g.status === 'closing' ? 'Closing Soon' : 'Closed';
+                        var deadlineStr = g.deadline || '';
+                        var amountStr = g.amount ? (g.currency || 'UGX') + ' ' + Number(g.amount).toLocaleString() : '';
+                        return '<article class="grant-card">'
+                            + '<div class="grant-status"><span class="status-dot"></span> ' + statusLabel + '</div>'
+                            + '<div class="grant-header">'
+                            + '<h3>' + escH(g.title) + '</h3>'
+                            + (amountStr ? '<span class="grant-amount">' + amountStr + '</span>' : '')
+                            + '</div>'
+                            + (deadlineStr ? '<p class="grant-deadline">&#128197; Deadline: ' + deadlineStr + '</p>' : '')
+                            + (g.description ? '<p>' + escH(g.description) + '</p>' : '')
+                            + (g.status !== 'closed' ? '<a href="#" class="grant-apply" onclick="openGrantApplyModal(' + g.id + ',\'' + escH(g.title).replace(/'/g, "\\'") + '\');return false;">Apply Now &rarr;</a>' : '')
+                            + '</article>';
+                    }).join('');
+                })
+                .catch(function() {
+                    var box = document.getElementById('grants-container');
+                    if (box) box.innerHTML = '<p style="font-size:0.82rem;color:var(--text-light);padding:1rem;">Unable to load grants.</p>';
+                });
+        }
+
+        function escH(s) {
+            var d = document.createElement('div');
+            d.textContent = s;
+            return d.innerHTML;
+        }
+
+        loadPublications();
+        loadGrants();
+    })();
+
+    /* ── Grant Application Modal ── */
+    window.openGrantApplyModal = function(grantId, grantTitle) {
+        document.getElementById('ga-grant-id').value = grantId;
+        document.getElementById('grant-apply-title').innerHTML = '<span class="ga-icon">📋</span> ' + grantTitle;
+        document.getElementById('grant-apply-subtitle').textContent = 'Complete the form below to submit your application.';
+        document.getElementById('grant-apply-form').style.display = '';
+        document.getElementById('grant-apply-success').style.display = 'none';
+        document.getElementById('grant-apply-error').style.display = 'none';
+        document.getElementById('grant-apply-form').reset();
+        var modal = document.getElementById('grant-apply-modal');
+        modal.classList.add('open');
+    };
+
+    window.closeGrantApplyModal = function() {
+        document.getElementById('grant-apply-modal').classList.remove('open');
+    };
+
+    document.getElementById('grant-apply-modal').addEventListener('click', function(e) {
+        if (e.target === this) closeGrantApplyModal();
+    });
+
+    window.submitGrantApplication = function(e) {
+        e.preventDefault();
+        var errEl = document.getElementById('grant-apply-error');
+        var btn   = document.getElementById('ga-submit-btn');
+        errEl.style.display = 'none';
+
+        var fd = new FormData();
+        fd.append('action', 'submit_grant_application');
+        fd.append('grant_id', document.getElementById('ga-grant-id').value);
+        fd.append('full_name', document.getElementById('ga-name').value.trim());
+        fd.append('email', document.getElementById('ga-email').value.trim());
+        fd.append('phone', document.getElementById('ga-phone').value.trim());
+        fd.append('institution', document.getElementById('ga-institution').value.trim());
+        fd.append('proposal', document.getElementById('ga-proposal').value.trim());
+
+        btn.textContent = 'Submitting…';
+        btn.disabled = true;
+
+        fetch('api.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function(r) { return r.json(); })
+            .then(function(d) {
+                if (d.success) {
+                    document.getElementById('grant-apply-form').style.display = 'none';
+                    document.getElementById('grant-apply-success').style.display = '';
+                } else {
+                    errEl.textContent = d.error || 'Submission failed. Please try again.';
+                    errEl.style.display = 'block';
+                    btn.textContent = 'Submit Application';
+                    btn.disabled = false;
+                }
+            })
+            .catch(function() {
+                errEl.textContent = 'Connection error. Please try again.';
+                errEl.style.display = 'block';
+                btn.textContent = 'Submit Application';
+                btn.disabled = false;
+            });
+    };
+
+    // Load dynamic stats from DB
+    document.addEventListener('DOMContentLoaded', function() {
+        fetch('api.php?action=get_site_stats&page=research')
+            .then(function(r){return r.json();})
+            .then(function(d){
+                if(d.success && d.stats && d.stats.length){
+                    d.stats.forEach(function(s,i){
+                        var v=document.getElementById('rs-stat-'+i+'-val');
+                        var l=document.getElementById('rs-stat-'+i+'-lbl');
+                        if(v)v.textContent=s.stat_value;
+                        if(l)l.textContent=s.stat_label;
+                    });
+                }
+            }).catch(function(){});
+    });
 </script>
+<script src="intl-phone.js?v=2026040404"></script>
+<script src="shared-components.js?v=2026040701"></script>
+<script src="shared-login.js?v=2026040404"></script>
+<script src="donate-float.js?v=2026040404"></script>
 </body>
 </html>
