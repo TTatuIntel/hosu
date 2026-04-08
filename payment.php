@@ -16,7 +16,6 @@ if (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') {
 session_start();
 header("Content-Type: application/json");
 header("X-Content-Type-Options: nosniff");
-header("X-Frame-Options: DENY");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 
@@ -419,9 +418,20 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
-            $ppDescription = $purpose
-                ? 'HOSU - ' . $purpose
-                : 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+            // Build a clear description so users see exactly what they're paying for on phone
+            $typeLabels = [
+                'membership'         => 'Membership',
+                'donation'           => 'Donation',
+                'event_registration' => 'Event Registration',
+            ];
+            $typeLabel = $typeLabels[$type] ?? ucfirst(str_replace('_', ' ', $type));
+            if ($purpose) {
+                $ppDescription = 'HOSU ' . $typeLabel . ' - ' . $purpose;
+            } else {
+                $ppDescription = 'HOSU ' . $typeLabel;
+            }
+            // PesaPal limits description to 100 chars
+            $ppDescription = mb_substr($ppDescription, 0, 100);
 
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
@@ -520,9 +530,20 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
-            $ppDescription = $purpose
-                ? 'HOSU - ' . $purpose
-                : 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+            // Build a clear description so users see exactly what they're paying for on phone
+            $typeLabels = [
+                'membership'         => 'Membership',
+                'donation'           => 'Donation',
+                'event_registration' => 'Event Registration',
+            ];
+            $typeLabel = $typeLabels[$type] ?? ucfirst(str_replace('_', ' ', $type));
+            if ($purpose) {
+                $ppDescription = 'HOSU ' . $typeLabel . ' - ' . $purpose;
+            } else {
+                $ppDescription = 'HOSU ' . $typeLabel;
+            }
+            // PesaPal limits description to 100 chars
+            $ppDescription = mb_substr($ppDescription, 0, 100);
 
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,

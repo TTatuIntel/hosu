@@ -68,8 +68,7 @@
                 + '<input type="password" id="lfp-pass" placeholder="Enter password" autocomplete="current-password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid var(--gray-300,#d1d5db);border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
                 + '<button id="lfp-submit" onclick="doLogin()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Sign In</button>'
                 + '<div id="lfp-lockout" style="display:none;font-size:0.73rem;color:#92400e;background:#fef3c7;border-radius:6px;padding:0.4rem 0.6rem;margin-top:0.45rem;text-align:center;"></div>'
-                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>'
-                + '<div style="text-align:center;margin-top:0.3rem;font-size:0.72rem;color:var(--text-light);">New member? <a href="register.html" style="color:var(--secondary-color);font-weight:600;">Register</a></div>';
+                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>';
         }
     }
 

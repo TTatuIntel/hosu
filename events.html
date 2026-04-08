@@ -1124,23 +1124,15 @@ footer {
                         <div id="reg-fee-display">Registration Fee: <span id="reg-fee-amount"></span></div>
                         <label class="reg-payment-label">Payment Method <span class="reg-payment-required">*</span></label>
                         <div class="reg-pay-chips" id="reg-pay-chips">
-                            <button type="button" class="reg-pay-chip" data-method="bank" onclick="window._regSelectPay('bank')">
-                                <span class="reg-chip-icon">&#127974;</span> Bank
-                            </button>
-                            <button type="button" class="reg-pay-chip" data-method="visa" onclick="window._regSelectPay('visa')">
-                                <span class="reg-chip-icon reg-chip-visa">VISA</span> Visa
-                            </button>
                             <button type="button" class="reg-pay-chip reg-mtn-chip" data-method="mtn" onclick="window._regSelectPay('mtn')">
                                 <img src="img/mtn.png" alt="MTN" class="reg-chip-img"> MTN
                             </button>
                             <button type="button" class="reg-pay-chip reg-airtel-chip" data-method="airtel" onclick="window._regSelectPay('airtel')">
                                 <img src="img/airtel.png" alt="Airtel" class="reg-chip-img"> Airtel
                             </button>
-                        </div>
-                        <div id="reg-bank-info" class="reg-bank-info" style="display:none">
-                            <p><strong>Account:</strong> HOSU Limited</p>
-                            <p><strong>No:</strong> 9030025235214</p>
-                            <p><strong>Bank:</strong> Stanbic Bank, Mulago</p>
+                            <button type="button" class="reg-pay-chip" data-method="visa" onclick="window._regSelectPay('visa')">
+                                <span class="reg-chip-icon reg-chip-visa">VISA</span> Card / Bank
+                            </button>
                         </div>
                     </div>
                 </div>
@@ -2072,8 +2064,6 @@ footer {
             document.querySelectorAll('.reg-pay-chip').forEach(function(c) { c.classList.remove('selected'); });
             var chip = document.querySelector('.reg-pay-chip[data-method="' + method + '"]');
             if (chip) chip.classList.add('selected');
-            var bi = document.getElementById('reg-bank-info');
-            if (bi) bi.style.display = method === 'bank' ? 'block' : 'none';
         };
 
         window._regBackToForm = function() {
@@ -2216,7 +2206,7 @@ footer {
             // --- PAID events: use unified HosuPay ---
             if (!_regSelectedPay) { alert('Please select a payment method.'); return; }
 
-            var methodLabel = _regSelectedPay === 'mtn' ? 'MTN Mobile Money' : _regSelectedPay === 'airtel' ? 'Airtel Money' : _regSelectedPay === 'visa' ? 'Visa/Mastercard' : 'Bank Transfer';
+            var methodLabel = _regSelectedPay === 'mtn' ? 'MTN Mobile Money' : _regSelectedPay === 'airtel' ? 'Airtel Money' : _regSelectedPay === 'visa' ? 'Visa/Mastercard' : 'PesaPal';
 
             window.HosuPay.processPayment({
                 purpose: 'Event: ' + (ev.title || 'Registration'),

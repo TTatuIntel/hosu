@@ -1691,14 +1691,6 @@
 
             <form id="paymentForm">
                 <div class="pay-chips">
-                    <button type="button" class="pay-chip payment-option" onclick="selectPayment('bank')">
-                        <i class="fas fa-university"></i> Bank
-                        <input type="radio" name="paymentmode" value="bank" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="pay-chip payment-option" onclick="selectPayment('banktobank')">
-                        <i class="fas fa-exchange-alt"></i> Bank to Bank
-                        <input type="radio" name="paymentmode" value="banktobank" class="payment-radio-hidden">
-                    </button>
                     <button type="button" class="pay-chip payment-option mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
                         <img src="img/mtn.png" alt="MTN" onerror="this.style.display='none'"> MTN
                         <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
@@ -1708,7 +1700,7 @@
                         <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
                     </button>
                     <button type="button" class="pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')" style="border-color:#1a6dd5;">
-                        <i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> Visa / Mastercard
+                        <i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> Card / Bank
                         <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
                     </button>
                 </div>
@@ -2286,31 +2278,6 @@ async function initiateRealBankTransfer(transferDetails) {
                 return;
             }
 
-            if (selectedMethod === 'bank') {
-                window.HosuPay.processPayment({
-                    purpose: 'Membership (' + _selectedPlan.period + ')',
-                    type: 'membership',
-                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
-                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
-                    phone: getPhoneDigits(),
-                    amount: _selectedPlan.amount,
-                    method: 'bank'
-                });
-                return;
-            }
-            if (selectedMethod === 'banktobank') {
-                window.HosuPay.processPayment({
-                    purpose: 'Membership (' + _selectedPlan.period + ')',
-                    type: 'membership',
-                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
-                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
-                    phone: getPhoneDigits(),
-                    amount: _selectedPlan.amount,
-                    method: 'banktobank'
-                });
-                return;
-            }
-
             // ── Collect form data ──────────────────────────────────
             const formData   = new FormData(membershipForm);
             const formObject = {
@@ -2325,7 +2292,7 @@ async function initiateRealBankTransfer(transferDetails) {
             };
             _pendingFormData = formObject;
 
-            const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
+            const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : selectedMethod === 'visa' ? 'Visa/Mastercard' : 'PesaPal';
 
             window.HosuPay.processPayment({
                 purpose: 'Membership (' + _selectedPlan.period + ')',

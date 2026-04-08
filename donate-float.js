@@ -61,21 +61,12 @@
         '</div>' +
         '<div class="dfp-pay-divider">Payment Method</div>' +
         '<div class="dfp-pay-chips">' +
-            '<button type="button" class="dfp-pay-chip" data-method="bank">' +
-                '<i class="fas fa-university"></i> Bank</button>' +
-            '<button type="button" class="dfp-pay-chip" data-method="banktobank">' +
-                '<i class="fas fa-exchange-alt"></i> Bank to Bank</button>' +
             '<button type="button" class="dfp-pay-chip" data-method="visa">' +
-                '<i class="fab fa-cc-visa"></i> Visa</button>' +
+                '<i class="fab fa-cc-visa"></i> Card</button>' +
             '<button type="button" class="dfp-pay-chip dfp-mtn-chip" data-method="mtn">' +
                 '<img src="img/mtn.png" alt="MTN" class="dfp-chip-img"> MTN</button>' +
             '<button type="button" class="dfp-pay-chip dfp-airtel-chip" data-method="airtel">' +
                 '<img src="img/airtel.png" alt="Airtel" class="dfp-chip-img"> Airtel</button>' +
-        '</div>' +
-        '<div class="dfp-bank-info" style="display:none">' +
-            '<p><strong>Account:</strong> HOSU Limited</p>' +
-            '<p><strong>No:</strong> 9030025235214</p>' +
-            '<p><strong>Bank:</strong> Stanbic Bank, Mulago</p>' +
         '</div>' +
         '<button class="dfp-submit" disabled>Process Payment</button>' +
         '<div class="dfp-process-overlay" style="display:none">' +
@@ -136,8 +127,6 @@
                 popup.querySelectorAll('.dfp-pay-chip').forEach(function (c) { c.classList.remove('selected'); });
                 chip.classList.add('selected');
                 st.method = chip.getAttribute('data-method');
-                var bi = popup.querySelector('.dfp-bank-info');
-                if (bi) bi.style.display = (st.method === 'bank' || st.method === 'banktobank') ? 'block' : 'none';
                 validate(popup);
             });
         });
@@ -170,8 +159,6 @@
             popup.querySelectorAll('.dfp-pay-chip').forEach(function(c){ c.classList.remove('selected'); });
             var chip = popup.querySelector('.dfp-pay-chip[data-method="' + net + '"]');
             if (chip) { chip.classList.add('selected'); st.method = net; }
-            var bi = popup.querySelector('.dfp-bank-info');
-            if (bi) bi.style.display = 'none';
             validate(popup);
         }
         var dfpPhoneEl = popup.querySelector('.dfp-phone');
