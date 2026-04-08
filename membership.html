@@ -2278,10 +2278,13 @@ async function initiateRealBankTransfer(transferDetails) {
                               : selectedMethod === 'airtel' ? 'Airtel Money'
                               : (selectedMethod === 'bank' || selectedMethod === 'banktobank') ? 'Bank Transfer'
                               : 'Visa/Mastercard';
+            const _mPlanLabels = {'1_year':'1-Year Plan','2_years':'2-Year Plan','3_years':'3-Year Plan','lifetime':'Lifetime Plan'};
+            const _payPurpose  = 'HOSU Membership \u2014 ' + (_mPlanLabels[_selectedPlan.period] || _selectedPlan.period);
 
             HosuPay.open({
                 step:      1,
                 title:     'Processing Membership',
+                purpose:   _payPurpose,
                 message:   'Preparing your registration\u2026',
                 onSuccess: resetForm,
                 onCancel:  function () {}
@@ -2390,6 +2393,7 @@ async function initiateRealBankTransfer(transferDetails) {
                     if (payRes.redirect_url) {
                         HosuPay.openIframe({
                             redirectUrl:  payRes.redirect_url,
+                            purpose:      _payPurpose,
                             phone:        formObject.contact,
                             amount:       formObject.amount,
                             trackingId:   payRes.tracking_id || '',

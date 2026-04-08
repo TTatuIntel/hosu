@@ -38,7 +38,10 @@
             'margin-bottom:18px}' +
             '#_hpBrand span{font-size:.75rem;font-weight:700;letter-spacing:.06em;' +
             'color:#c0392b;text-transform:uppercase}' +
-            '#_hpTitle{color:#0d4593;font-size:1.12rem;font-weight:700;margin:0 0 20px;line-height:1.35}' +
+            '#_hpTitle{color:#0d4593;font-size:1.12rem;font-weight:700;margin:0 0 10px;line-height:1.35}' +
+            '#_hpSummary{display:none;background:#f0f7ff;border:1px solid #c8d9ff;' +
+            'border-radius:8px;padding:6px 12px;margin:0 0 18px;font-size:.78rem;' +
+            'font-weight:700;color:#0d4593;text-align:center;line-height:1.4}' +
             /* Steps */
             '#_hpSteps{display:flex;align-items:center;justify-content:center;' +
             'margin:0 0 24px;gap:0}' +
@@ -98,6 +101,7 @@
                     '<span>HOSU &mdash; Secure Payment</span>' +
                 '</div>' +
                 '<div id="_hpTitle">Processing Payment</div>' +
+                '<div id="_hpSummary"></div>' +
                 '<div id="_hpSteps">' +
                     '<div class="hp-sd hp-a" id="_hpD1">1</div>' +
                     '<div class="hp-sl" id="_hpL1"></div>' +
@@ -124,7 +128,7 @@
         iw.innerHTML =
             '<div id="_hpIfrBar">' +
                 '<div id="_hpIfrBarTxt">' +
-                    '<strong>Complete Your Payment \u2014 HOSU</strong>' +
+                    '<strong id="_hpIfrTitle">Complete Your Payment \u2014 HOSU</strong>' +
                     '<span id="_hpIfrInfo"></span>' +
                 '</div>' +
                 '<button id="_hpIfrX">\u00D7</button>' +
@@ -240,6 +244,8 @@
 
     /* ── Open PesaPal iframe overlay ──────────────────────────── */
     function _openIfr(opts) {
+        var ht = _g('_hpIfrTitle');
+        if (ht) ht.textContent = opts.purpose ? opts.purpose + ' \u2014 HOSU' : 'Complete Your Payment \u2014 HOSU';
         _g('_hpIfrInfo').textContent =
             '\uD83D\uDCF1 ' + _fmtPhone(opts.phone) +
             (opts.amount ? ' \u00B7 UGX ' + Number(opts.amount).toLocaleString() : '');
@@ -334,6 +340,8 @@
         _cbCancel  = opts.onCancel  || null;
         _stopAll();
         var t = _g('_hpTitle'); if (t) t.textContent = opts.title || 'Processing Payment';
+        var ps = _g('_hpSummary');
+        if (ps) { if (opts.purpose) { ps.textContent = '\uD83D\uDCCB ' + opts.purpose; ps.style.display = ''; } else { ps.style.display = 'none'; } }
         _step(opts.step || 1);
         _spin(opts.spinner !== false);
         _msg(opts.message || 'Please wait\u2026', opts.msgColor);

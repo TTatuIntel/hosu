@@ -2191,7 +2191,7 @@ footer {
             if (_regSelectedPay === 'visa' || _regSelectedPay === 'bank') {
                 _regReceiptToken = null;
                 _regRegistrantId = null;
-                HosuPay.open({ step: 1, title: 'Event Registration', message: 'Preparing registration\u2026', onSuccess: _regOnSuccess });
+                HosuPay.open({ step: 1, title: 'Event Registration', purpose: 'Event Registration \u2014 ' + (ev.title || 'HOSU Event'), message: 'Preparing registration\u2026', onSuccess: _regOnSuccess });
 
                 try {
                     var vFd = new FormData();
@@ -2224,6 +2224,7 @@ footer {
                     if (vPay.redirect_url) {
                         HosuPay.openIframe({
                             redirectUrl:  vPay.redirect_url,
+                            purpose:      'Event Registration \u2014 ' + (ev.title || 'HOSU Event'),
                             phone:        phone,
                             amount:       amount,
                             trackingId:   vPay.tracking_id || '',
@@ -2242,7 +2243,7 @@ footer {
             _regTrackingId   = null;
             var methodLabel  = _regSelectedPay === 'mtn' ? 'MTN Mobile Money' : 'Airtel Money';
             var channel      = _regSelectedPay === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
-            HosuPay.open({ step: 1, title: 'Event Registration', message: 'Preparing registration\u2026', onSuccess: _regOnSuccess });
+            HosuPay.open({ step: 1, title: 'Event Registration', purpose: 'Event Registration \u2014 ' + (ev.title || 'HOSU Event'), message: 'Preparing registration\u2026', onSuccess: _regOnSuccess });
 
             try {
                 var preFd = new FormData();
@@ -2288,6 +2289,7 @@ footer {
                 if (payRes.redirect_url) {
                     HosuPay.openIframe({
                         redirectUrl:  payRes.redirect_url,
+                        purpose:      'Event Registration \u2014 ' + (ev.title || 'HOSU Event'),
                         phone:        phone,
                         amount:       amount,
                         trackingId:   payRes.tracking_id || '',

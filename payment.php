@@ -418,11 +418,30 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
+            // Build a clear description shown on the phone payment prompt
+            $description = 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+            try {
+                if ($type === 'event_registration' && $regId) {
+                    $dStmt = $pdo->prepare('SELECT event_title FROM event_registrants WHERE id = ? LIMIT 1');
+                    $dStmt->execute([$regId]);
+                    $evTitle = $dStmt->fetchColumn();
+                    if ($evTitle) $description = 'HOSU Event: ' . mb_substr($evTitle, 0, 48);
+                } elseif ($type === 'membership' && $payId) {
+                    $dStmt = $pdo->prepare('SELECT membership_period FROM payments WHERE id = ? LIMIT 1');
+                    $dStmt->execute([$payId]);
+                    $mPeriod = $dStmt->fetchColumn();
+                    $pLabels = ['1_year' => '1-Year', '2_years' => '2-Year', '3_years' => '3-Year', 'lifetime' => 'Lifetime'];
+                    if ($mPeriod) $description = 'HOSU Membership: ' . ($pLabels[$mPeriod] ?? $mPeriod) . ' Plan';
+                } elseif ($type === 'donation') {
+                    $description = 'HOSU Donation: Cancer Care Uganda';
+                }
+            } catch (\Throwable $_dex) {}
+
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
                 'amount'          => $amount,
-                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'description'     => $description,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
                 'billing_address' => [
@@ -514,11 +533,30 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
+            // Build a clear description shown on the phone payment prompt
+            $description = 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+            try {
+                if ($type === 'event_registration' && $regId) {
+                    $dStmt = $pdo->prepare('SELECT event_title FROM event_registrants WHERE id = ? LIMIT 1');
+                    $dStmt->execute([$regId]);
+                    $evTitle = $dStmt->fetchColumn();
+                    if ($evTitle) $description = 'HOSU Event: ' . mb_substr($evTitle, 0, 48);
+                } elseif ($type === 'membership' && $payId) {
+                    $dStmt = $pdo->prepare('SELECT membership_period FROM payments WHERE id = ? LIMIT 1');
+                    $dStmt->execute([$payId]);
+                    $mPeriod = $dStmt->fetchColumn();
+                    $pLabels = ['1_year' => '1-Year', '2_years' => '2-Year', '3_years' => '3-Year', 'lifetime' => 'Lifetime'];
+                    if ($mPeriod) $description = 'HOSU Membership: ' . ($pLabels[$mPeriod] ?? $mPeriod) . ' Plan';
+                } elseif ($type === 'donation') {
+                    $description = 'HOSU Donation: Cancer Care Uganda';
+                }
+            } catch (\Throwable $_dex) {}
+
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
                 'amount'          => $amount,
-                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'description'     => $description,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
                 'channel'         => $channel,
