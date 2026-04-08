@@ -1,3 +1,4 @@
+# Codacy analysis must be run after any file edit, especially after editing membership.html for membership package logic.
 ---
     description: Configuration for AI behavior when interacting with Codacy's MCP Server
     applyTo: '**'
