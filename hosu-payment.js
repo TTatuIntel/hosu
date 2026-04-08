@@ -511,24 +511,31 @@
         /* Show processing modal */
         open({
             title: 'Processing ' + typeLabel,
-            purpose: purpose,
-            step: 1,
-            message: 'Preparing your ' + typeLabel.toLowerCase() + ' payment\u2026',
-            onSuccess: opts.onSuccess,
-            onError: opts.onError,
-            onCancel: opts.onCancel
-        });
-
-        /* Step 1: Pre-register */
-        var preUrl = opts.preRegUrl || 'api.php?action=pre_register';
-        var fd = new FormData();
-        fd.append('fullName', opts.name);
-        fd.append('email',    opts.email);
-        fd.append('phone',    opts.phone);
-        fd.append('amount',   opts.amount);
-        var extra = opts.preRegFields || {};
-        for (var k in extra) { if (extra.hasOwnProperty(k)) fd.append(k, extra[k]); }
-
+        /* Bank / Bank-to-Bank — show transfer instructions */
+        if (method === 'bank' || method === 'banktobank') {
+            open({
+                title: 'Bank Transfer',
+                purpose: 'HOSU \u2014 ' + purpose,
+                step: 1, spinner: false,
+                message: 'Transfer UGX ' + Number(opts.amount).toLocaleString() + ' to:',
+                submessage:
+                    '<div style="text-align:left;margin:0 auto 10px;padding:10px 12px;background:#f8fafc;border-radius:8px;border:1px solid #e2e8f0;max-width:320px;">' +
+                    '<strong>Account name:</strong><br>HEMATOLOGY AND ONCOLOGY SOCIETY OF UGANDA (HOSU) LIMITED<br><br>' +
+                    '<strong>Account number:</strong><br>9030025235214<br><br>' +
+                    '<strong>Bank Name:</strong><br>Stanbic Bank Uganda Limited<br>' +
+                    '<strong>Branch Name:</strong><br>Mulago Branch<br>' +
+                    '<strong>Swift Code:</strong><br>SBICUGKX<br>' +
+                    '</div>' +
+                    '<div style="margin:10px 0 0 0;font-size:0.97em;">Send proof of payment to ' +
+                    '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
+                    ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
+                    'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.' +
+                    '</div>',
+                onCancel: opts.onCancel
+            });
+            _btn(true, 'Close');
+            return;
+        }
         var preRes;
         try {
             var preRaw = await fetch(preUrl, { method: 'POST', body: fd });
@@ -568,6 +575,18 @@
             mFd.append('phone',         opts.phone);
             mFd.append('amount',        opts.amount);
             mFd.append('email',         opts.email);
+        if (method === 'mtn' || method === 'airtel') {
+            var isMtn        = method === 'mtn';
+            var channel      = isMtn ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
+            var merchantCode = isMtn ? '721212' : '4373226';
+            var netName      = isMtn ? 'MTN' : 'Airtel';
+
+            _msg('Sending ' + typeLabel + ' prompt to your ' + netName + ' phone\u2026');
+
+            var mFd = new FormData();
+            mFd.append('phone',         opts.phone);
+            mFd.append('amount',        opts.amount);
+            mFd.append('email',         opts.email);
             mFd.append('name',          opts.name);
             mFd.append('payment_id',    paymentId);
             mFd.append('registrant_id', registrantId);
@@ -581,29 +600,31 @@
             catch (e) { _showErr('Network error. Please try again.'); return; }
             if (mRes.error) { _showErr(mRes.error); return; }
 
-            // If PesaPal returns a redirect_url, open the iframe for the user to complete payment
+            /* Fallback: PesaPal redirect (some account configurations) */
             if (mRes.redirect_url) {
                 _msg('Redirecting to PesaPal\u2026');
                 _openIfr({
-                    redirectUrl: mRes.redirect_url,
-                    phone: opts.phone,
-                    amount: opts.amount,
-                    trackingId: mRes.tracking_id,
-                    payId: paymentId,
-                    registrantId: registrantId,
-                    receiptToken: receiptToken,
-                    purpose: purpose
+                    redirectUrl: mRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                    trackingId: mRes.tracking_id, payId: paymentId, registrantId: registrantId,
+                    receiptToken: receiptToken, purpose: 'HOSU \u2014 ' + purpose
                 });
                 return;
             }
 
-            // Otherwise, direct USSD push (API MoMo push)
+            /* USSD push sent — show instructions and poll */
             _step(2);
             _msg('\uD83D\uDCF1 Check your ' + netName + ' phone!');
             _sub(
-                '<strong style="color:#0d4593">' + typeLabel + ': ' + purpose + '</strong><br>' +
-                'Approve <strong>UGX ' + Number(opts.amount).toLocaleString() + '</strong> on your phone.<br>' +
-                '<small style="color:#94a3b8">You will see <strong>HOSU ' + typeLabel + '</strong> &middot; Merchant code <strong>' + merchantCode + '</strong></small>'
+                (isMtn
+                    ? '<div style="background:#fffbe6;border:1px solid #ffe58f;padding:8px 10px;border-radius:7px;margin-bottom:7px;text-align:left;max-width:320px;margin:0 auto 7px;">' +
+                        '<strong>MTN MoMo:</strong><br>Dial <b>*165*3#</b> and enter code <b>721212</b> when prompted.' +
+                    '</div>'
+                    : '<div style="background:#fffbe6;border:1px solid #ffe58f;padding:8px 10px;border-radius:7px;margin-bottom:7px;text-align:left;max-width:320px;margin:0 auto 7px;">' +
+                        '<strong>Airtel Money:</strong><br>Dial <b>*185*9#</b> and enter ID <b>4373226</b> when prompted.' +
+                    '</div>'
+                ) +
+                'Enter your PIN to approve <strong>UGX ' + Number(opts.amount).toLocaleString() + '</strong>.<br>' +
+                '<small style="color:#94a3b8">Merchant code <strong>' + merchantCode + '</strong> (HOSU)</small>'
             );
 
             _startPoll({
@@ -611,13 +632,7 @@
                 registrantId: registrantId, receiptToken: receiptToken,
                 maxPolls: 15, interval: 8000
             });
-            return;
         }
-
-        /* All other methods (visa, bank, banktobank) — PesaPal hosted page in iframe */
-        _msg('Connecting to PesaPal\u2026');
-        var vFd = new FormData();
-        vFd.append('payment_id',    paymentId);
         vFd.append('registrant_id', registrantId);
         vFd.append('receipt_token', receiptToken);
         vFd.append('amount',        opts.amount);
