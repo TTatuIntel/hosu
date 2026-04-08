@@ -537,12 +537,12 @@ switch ($action) {
                 if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([$trackingId, $regId]);
             }
 
-            if ($trackingId && empty($result['redirect_url'])) {
-                // Direct USSD push confirmed — poll using tracking_id
+            if ($trackingId) {
+                // Tracking ID available — always poll; never redirect user away for mobile money
                 echo json_encode(['success' => true, 'tracking_id' => $trackingId, 'status' => 'pending']);
             } elseif (!empty($result['redirect_url'])) {
-                // PesaPal wants redirect for this account setting — return redirect_url as fallback
-                echo json_encode(['success' => true, 'tracking_id' => $trackingId, 'redirect_url' => $result['redirect_url'], 'status' => 'redirect']);
+                // No tracking ID but PesaPal gave a hosted page — last-resort iframe fallback
+                echo json_encode(['success' => true, 'tracking_id' => '', 'redirect_url' => $result['redirect_url'], 'status' => 'redirect']);
             } else {
                 $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initiate mobile money payment. Please try again.');
                 error_log('pay_mobile failed: ' . json_encode($result));

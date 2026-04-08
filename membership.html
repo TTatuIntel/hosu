@@ -2428,9 +2428,8 @@ async function initiateRealBankTransfer(transferDetails) {
 
                     if (payRes.error) { showError(payRes.error); return; }
 
-                    // Fallback: PesaPal wants hosted page — embed inline, no full-page redirect
-                    if (payRes.redirect_url) {
-                        const _ifrTkId  = payRes.tracking_id || '';
+                    // Only show PesaPal iframe when there is truly no tracking_id
+                    if (!payRes.tracking_id && payRes.redirect_url) {
                         const _ifrPhone = formObject.contact.length >= 11 && !formObject.contact.startsWith('0')
                             ? '+' + formObject.contact
                             : formObject.contact.startsWith('0') ? '+256' + formObject.contact.slice(1) : '+256' + formObject.contact;
@@ -2440,18 +2439,19 @@ async function initiateRealBankTransfer(transferDetails) {
                         document.getElementById('modalSpinner').style.display  = 'none';
                         showMemberPesapalIframe(
                             payRes.redirect_url, _ifrPhone, formObject.amount,
-                            _ifrTkId, _paymentId || 0, _receiptToken || ''
+                            '', _paymentId || 0, _receiptToken || ''
                         );
                         return;
                     }
 
-                    // Direct USSD push sent — show countdown and poll
+                    // Direct USSD push sent — show in-app countdown and poll
                     const trackingId = payRes.tracking_id || '';
-                    _setStep(2);
-                    document.getElementById('modalMessage').textContent    = `📱 Check your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone!`;
-                    document.getElementById('modalSubMessage').innerHTML   = `Enter your mobile money PIN to approve the payment of <strong>UGX ${formObject.amount.toLocaleString()}</strong>.`;
+                    if (!trackingId) { showError('Could not initiate payment. Please try again.'); return; }
 
-                    // ── Poll check_mobile ──────────────────────────
+                    _setStep(2);
+                    document.getElementById('modalMessage').textContent    = `\uD83D\uDCF1 Check your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone!`;
+                    document.getElementById('modalSubMessage').innerHTML   = `Enter your mobile money PIN to approve <strong>UGX ${formObject.amount.toLocaleString()}</strong>.`;
+
                     const MAX_POLLS = 15;
                     const INTERVAL  = 8000;
                     _airtelPollActive = true;
@@ -2471,15 +2471,7 @@ async function initiateRealBankTransfer(transferDetails) {
 
                             if (result.status === 'completed') {
                                 _airtelPollActive = false;
-                                _setStep(3);
-                                document.getElementById('airtelCountdown').style.display = 'none';
-                                document.getElementById('modalSpinner').style.display    = 'none';
-                                document.getElementById('modalMessage').textContent = '✅ Payment confirmed!';
-                                document.getElementById('modalMessage').style.color = '#27ae60';
-                                document.getElementById('modalSubMessage').innerHTML = 'A receipt has been sent to your email.<br><br>'
-                                    + `<a href="receipt.php?token=${encodeURIComponent(result.receipt_token || _receiptToken)}" `
-                                    + 'style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">📄 View Receipt</a>';
-                                resetForm();
+                                _memberConfirmSuccess(result.receipt_token || _receiptToken);
                                 return;
                             } else if (result.status === 'failed') {
                                 _airtelPollActive = false;

@@ -230,26 +230,28 @@ HTML;
 
     } elseif ($statusCode === 2) {
         // FAILED
-        renderPage('Payment Failed', '❌', 'Payment Failed',
+        renderPage('Payment Failed', '&#x274C;', 'Payment Failed',
             'Your payment was not completed. Please try again or contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Try Again', 'membership.html', '#e63946');
+            'Try Again', 'membership.html', '#e63946',
+            ['type' => 'hosu_payment', 'status' => 'failed', 'message' => 'Payment was not completed. Please try again.']);
 
     } elseif ($statusCode === 3) {
         // REVERSED
-        renderPage('Payment Reversed', '↩️', 'Payment Reversed',
+        renderPage('Payment Reversed', '&#x21A9;', 'Payment Reversed',
             'Your payment was reversed. Please contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Contact Us', 'contact.html', '#e63946');
+            'Contact Us', 'contact.html', '#e63946',
+            ['type' => 'hosu_payment', 'status' => 'failed', 'message' => 'Payment was reversed.']);
 
     } else {
-        // PENDING — user may have cancelled or payment is still processing
-        renderPage('Payment Pending', '⏳', 'Payment Pending',
+        // PENDING
+        renderPage('Payment Pending', '&#x23F3;', 'Payment Pending',
             "Your payment is still being processed (status: $paymentDesc). If you completed payment, your receipt will be sent to your email. Contact us at <a class='contact-link' href='mailto:info@hosu.or.ug'>info@hosu.or.ug</a> or <a class='contact-link' href='https://wa.me/256709752107'>WhatsApp +256 709 752107</a> if you need help.",
             'Return to Home', 'index.html', '#f39c12');
     }
 
 } catch (\Throwable $e) {
     error_log('PesaPal callback error: ' . $e->getMessage());
-    renderPage('Payment Error', '⚠️', 'Server Error',
+    renderPage('Payment Error', '&#x26A0;', 'Server Error',
         'We could not verify your payment at this time. If money was deducted, provide proof of payment to <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
         'Return to Home', 'index.html', '#e63946');
 }
