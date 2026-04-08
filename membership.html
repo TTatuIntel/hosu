@@ -2307,7 +2307,9 @@ async function initiateRealBankTransfer(transferDetails) {
                 preFd.append('amount',           formObject.amount);
                 preFd.append('transactionId',    '');
                 preFd.append('transactionRef',   '');
-                const preRes = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd }).then(r => r.json());
+                const preResp = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd });
+                let preRes;
+                try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response. Please try again.' }; }
                 if (preRes.success) {
                     _receiptToken = preRes.receipt_token;
                     _paymentId    = preRes.payment_id;
@@ -2339,7 +2341,9 @@ async function initiateRealBankTransfer(transferDetails) {
                     payFd.append('channel',       channel);
                     payFd.append('type',          'membership');
 
-                    const payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(r => r.json());
+                    const payResp = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd });
+                    let payRes;
+                    try { payRes = await payResp.json(); } catch(je) { payRes = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
 
                     if (payRes.error) { HosuPay.error(payRes.error); return; }
                     if (!payRes.tracking_id && !payRes.redirect_url) {
@@ -2386,7 +2390,9 @@ async function initiateRealBankTransfer(transferDetails) {
                     payFd.append('phone',         formObject.contact);
                     payFd.append('type',          'membership');
 
-                    const payRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd }).then(r => r.json());
+                    const payResp2 = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd });
+                    let payRes;
+                    try { payRes = await payResp2.json(); } catch(je) { payRes = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
 
                     if (payRes.error) { HosuPay.error(payRes.error); return; }
 

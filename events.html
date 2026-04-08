@@ -2202,8 +2202,10 @@ footer {
                     vFd.append('paymentType', 'event_registration');
                     vFd.append('eventId', ev.id || ''); vFd.append('eventTitle', ev.title || ''); vFd.append('eventDate', ev.date || '');
                     vFd.append('amount', amount);
-                    var vPre = await fetch('payment.php?action=pre_register_event', { method: 'POST', body: vFd }).then(function(r){ return r.json(); });
-                    if (!vPre.success) { HosuPay.error(vPre.error || 'Registration failed.'); return; }
+                    var vPreResp = await fetch('payment.php?action=pre_register_event', { method: 'POST', body: vFd });
+                    var vPre;
+                    try { vPre = await vPreResp.json(); } catch(je) { vPre = { error: 'Unexpected server response. Please try again.' }; }
+                    if (!vPre.success) { HosuPay.error(vPre.error || 'Registration failed. Please try again.'); return; }
                     _regReceiptToken = vPre.receipt_token;
                     _regRegistrantId = vPre.registrant_id;
                 } catch(e) { HosuPay.error('Connection error.'); return; }
@@ -2219,7 +2221,9 @@ footer {
                     vPayFd.append('name', fullName);
                     vPayFd.append('phone', phoneClean);
                     vPayFd.append('type', 'event_registration');
-                    var vPay = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vPayFd }).then(function(r){ return r.json(); });
+                    var vPayResp = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vPayFd });
+                    var vPay;
+                    try { vPay = await vPayResp.json(); } catch(je) { vPay = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
                     if (vPay.error) { HosuPay.error(vPay.error); return; }
                     if (vPay.redirect_url) {
                         HosuPay.openIframe({
@@ -2258,11 +2262,13 @@ footer {
                 preFd.append('eventTitle', ev.title || '');
                 preFd.append('eventDate', ev.date || '');
                 preFd.append('amount', amount);
-                var preRes = await fetch('payment.php?action=pre_register_event', { method: 'POST', body: preFd }).then(function(r) { return r.json(); });
+                var preResp = await fetch('payment.php?action=pre_register_event', { method: 'POST', body: preFd });
+                var preRes;
+                try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response. Please try again.' }; }
                 if (preRes.success) {
                     _regReceiptToken = preRes.receipt_token;
                     _regRegistrantId = preRes.registrant_id;
-                } else { HosuPay.error(preRes.error || 'Registration failed.'); return; }
+                } else { HosuPay.error(preRes.error || 'Registration failed. Please try again.'); return; }
             } catch(e) { HosuPay.error('Connection error. Please check your network.'); return; }
 
             HosuPay.setStep(2);
@@ -2281,7 +2287,9 @@ footer {
                 payFd.append('receipt_token', _regReceiptToken || '');
                 payFd.append('channel',       channel);
                 payFd.append('type',          'event_registration');
-                var payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(function(r) { return r.json(); });
+                var payResp = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd });
+                var payRes;
+                try { payRes = await payResp.json(); } catch(je) { payRes = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
 
                 if (payRes.error) { HosuPay.error(payRes.error); return; }
 

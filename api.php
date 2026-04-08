@@ -23,9 +23,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
     exit;
 }
 
-require 'db.php';
-require_once 'upload_helper.php';
-require_once 'mailer.php';
+// Global error handler to ensure JSON is always returned
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+set_exception_handler(function ($e) {
+    error_log('api.php uncaught: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) http_response_code(500);
+    echo json_encode(['error' => 'An unexpected error occurred. Please try again or contact info@hosu.or.ug.']);
+    exit;
+});
+
+require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/upload_helper.php';
+require_once __DIR__ . '/mailer.php';
 
 // Server-side idle timeout check for API calls
 define('API_SESSION_IDLE_TIMEOUT', 900);
@@ -1080,7 +1093,9 @@ HTML;
             echo json_encode(['success' => true, 'member_id' => $memberId, 'receipt_token' => $receiptToken, 'receipt_number' => $receiptNum]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+            error_log('API register_member: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Registration failed. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 
@@ -1221,9 +1236,16 @@ HTML;
 
             $pdo->commit();
             echo json_encode(['success' => true, 'payment_id' => $paymentId, 'member_id' => $memberId, 'receipt_token' => $receiptToken, 'receipt_number' => $receiptNum]);
+        } catch (PDOException $e) {
+            if ($pdo->inTransaction()) $pdo->rollBack();
+            error_log('API pre_register DB: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Registration could not be saved. Please try again or contact info@hosu.or.ug.']);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+            error_log('API pre_register: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Registration failed. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 
@@ -1268,7 +1290,9 @@ HTML;
             echo json_encode(['success' => true, 'receipt_token' => $receiptToken]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+            error_log('API confirm_payment: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Payment confirmation failed. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 

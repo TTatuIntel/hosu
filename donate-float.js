@@ -278,7 +278,9 @@
                         '&tracking_id='  + encodeURIComponent(opts.trackingId) +
                         '&payment_id='   + (opts.payId        || 0) +
                         (opts.registrantId ? '&registrant_id=' + opts.registrantId : '');
-                    var r = await fetch(url).then(function (x) { return x.json(); });
+                    var resp = await fetch(url);
+                    var r;
+                    try { r = await resp.json(); } catch(je) { return; }
                     if      (r.status === 'completed') { _showOk(r.receipt_token || opts.receiptToken); }
                     else if (r.status === 'failed')    { _ifrClose(); _showErr(r.message || 'Payment declined. Please try again.'); }
                 } catch (e) { /* network hiccup â€” keep polling */ }
@@ -307,7 +309,9 @@
                     '&tracking_id='  + encodeURIComponent(opts.trackingId) +
                     '&payment_id='   + (opts.payId        || 0) +
                     (opts.registrantId ? '&registrant_id=' + opts.registrantId : '');
-                var r = await fetch(url).then(function (x) { return x.json(); });
+                var resp = await fetch(url);
+                var r;
+                try { r = await resp.json(); } catch(je) { return; }
                 if      (r.status === 'completed') { _showOk(r.receipt_token || opts.receiptToken); }
                 else if (r.status === 'failed')    { _showErr(r.message || 'Payment declined. Please try again.'); }
             } catch (e) { /* continue */ }
@@ -719,16 +723,17 @@
             preFd.append('amount',           amount);
             preFd.append('transactionId',    '');
             preFd.append('transactionRef',   '');
-            var preRes = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd })
-                .then(function (r) { return r.json(); });
+            var preResp = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd });
+            var preRes;
+            try { preRes = await preResp.json(); } catch(je) { preRes = { error: 'Unexpected server response. Please try again.' }; }
             if (preRes.success) {
                 st.receiptToken = preRes.receipt_token;
                 st.paymentId    = preRes.payment_id;
             } else {
-                HosuPay.error(preRes.error || 'Registration failed.');
+                HosuPay.error(preRes.error || 'Registration failed. Please try again.');
                 return;
             }
-        } catch (e) { HosuPay.error('Connection error. Please check your network.'); return; }
+        } catch (e) { HosuPay.error('Connection error. Please check your network and try again.'); return; }
 
         // Bank / Bank-to-Bank / Visa â€” PesaPal hosted page (iframe)
         if (st.method === 'bank' || st.method === 'banktobank' || st.method === 'visa') {
@@ -743,8 +748,9 @@
                 payFd.append('name',          name);
                 payFd.append('phone',         phone);
                 payFd.append('type',          'donation');
-                var payRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd })
-                    .then(function (r) { return r.json(); });
+                var payResp = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd });
+                var payRes;
+                try { payRes = await payResp.json(); } catch(je) { payRes = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
                 if (payRes.error) { HosuPay.error(payRes.error); return; }
                 if (payRes.redirect_url) {
                     HosuPay.openIframe({
@@ -778,8 +784,9 @@
             mobFd.append('receipt_token', st.receiptToken || '');
             mobFd.append('channel',       dfpChannel);
             mobFd.append('type',          'donation');
-            var mobRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: mobFd })
-                .then(function (r) { return r.json(); });
+            var mobResp = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: mobFd });
+            var mobRes;
+            try { mobRes = await mobResp.json(); } catch(je) { mobRes = { error: 'Payment gateway returned an invalid response. Please try again.' }; }
 
             if (mobRes.error) { HosuPay.error(mobRes.error); return; }
             if (!mobRes.tracking_id && !mobRes.redirect_url) {

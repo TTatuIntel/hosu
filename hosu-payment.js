@@ -278,7 +278,9 @@
                         '&tracking_id='  + encodeURIComponent(opts.trackingId) +
                         '&payment_id='   + (opts.payId        || 0) +
                         (opts.registrantId ? '&registrant_id=' + opts.registrantId : '');
-                    var r = await fetch(url).then(function (x) { return x.json(); });
+                    var resp = await fetch(url);
+                    var r;
+                    try { r = await resp.json(); } catch(je) { return; }
                     if      (r.status === 'completed') { _showOk(r.receipt_token || opts.receiptToken); }
                     else if (r.status === 'failed')    { _ifrClose(); _showErr(r.message || 'Payment declined. Please try again.'); }
                 } catch (e) { /* network hiccup — keep polling */ }
@@ -307,7 +309,9 @@
                     '&tracking_id='  + encodeURIComponent(opts.trackingId) +
                     '&payment_id='   + (opts.payId        || 0) +
                     (opts.registrantId ? '&registrant_id=' + opts.registrantId : '');
-                var r = await fetch(url).then(function (x) { return x.json(); });
+                var resp = await fetch(url);
+                var r;
+                try { r = await resp.json(); } catch(je) { return; }
                 if      (r.status === 'completed') { _showOk(r.receipt_token || opts.receiptToken); }
                 else if (r.status === 'failed')    { _showErr(r.message || 'Payment declined. Please try again.'); }
             } catch (e) { /* continue */ }

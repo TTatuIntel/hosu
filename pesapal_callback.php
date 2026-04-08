@@ -246,7 +246,8 @@ HTML;
         // PENDING
         renderPage('Payment Pending', '&#x23F3;', 'Payment Pending',
             "Your payment is still being processed (status: $paymentDesc). If you completed payment, your receipt will be sent to your email. Contact us at <a class='contact-link' href='mailto:info@hosu.or.ug'>info@hosu.or.ug</a> or <a class='contact-link' href='https://wa.me/256709752107'>WhatsApp +256 709 752107</a> if you need help.",
-            'Return to Home', 'index.html', '#f39c12');
+            'Return to Home', 'index.html', '#f39c12',
+            ['type' => 'hosu_payment', 'status' => 'pending', 'message' => 'Payment is still being processed.']);
     }
 
 } catch (\Throwable $e) {

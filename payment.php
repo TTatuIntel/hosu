@@ -20,8 +20,21 @@ header("X-Frame-Options: DENY");
 header("Referrer-Policy: strict-origin-when-cross-origin");
 header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 
-require_once 'db.php';
-require_once 'mailer.php';
+// Global error handler to ensure JSON is always returned
+set_error_handler(function ($severity, $message, $file, $line) {
+    if (!(error_reporting() & $severity)) return false;
+    throw new ErrorException($message, 0, $severity, $file, $line);
+});
+set_exception_handler(function ($e) {
+    error_log('payment.php uncaught: ' . $e->getMessage() . ' in ' . $e->getFile() . ':' . $e->getLine());
+    if (!headers_sent()) http_response_code(500);
+    echo json_encode(['error' => 'Payment service error. Please try again or contact info@hosu.or.ug.']);
+    exit;
+});
+
+require_once __DIR__ . '/env.php';
+require_once __DIR__ . '/db.php';
+require_once __DIR__ . '/mailer.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
