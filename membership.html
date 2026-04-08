@@ -1675,37 +1675,9 @@
                     <label for="membershipAmount">Amount (UGX)</label>
                     <input type="number" id="membershipAmount" name="membershipAmount" min="100000" step="1000" required readonly style="background:#f7fafc;cursor:not-allowed;">
                 </div>
-                <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
-            </form>
-        // Membership Package selection logic
-        const membershipPackage = document.getElementById('membershipPackage');
-        const membershipAmount = document.getElementById('membershipAmount');
-        function updateMembershipAmount() {
-            const selected = membershipPackage.options[membershipPackage.selectedIndex];
-            membershipAmount.value = selected.getAttribute('data-amount');
-            // Also update _selectedPlan for payment
-            _selectedPlan = {
-                period: membershipPackage.value,
-                amount: parseInt(membershipAmount.value, 10)
-            };
-        }
-        membershipPackage.addEventListener('change', updateMembershipAmount);
-        // Set default on modal open (fallback for browsers that don't support 'show' event)
-        document.getElementById('subscriptionModal').addEventListener('click', function() {
-            updateMembershipAmount();
-        });
-        // Set default on page load
-        updateMembershipAmount();
 
-        // When modal opens, sync plan selection to dropdown
-        function openSubscriptionForm() {
-            document.getElementById('subscriptionModal').style.display = 'flex';
-            // Sync dropdown to selected plan
-            if (membershipPackage && _selectedPlan && _selectedPlan.period) {
-                membershipPackage.value = _selectedPlan.period;
-                updateMembershipAmount();
-            }
-        }
+                    <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
+                </form>
 
             <div class="pay-divider">Payment Method</div>
 
