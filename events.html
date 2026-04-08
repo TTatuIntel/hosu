@@ -2054,6 +2054,18 @@ footer {
         var _regPaymentId = null;
         var _regRegistrantId = null;
         var _regPollActive = false;
+        var _regTrackingId = null;
+
+        /* Detect MTN / Airtel from Uganda phone number */
+        function _detectUgandaNetwork(digits) {
+            var d = (digits || '').replace(/\D/g, '');
+            if (d.startsWith('256')) d = d.slice(3);
+            if (d.startsWith('0'))   d = d.slice(1);
+            var p = d.slice(0, 2);
+            if (['77','78','76','31','39'].includes(p)) return 'mtn';
+            if (['70','71','72','73','74','75','20'].includes(p)) return 'airtel';
+            return null;
+        }
 
         window._regSelectPay = function(method) {
             _regSelectedPay = method;
@@ -2120,70 +2132,21 @@ footer {
             }
         }
 
-        async function _regCheckAirtel(transactionId, ev) {
-            _regPollActive = true;
-            var MAX_POLLS = 18, INTERVAL = 10000;
-            document.getElementById('reg-proc-msg').textContent = 'Waiting for your approval…';
-            document.getElementById('reg-proc-sub').textContent = 'Enter your Airtel Money PIN on your phone';
-
-            for (var i = 0; i < MAX_POLLS; i++) {
-                if (!_regPollActive) return;
-                var secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                var cd = document.getElementById('reg-countdown');
-                if (cd) { cd.style.display = ''; cd.textContent = 'Time remaining: ' + Math.floor(secsLeft / 60) + 'm ' + (secsLeft % 60) + 's'; }
-
-                await new Promise(function(r) { setTimeout(r, INTERVAL); });
-                if (!_regPollActive) return;
-
-                try {
-                    var params = 'action=check_airtel&txn_id=' + encodeURIComponent(transactionId)
-                        + '&registrant_id=' + (_regRegistrantId || 0)
-                        + '&payment_id=' + (_regPaymentId || 0);
-                    var result = await fetch('payment.php?' + params).then(function(r) { return r.json(); });
-
-                    if (result.status === 'completed') {
-                        _regPollActive = false; _regShowSuccess(ev); return;
-                    } else if (result.status === 'failed' || result.status === 'expired') {
-                        _regPollActive = false; _regShowError(result.message || 'Payment was declined. Please try again.'); return;
-                    }
-                } catch(e) {}
+        // Auto-detect MTN / Airtel from phone number and select chip
+        (function() {
+            function _regAutoDetect() {
+                var phoneEl = document.getElementById('reg-phone');
+                if (!phoneEl) return;
+                var digits = phoneEl.value.replace(/\D/g, '');
+                var net = _detectUgandaNetwork(digits);
+                if (net) window._regSelectPay(net);
             }
-            _regPollActive = false;
-            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
-        }
-
-        async function _regCheckMtn(txnRef, txnId, ev) {
-            _regPollActive = true;
-            var MAX_POLLS = 12, INTERVAL = 10000;
-            document.getElementById('reg-proc-msg').textContent = 'Waiting for your approval…';
-            document.getElementById('reg-proc-sub').innerHTML = 'Approve the MTN Mobile Money prompt on your phone.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-
-            for (var i = 0; i < MAX_POLLS; i++) {
-                if (!_regPollActive) return;
-                var secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                var cd = document.getElementById('reg-countdown');
-                if (cd) { cd.style.display = ''; cd.textContent = 'Time remaining: ' + Math.floor(secsLeft / 60) + 'm ' + (secsLeft % 60) + 's'; }
-
-                await new Promise(function(r) { setTimeout(r, INTERVAL); });
-                if (!_regPollActive) return;
-
-                try {
-                    var params = 'action=check_mtn&txn_ref=' + encodeURIComponent(txnRef)
-                        + (txnId ? '&txn_id=' + encodeURIComponent(txnId) : '')
-                        + '&registrant_id=' + (_regRegistrantId || 0)
-                        + '&payment_id=' + (_regPaymentId || 0);
-                    var result = await fetch('payment.php?' + params).then(function(r) { return r.json(); });
-
-                    if (result.status === 'completed') {
-                        _regPollActive = false; _regShowSuccess(ev); return;
-                    } else if (result.status === 'failed') {
-                        _regPollActive = false; _regShowError(result.message || 'Payment failed. Please try again.'); return;
-                    }
-                } catch(e) {}
+            var phoneEl = document.getElementById('reg-phone');
+            if (phoneEl) {
+                phoneEl.addEventListener('input',  _regAutoDetect);
+                phoneEl.addEventListener('change', _regAutoDetect);
             }
-            _regPollActive = false;
-            _regShowError('Payment timed out.', 'If you already paid, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
-        }
+        }());
 
         document.getElementById('reg-form').addEventListener('submit', async function(e) {
             e.preventDefault();
@@ -2265,23 +2228,67 @@ footer {
                 return;
             }
 
-            // Visa — placeholder
+            // Visa — PesaPal hosted redirect
             if (_regSelectedPay === 'visa') {
-                alert('Visa card payments coming soon. Please use MTN or Airtel Mobile Money.');
+                document.getElementById('reg-form-area').style.display = 'none';
+                document.getElementById('reg-process').style.display = '';
+                _regSetStep(1);
+                _regReceiptToken = null;
+                _regRegistrantId = null;
+                document.getElementById('reg-proc-msg').textContent = 'Preparing registration…';
+                document.getElementById('reg-proc-sub').textContent = '';
+
+                try {
+                    var vFd = new FormData();
+                    vFd.append('fullName', fullName); vFd.append('email', email); vFd.append('phone', phone);
+                    vFd.append('profession', document.getElementById('reg-position').value.trim() || 'Attendee');
+                    vFd.append('institution', document.getElementById('reg-institution').value.trim());
+                    vFd.append('paymentMethod', 'Visa/Mastercard');
+                    vFd.append('paymentType', 'event_registration');
+                    vFd.append('eventId', ev.id || ''); vFd.append('eventTitle', ev.title || ''); vFd.append('eventDate', ev.date || '');
+                    vFd.append('amount', amount);
+                    var vPre = await fetch('payment.php?action=pre_register_event', { method: 'POST', body: vFd }).then(function(r){ return r.json(); });
+                    if (!vPre.success) { _regShowError(vPre.error || 'Registration failed.'); return; }
+                    _regReceiptToken = vPre.receipt_token;
+                    _regRegistrantId = vPre.registrant_id;
+                } catch(e) { _regShowError('Connection error.'); return; }
+
+                _regSetStep(2);
+                document.getElementById('reg-proc-msg').textContent = 'Connecting to payment gateway…';
+                try {
+                    var vPayFd = new FormData();
+                    vPayFd.append('registrant_id', _regRegistrantId || 0);
+                    vPayFd.append('receipt_token', _regReceiptToken || '');
+                    vPayFd.append('amount', amount);
+                    vPayFd.append('email', email);
+                    vPayFd.append('name', fullName);
+                    vPayFd.append('phone', phoneClean);
+                    vPayFd.append('type', 'event_registration');
+                    var vPay = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vPayFd }).then(function(r){ return r.json(); });
+                    if (vPay.error) { _regShowError(vPay.error); return; }
+                    if (vPay.redirect_url) {
+                        _regSetStep(3);
+                        document.getElementById('reg-proc-msg').textContent = 'Redirecting to PesaPal…';
+                        await new Promise(function(r){ setTimeout(r,600); });
+                        window.location.href = vPay.redirect_url;
+                    } else { _regShowError('Could not get payment link. Please try again.'); }
+                } catch(e) { _regShowError('Network error.'); }
                 return;
             }
 
-            // --- MTN / Airtel real gateway via server proxy ---
+            // --- MTN / Airtel: direct USSD push via PesaPal ---
             document.getElementById('reg-form-area').style.display = 'none';
             document.getElementById('reg-process').style.display = '';
             _regSetStep(1);
             _regReceiptToken = null;
             _regPaymentId = null;
             _regRegistrantId = null;
+            _regTrackingId = null;
             document.getElementById('reg-proc-msg').textContent = 'Preparing registration…';
             document.getElementById('reg-proc-sub').textContent = '';
 
             var methodLabel = _regSelectedPay === 'mtn' ? 'MTN Mobile Money' : 'Airtel Money';
+            var channel     = _regSelectedPay === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
 
             // Step 1: Pre-register via payment.php
             try {
@@ -2311,44 +2318,83 @@ footer {
                 return;
             }
 
-            // Step 2: Send payment through server proxy
+            // Step 2: Trigger USSD push via PesaPal pay_mobile
             _regSetStep(2);
-            var regProofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-            document.getElementById('reg-proc-msg').textContent = 'Sending payment request to ' + (_regSelectedPay === 'mtn' ? 'MTN' : 'Airtel') + '…';
-            document.getElementById('reg-proc-sub').innerHTML = 'Check your phone for the payment prompt.<br><br>' + regProofOfPaymentHtml;
+            document.getElementById('reg-proc-msg').textContent = 'Sending prompt to your ' + (_regSelectedPay === 'mtn' ? 'MTN' : 'Airtel') + ' phone…';
+            document.getElementById('reg-proc-sub').textContent = 'Please wait a moment…';
 
             try {
                 var payFd = new FormData();
-                payFd.append('phone', phoneClean);
-                payFd.append('amount', amount);
-                payFd.append('email', email);
+                payFd.append('phone',         phoneClean);
+                payFd.append('amount',        amount);
+                payFd.append('email',         email);
+                payFd.append('name',          fullName);
                 payFd.append('registrant_id', _regRegistrantId || 0);
-                payFd.append('payment_id', _regPaymentId || 0);
+                payFd.append('receipt_token', _regReceiptToken || '');
+                payFd.append('channel',       channel);
+                payFd.append('type',          'event_registration');
 
-                var payAction = _regSelectedPay === 'mtn' ? 'pay_mtn' : 'pay_airtel';
-                var payRes = await fetch('payment.php?action=' + payAction, { method: 'POST', body: payFd }).then(function(r) { return r.json(); });
+                var payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(function(r) { return r.json(); });
 
-                if (payRes.error) {
-                    _regShowError(payRes.error);
+                if (payRes.error) { _regShowError(payRes.error); return; }
+
+                // Fallback: PesaPal returned redirect instead of direct push
+                if (payRes.redirect_url) {
+                    _regSetStep(3);
+                    document.getElementById('reg-proc-msg').textContent = 'Redirecting to PesaPal…';
+                    await new Promise(function(r){ setTimeout(r,600); });
+                    window.location.href = payRes.redirect_url;
                     return;
                 }
 
-                var _txnRef = payRes.txn_ref || null;
-                var _txnId = payRes.txn_id || null;
+                _regTrackingId = payRes.tracking_id || '';
+                document.getElementById('reg-proc-msg').textContent = '📱 Check your ' + (_regSelectedPay === 'mtn' ? 'MTN' : 'Airtel') + ' phone!';
+                document.getElementById('reg-proc-sub').innerHTML = 'Enter your mobile money PIN to approve <strong>UGX ' + amount.toLocaleString() + '</strong>.';
 
-                if (payRes.status === 'completed') {
-                    _regShowSuccess(ev);
-                } else if (payRes.status === 'pending') {
-                    document.getElementById('reg-proc-msg').textContent = '📱 Check your phone now!';
-                    document.getElementById('reg-proc-sub').innerHTML = (payRes.message || 'Approve the payment on your phone') + '<br><br>' + regProofOfPaymentHtml;
-                    if (_regSelectedPay === 'airtel') {
-                        _regCheckAirtel(_txnId || _txnRef, ev);
-                    } else {
-                        _regCheckMtn(_txnRef, _txnId, ev);
-                    }
-                } else {
-                    _regShowError(payRes.message || 'Payment failed. Please try again.');
+                // Step 3: Poll check_mobile
+                var MAX_POLLS = 15;
+                var INTERVAL  = 8000;
+                _regPollActive = true;
+
+                for (var pi = 0; pi < MAX_POLLS; pi++) {
+                    if (!_regPollActive) return;
+                    var secsLeft = (MAX_POLLS - pi) * (INTERVAL / 1000);
+                    var cd = document.getElementById('reg-countdown');
+                    if (cd) { cd.style.display = ''; cd.textContent = 'Time remaining: ' + Math.floor(secsLeft/60) + 'm ' + (secsLeft%60) + 's'; }
+
+                    await new Promise(function(r){ setTimeout(r, INTERVAL); });
+                    if (!_regPollActive) return;
+
+                    try {
+                        var params = 'action=check_mobile&tracking_id=' + encodeURIComponent(_regTrackingId)
+                            + '&registrant_id=' + (_regRegistrantId || 0);
+                        var result = await fetch('payment.php?' + params).then(function(r){ return r.json(); });
+
+                        if (result.status === 'completed') {
+                            _regPollActive = false;
+                            _regSetStep(3);
+                            if (cd) cd.style.display = 'none';
+                            document.getElementById('reg-spinner').style.display = 'none';
+                            document.getElementById('reg-proc-msg').textContent = '✅ Payment confirmed!';
+                            document.getElementById('reg-proc-msg').style.color = '#27ae60';
+                            document.getElementById('reg-proc-sub').innerHTML = 'A receipt has been sent to your email.<br><br>'
+                                + '<a href="receipt.php?token=' + encodeURIComponent(result.receipt_token || _regReceiptToken) + '" '
+                                + 'style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">📄 View Receipt</a>';
+                            document.getElementById('reg-proc-close').style.display = '';
+                            return;
+                        } else if (result.status === 'failed') {
+                            _regPollActive = false;
+                            _regShowError(result.message || 'Payment was declined. Please try again.');
+                            return;
+                        }
+                    } catch(pe) { /* continue polling */ }
                 }
+
+                _regPollActive = false;
+                _regShowError('Payment timed out (2 minutes). The request was cancelled.',
+                    'If money was deducted, contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or '
+                    + '<a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
+
             } catch(e) {
                 _regShowError('Network error. Please check your connection and try again.');
             }

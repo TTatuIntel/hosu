@@ -1230,7 +1230,7 @@
 .payment-radio-hidden{display:none;}
 #visaForm{margin-top:0.45rem;}
 /* Bank details / processing modal buttons */
-.modal-btn-full{width:100%;padding:0.45rem 0;border-radius:12px;font-size:0.78rem;font-weight:600;font-family:inherit;border:none;background:var(--primary-color);color:white;cursor:pointer;transition:all 0.2s;}
+.modal-btn-full{display:block;width:auto;min-width:100px;padding:0.45rem 1.6rem;margin:0 auto;border-radius:12px;font-size:0.78rem;font-weight:600;font-family:inherit;border:none;background:var(--primary-color);color:white;cursor:pointer;transition:all 0.2s;}
 .modal-btn-full:hover{background:var(--primary-dark);}
 #processingCloseBtn{display:none;}
 #closeModalButton{display:none;}
@@ -1697,42 +1697,21 @@
                         <i class="fas fa-exchange-alt"></i> Bank to Bank
                         <input type="radio" name="paymentmode" value="banktobank" class="payment-radio-hidden">
                     </button>
-                    <button type="button" class="pay-chip payment-option" onclick="selectPayment('visa')">
-                        <i class="fab fa-cc-visa"></i> Visa
+                    <button type="button" class="pay-chip payment-option mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
+                        <img src="img/mtn.png" alt="MTN" onerror="this.style.display='none'"> MTN
+                        <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
+                    </button>
+                    <button type="button" class="pay-chip payment-option airtel-chip" id="airtel-chip-btn" onclick="selectPayment('airtel')">
+                        <img src="img/airtel.png" alt="Airtel" onerror="this.style.display='none'"> Airtel
+                        <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
+                    </button>
+                    <button type="button" class="pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')" style="border-color:#1a6dd5;">
+                        <i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> Visa / Mastercard
                         <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="pay-chip payment-option mtn-chip" onclick="selectPayment('mtn')">
-                        <img src="img/mtn.png" alt="MTN"> MTN
-                        <input type="radio" name="paymentmode" value="UGMTNMOMODIR" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="pay-chip payment-option airtel-chip" onclick="selectPayment('airtel')">
-                        <img src="img/airtel.png" alt="Airtel"> Airtel
-                        <input type="radio" name="paymentmode" value="UGAIRTELMODIR" class="payment-radio-hidden">
                     </button>
                 </div>
 
                 <div id="paymentDetails" class="pay-info hidden"></div>
-
-                <div id="visaForm" class="hidden">
-                    <div class="form-grid">
-                        <div class="form-group fg-full">
-                            <label for="cardNumber">Card Number</label>
-                            <input type="text" id="cardNumber" placeholder="1234 5678 9012 3456" maxlength="19">
-                        </div>
-                        <div class="form-group">
-                            <label for="expiryDate">Expiry Date</label>
-                            <input type="text" id="expiryDate" placeholder="MM/YY" maxlength="5">
-                        </div>
-                        <div class="form-group">
-                            <label for="cvv">CVV</label>
-                            <input type="text" id="cvv" placeholder="123" maxlength="3">
-                        </div>
-                        <div class="form-group fg-full">
-                            <label for="cardName">Name on Card</label>
-                            <input type="text" id="cardName" placeholder="John Doe">
-                        </div>
-                    </div>
-                </div>
 
                 <button type="button" onclick="payNow()" id="submitButton" disabled>Process Payment</button>
             </form>
@@ -1819,18 +1798,7 @@
     </div>
 </div>
 
-<!-- Visa Processing Modal -->
-<div class="processing-modal" id="visaProcessingModal">
-    <div class="processing-content">
-        <button class="processing-close" onclick="closeVisaModal()">
-            <i class="fas fa-times"></i>
-        </button>
-        <h3>Processing Visa Payment</h3>
-        <div id="visaSpinner" class="spinner"></div>
-        <p id="visaMessage">Connecting to payment gateway...</p>
-        <button id="closeVisaModalButton">Close</button>
-    </div>
-</div>
+<!-- Visa Processing Modal removed: Visa payments now handled via PesaPal -->
 
     <footer></footer>
 
@@ -2094,41 +2062,42 @@
         }
 
 // Update selectPayment function
+/* ── Uganda network detection (checks phone prefix to pick MTN/Airtel) ── */
+function detectUgandaNetwork(digits) {
+    var d = (digits || '').replace(/\D/g, '');
+    if (d.startsWith('256')) d = d.slice(3);
+    if (d.startsWith('0'))   d = d.slice(1);
+    var p = d.slice(0, 2);
+    if (['77','78','76','31','39'].includes(p)) return 'mtn';
+    if (['70','71','72','73','74','75','20'].includes(p)) return 'airtel';
+    return null;
+}
+
 function selectPayment(method) {
-    document.querySelectorAll('.payment-option').forEach(option => option.classList.remove('selected'));
-    const selectedOption = document.querySelector(`.payment-option[onclick*="${method}"]`);
-    if (selectedOption) {
-        selectedOption.classList.add('selected');
-    }
+    document.querySelectorAll('.payment-option').forEach(o => o.classList.remove('selected'));
+    const btn = document.querySelector(`.payment-option[onclick*="${method}"]`);
+    if (btn) btn.classList.add('selected');
     selectedMethod = method;
-
-    const methodToRadio = {
-        bank: 'bank',
-        banktobank: 'banktobank',
-        visa: 'visa',
-        mtn: 'UGMTNMOMODIR',
-        airtel: 'UGAIRTELMODIR'
-    };
-
-    document.querySelectorAll('input[name="paymentmode"]').forEach(radio => {
-        radio.checked = radio.value === methodToRadio[method];
-    });
-
-    // Hide all additional forms
-    document.getElementById('visaForm').classList.add('hidden');
+    document.querySelectorAll('input[name="paymentmode"]').forEach(r => { r.checked = (r.value === method); });
     document.getElementById('paymentDetails').classList.add('hidden');
+    document.getElementById('paymentDetails').innerHTML = '';
 
     if (method === 'bank') {
         document.getElementById('bankDetailsModal').style.display = 'flex';
-    } 
-    else if (method === 'banktobank') {
+    } else if (method === 'banktobank') {
         document.getElementById('bankToBankModal').style.display = 'flex';
-    }
-    else if (method === 'visa') {
-        document.getElementById('visaForm').classList.remove('hidden');
-    }
-    else {
-        showPaymentDetails(method);
+    } else if (method === 'mtn') {
+        const pd = document.getElementById('paymentDetails');
+        pd.classList.remove('hidden');
+        pd.innerHTML = '<i class="fas fa-mobile-alt"></i> A <strong>MTN Mobile Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
+    } else if (method === 'airtel') {
+        const pd = document.getElementById('paymentDetails');
+        pd.classList.remove('hidden');
+        pd.innerHTML = '<i class="fas fa-mobile-alt"></i> An <strong>Airtel Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
+    } else if (method === 'visa') {
+        const pd = document.getElementById('paymentDetails');
+        pd.classList.remove('hidden');
+        pd.innerHTML = '<i class="fab fa-cc-visa" style="color:#1a6dd5;"></i> You will be redirected to the PesaPal secure page to complete your Visa/Mastercard payment.';
     }
     document.getElementById('submitButton').disabled = false;
 }
@@ -2220,131 +2189,7 @@ async function initiateRealBankTransfer(transferDetails) {
 }
 
 
-// New function for Visa payment
-// Updated processVisaPayment function
-async function processVisaPayment() {
-    const cardNumber = document.getElementById('cardNumber').value.replace(/\s/g, '');
-    const expiryDate = document.getElementById('expiryDate').value;
-    const cvv = document.getElementById('cvv').value;
-    const cardName = document.getElementById('cardName').value;
-    const expiryParts = expiryDate.split('/');
 
-    // Validation
-    if (!cardNumber || !expiryDate || !cvv || !cardName) {
-        alert('Please fill all card details');
-        return;
-    }
-
-    if (!/^\d{16}$/.test(cardNumber)) {
-        alert('Please enter a valid 16-digit card number');
-        return;
-    }
-
-    if (!/^\d{2}\/\d{2}$/.test(expiryDate)) {
-        alert('Please enter a valid expiry date (MM/YY)');
-        return;
-    }
-
-    if (!/^\d{3,4}$/.test(cvv)) {
-        alert('Please enter a valid CVV (3 or 4 digits)');
-        return;
-    }
-
-    document.getElementById('visaProcessingModal').style.display = 'flex';
-    
-    try {
-        // In a real implementation, you would tokenize the card first
-        // Example using Stripe.js:
-        /*
-        const { token, error } = await stripe.createToken('card', {
-            number: cardNumber,
-            exp_month: expiryParts[0],
-            exp_year: '20' + expiryParts[1],
-            cvc: cvv,
-            name: cardName
-        });
-
-        if (error) throw new Error(error.message);
-        
-        // Then send to your backend
-        const response = await fetch('/process-payment', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({
-                token: token.id,
-                amount: 100000,
-                currency: 'UGX'
-            })
-        });
-        
-        const result = await response.json();
-        if (!result.success) throw new Error(result.message);
-        */
-        
-        // For now, we'll simulate a successful payment
-        await new Promise(resolve => setTimeout(resolve, 2000));
-        
-        document.getElementById('visaSpinner').style.display = 'none';
-        document.getElementById('visaMessage').textContent = 'Payment successful!';
-        document.getElementById('visaMessage').style.color = 'green';
-        
-        // Reset form
-        document.getElementById('visaForm').reset();
-        
-        // In a real app, you would redirect to success page or show receipt
-    } catch (error) {
-        document.getElementById('visaSpinner').style.display = 'none';
-        document.getElementById('visaMessage').textContent = 'Payment failed: ' + error.message;
-        document.getElementById('visaMessage').style.color = 'red';
-    } finally {
-        document.getElementById('closeVisaModalButton').style.display = 'block';
-    }
-}
-
-        function showPaymentDetails(method) {
-            const detailsDiv = document.getElementById('paymentDetails');
-            detailsDiv.classList.remove('hidden');
-
-            if (method === 'mtn') {
-                detailsDiv.innerHTML = 'MTN: <strong>*165*3#</strong> · Merchant <strong>721212</strong> · Then confirm the amount.';
-            } else if (method === 'airtel') {
-                detailsDiv.innerHTML = 'Airtel: <strong>*185*9#</strong> · Merchant <strong>4373226</strong> · Then confirm the amount.';
-            } else {
-                detailsDiv.classList.add('hidden');
-            }
-        }
-
-
-        // Close button click handler
-    document.getElementById('closeBankToBankModal').addEventListener('click', closeBankToBankDetails);
-    
-    // Click outside modal handler
-    document.getElementById('bankToBankModal').addEventListener('click', function(e) {
-        if (e.target === this) {
-            closeBankToBankDetails();
-        }
-    });
-    
-    // Escape key handler
-    document.addEventListener('keydown', function(e) {
-        if (e.key === 'Escape' && document.getElementById('bankToBankModal').style.display === 'flex') {
-            closeBankToBankDetails();
-        }
-    });
-
-
-// Close function
-function closeBankToBankDetails() {
-    document.getElementById('bankToBankModal').style.display = 'none';
-    resetBankToBankForm();
-}
-
-// Reset form function
-function resetBankToBankForm() {
-    document.getElementById('sourceBank').value = '';
-    document.getElementById('accountNumber').value = '';
-    document.getElementById('accountName').value = '';
-}
         function closeBankDetails() {
             document.getElementById('bankDetailsModal').style.display = 'none';
         }
@@ -2430,8 +2275,7 @@ function resetBankToBankForm() {
         async function payNow() {
             if (!validateForm()) return;
 
-            const membershipForm = document.getElementById('membershipForm');
-            const paymentForm = document.getElementById('paymentForm');
+            const membershipForm  = document.getElementById('membershipForm');
             const otherProfession = document.getElementById('otherProfession');
 
             if (document.getElementById('profession').value === 'other' && !otherProfession.value) {
@@ -2439,64 +2283,37 @@ function resetBankToBankForm() {
                 return;
             }
 
-    if (selectedMethod === 'bank') {
-        showProcessingModal();
-        document.getElementById('modalMessage').textContent = 'Please follow bank transfer instructions.';
-        document.getElementById('modalSpinner').style.display = 'none';
-        document.getElementById('closeModalButton').style.display = 'block';
-        return;
-    }
-    else if (selectedMethod === 'banktobank') {
-        document.getElementById('bankToBankModal').style.display = 'flex';
-        return;
-    }
-    else if (selectedMethod === 'visa') {
-        await processVisaPayment();
-        return;
-    }
+            if (selectedMethod === 'bank') {
+                showProcessingModal();
+                document.getElementById('modalMessage').textContent      = 'Please follow bank transfer instructions.';
+                document.getElementById('modalSpinner').style.display    = 'none';
+                document.getElementById('closeModalButton').style.display = 'block';
+                return;
+            }
+            if (selectedMethod === 'banktobank') {
+                document.getElementById('bankToBankModal').style.display = 'flex';
+                return;
+            }
 
+            // ── Collect form data ──────────────────────────────────
+            const formData   = new FormData(membershipForm);
+            const formObject = {
+                fullName:         formData.get('fullName'),
+                email:            formData.get('email'),
+                profession:       formData.get('profession') === 'other' ? otherProfession.value : formData.get('profession'),
+                institution:      formData.get('institution') || '',
+                contact:          getPhoneDigits(),
+                amount:           _selectedPlan.amount,
+                membershipPeriod: _selectedPlan.period,
+                paymentType:      'membership'
+            };
+            _pendingFormData = formObject;
 
-    // New helper functions
-// Update the close function
-function closeBankToBankDetails() {
-    document.getElementById('bankToBankModal').style.display = 'none';
-    resetBankToBankForm();
-}
+            const isMobile = (selectedMethod === 'mtn' || selectedMethod === 'airtel');
+            const channel  = selectedMethod === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
+            const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
 
-function resetBankToBankForm() {
-    document.getElementById('sourceBank').value = '';
-    document.getElementById('accountNumber').value = '';
-}
-
-// Add click handler for the modal background
-document.getElementById('bankToBankModal').addEventListener('click', function(e) {
-    if (e.target === this) {
-        closeBankToBankDetails();
-    }
-});
-
-function closeVisaModal() {
-    document.getElementById('visaProcessingModal').style.display = 'none';
-    resetVisaModal();
-}
-
-function resetVisaModal() {
-    document.getElementById('visaSpinner').style.display = 'block';
-    document.getElementById('visaMessage').textContent = 'Connecting to payment gateway...';
-    document.getElementById('visaMessage').style.color = 'inherit';
-    document.getElementById('closeVisaModalButton').style.display = 'none';
-}
-
-// Add event listeners for card number formatting
-document.getElementById('cardNumber').addEventListener('input', function(e) {
-    this.value = this.value.replace(/\s/g, '').replace(/(\d{4})/g, '$1 ').trim();
-});
-
-document.getElementById('expiryDate').addEventListener('input', function(e) {
-    this.value = this.value.replace(/\D/g, '').replace(/(\d{2})(\d)/, '$1/$2');
-});
-
-            // ── Step 1: Pre-register (instant DB record, pending) ──────────────
+            // ── Step 1: Pre-register ───────────────────────────────
             showProcessingModal();
             _setStep(1);
             document.getElementById('modalMessage').textContent    = 'Preparing your registration…';
@@ -2504,24 +2321,6 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             _receiptToken = null;
             _paymentId    = null;
 
-            const formData    = new FormData(membershipForm);
-            const paymentData = new FormData(paymentForm);
-            const formObject  = {
-                fullName:        formData.get('fullName'),
-                email:           formData.get('email'),
-                profession:      formData.get('profession') === 'other' ? otherProfession.value : formData.get('profession'),
-                institution:     formData.get('institution') || '',
-                contact:         getPhoneDigits(),
-                paymentmode:     paymentData.get('paymentmode'),
-                amount:          _selectedPlan.amount,
-                membershipPeriod:_selectedPlan.period,
-                paymentType:     'membership',
-                transactionId:   ''
-            };
-
-            _pendingFormData = formObject;
-
-            // Pre-register via api.php
             try {
                 const preFd = new FormData();
                 preFd.append('fullName',         formObject.fullName);
@@ -2529,7 +2328,7 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 preFd.append('phone',            formObject.contact);
                 preFd.append('profession',       formObject.profession);
                 preFd.append('institution',      formObject.institution);
-                preFd.append('paymentMethod',    formObject.paymentmode === 'UGMTNMOMODIR' ? 'MTN Mobile Money' : 'Airtel Money');
+                preFd.append('paymentMethod',    methodLabel);
                 preFd.append('paymentType',      formObject.paymentType);
                 preFd.append('membershipPeriod', formObject.membershipPeriod);
                 preFd.append('amount',           formObject.amount);
@@ -2540,8 +2339,8 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 if (preRes.success) {
                     _receiptToken = preRes.receipt_token;
                     _paymentId    = preRes.payment_id;
-                } else if (preRes.error) {
-                    showError(preRes.error);
+                } else {
+                    showError(preRes.error || 'Registration failed. Please try again.');
                     return;
                 }
             } catch(e) {
@@ -2549,46 +2348,122 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
                 return;
             }
 
-            // ── Step 2: Send payment through server proxy ──────────────
+            // ── Step 2: Initiate payment ───────────────────────────
             _setStep(2);
-            const methodLabel = formObject.paymentmode === 'UGMTNMOMODIR' ? 'MTN' : 'Airtel';
-            const proofOfPaymentHtml = 'If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-            document.getElementById('modalMessage').textContent    = `Sending request to ${methodLabel}…`;
-            document.getElementById('modalSubMessage').innerHTML = 'A payment prompt will appear on your phone.<br><br>' + proofOfPaymentHtml;
 
-            try {
-                const payFd = new FormData();
-                payFd.append('phone', formObject.contact);
-                payFd.append('amount', formObject.amount);
-                payFd.append('email', formObject.email || 'info@hosu.or.ug');
-                payFd.append('payment_id', _paymentId || 0);
+            if (isMobile) {
+                // ── MTN / Airtel: direct USSD push ──────────────
+                document.getElementById('modalMessage').textContent    = `Sending prompt to your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone…`;
+                document.getElementById('modalSubMessage').textContent = 'Please wait a moment…';
 
-                const payAction = formObject.paymentmode === 'UGMTNMOMODIR' ? 'pay_mtn' : 'pay_airtel';
-                const payRes = await fetch('payment.php?action=' + payAction, { method: 'POST', body: payFd }).then(r => r.json());
+                try {
+                    const payFd = new FormData();
+                    payFd.append('phone',         formObject.contact);
+                    payFd.append('amount',        formObject.amount);
+                    payFd.append('email',         formObject.email || 'info@hosu.or.ug');
+                    payFd.append('name',          formObject.fullName);
+                    payFd.append('payment_id',    _paymentId || 0);
+                    payFd.append('receipt_token', _receiptToken || '');
+                    payFd.append('channel',       channel);
+                    payFd.append('type',          'membership');
 
-                if (payRes.error) {
-                    showError(payRes.error);
-                    return;
-                }
+                    const payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(r => r.json());
 
-                _txnRef = payRes.txn_ref || null;
-                _txnId  = payRes.txn_id || null;
+                    if (payRes.error) { showError(payRes.error); return; }
 
-                if (payRes.status === 'completed') {
-                    showSuccess(payRes.message || 'Payment successful!');
-                } else if (payRes.status === 'pending') {
-                    document.getElementById('modalMessage').textContent    = '\uD83D\uDCF1 Check your phone now!';
-                    document.getElementById('modalSubMessage').innerHTML = (payRes.message || 'Approve the payment on your phone') + '<br><br>' + proofOfPaymentHtml;
-                    if (formObject.paymentmode === 'UGAIRTELMODIR') {
-                        checkAirtelStatus();
-                    } else {
-                        checkMtnStatus();
+                    // Fallback: PesaPal returned a redirect_url instead of direct USSD push
+                    if (payRes.redirect_url) {
+                        _setStep(3);
+                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
+                        document.getElementById('modalSubMessage').textContent = 'Complete your payment on the PesaPal page.';
+                        await new Promise(r => setTimeout(r, 600));
+                        window.location.href = payRes.redirect_url;
+                        return;
                     }
-                } else {
-                    showError(payRes.message || 'Payment failed. Please try again.');
+
+                    // Direct USSD push sent — show countdown and poll
+                    const trackingId = payRes.tracking_id || '';
+                    _setStep(2);
+                    document.getElementById('modalMessage').textContent    = `📱 Check your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone!`;
+                    document.getElementById('modalSubMessage').innerHTML   = `Enter your mobile money PIN to approve the payment of <strong>UGX ${formObject.amount.toLocaleString()}</strong>.`;
+
+                    // ── Poll check_mobile ──────────────────────────
+                    const MAX_POLLS = 15;
+                    const INTERVAL  = 8000;
+                    _airtelPollActive = true;
+
+                    for (let i = 0; i < MAX_POLLS; i++) {
+                        if (!_airtelPollActive) return;
+                        const secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
+                        const cd = document.getElementById('airtelCountdown');
+                        if (cd) { cd.style.display = 'block'; cd.textContent = `Time remaining: ${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`; }
+
+                        await new Promise(r => setTimeout(r, INTERVAL));
+                        if (!_airtelPollActive) return;
+
+                        try {
+                            const params = `action=check_mobile&tracking_id=${encodeURIComponent(trackingId)}&payment_id=${_paymentId || 0}`;
+                            const result = await fetch('payment.php?' + params).then(r => r.json());
+
+                            if (result.status === 'completed') {
+                                _airtelPollActive = false;
+                                _setStep(3);
+                                document.getElementById('airtelCountdown').style.display = 'none';
+                                document.getElementById('modalSpinner').style.display    = 'none';
+                                document.getElementById('modalMessage').textContent = '✅ Payment confirmed!';
+                                document.getElementById('modalMessage').style.color = '#27ae60';
+                                document.getElementById('modalSubMessage').innerHTML = 'A receipt has been sent to your email.<br><br>'
+                                    + `<a href="receipt.php?token=${encodeURIComponent(result.receipt_token || _receiptToken)}" `
+                                    + 'style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">📄 View Receipt</a>';
+                                resetForm();
+                                return;
+                            } else if (result.status === 'failed') {
+                                _airtelPollActive = false;
+                                showError(result.message || 'Payment was declined. Please try again.');
+                                return;
+                            }
+                        } catch(e) { /* continue polling on network hiccup */ }
+                    }
+
+                    _airtelPollActive = false;
+                    showError('Payment timed out (2 minutes). The request was cancelled.',
+                        'If money was deducted, please contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or '
+                        + '<a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
+                } catch(e) {
+                    showError('Network error. Please check your connection and try again.');
                 }
-            } catch(e) {
-                showError('Network error. Please check your connection and try again.');
+
+            } else {
+                // ── Visa/Mastercard: PesaPal hosted redirect ──────
+                document.getElementById('modalMessage').textContent    = 'Connecting to payment gateway…';
+                document.getElementById('modalSubMessage').textContent = 'Preparing your secure payment page…';
+
+                try {
+                    const payFd = new FormData();
+                    payFd.append('payment_id',    _paymentId || 0);
+                    payFd.append('receipt_token', _receiptToken || '');
+                    payFd.append('amount',        formObject.amount);
+                    payFd.append('email',         formObject.email || 'info@hosu.or.ug');
+                    payFd.append('name',          formObject.fullName);
+                    payFd.append('phone',         formObject.contact);
+                    payFd.append('type',          'membership');
+
+                    const payRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd }).then(r => r.json());
+
+                    if (payRes.error) { showError(payRes.error); return; }
+
+                    if (payRes.redirect_url) {
+                        _setStep(3);
+                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
+                        document.getElementById('modalSubMessage').textContent = 'You will complete payment on the PesaPal secure page.';
+                        await new Promise(r => setTimeout(r, 600));
+                        window.location.href = payRes.redirect_url;
+                    } else {
+                        showError('Could not get a payment link. Please try again.');
+                    }
+                } catch(e) {
+                    showError('Network error. Please check your connection and try again.');
+                }
             }
         }
 
@@ -2609,150 +2484,9 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
             document.getElementById('airtelCountdown').style.display = 'none';
             document.getElementById('modalMessage').textContent = message;
             document.getElementById('modalMessage').style.color = 'red';
-            document.getElementById('modalSubMessage').innerHTML = detailsHtml || 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
+            document.getElementById('modalSubMessage').innerHTML = detailsHtml || 'If you need help, contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('closeModalButton').style.display = 'block';
             document.getElementById('processingCloseBtn').style.display = 'flex';
-        }
-
-        async function showSuccess(gatewayMessage) {
-            _airtelPollActive = false;
-            _setStep(3);
-            document.getElementById('airtelCountdown').style.display = 'none';
-            document.getElementById('modalMessage').textContent = 'Confirming your payment…';
-            document.getElementById('modalMessage').style.color = 'inherit';
-            document.getElementById('modalSubMessage').textContent = '';
-            document.getElementById('modalSpinner').style.display = 'block';
-
-            if (_receiptToken && _paymentId) {
-                // Confirm payment (server already did this, but call as fallback)
-                try {
-                    const fd = new FormData();
-                    fd.append('payment_id',    _paymentId);
-                    fd.append('receipt_token', _receiptToken);
-                    await fetch('api.php?action=confirm_payment', { method: 'POST', body: fd });
-                } catch(e) {}
-
-                document.getElementById('modalSpinner').style.display = 'none';
-                document.getElementById('modalMessage').textContent = '✅ Payment confirmed!';
-                document.getElementById('modalMessage').style.color = '#27ae60';
-                document.getElementById('modalSubMessage').innerHTML = 'A receipt has been sent to your email.<br><br>'
-                    + '<a href="receipt.php?token=' + _receiptToken + '" '
-                    + 'style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">'
-                    + '\uD83D\uDCC4 View Receipt</a>';
-                resetForm();
-            } else {
-                // Fallback: full register_member call (old flow)
-                document.getElementById('modalMessage').textContent = 'Payment confirmed! Registering your membership…';
-                const fd = new FormData();
-                if (_pendingFormData) {
-                    fd.append('fullName',         _pendingFormData.fullName || '');
-                    fd.append('email',            _pendingFormData.email || '');
-                    fd.append('phone',            _pendingFormData.contact || '');
-                    fd.append('profession',       _pendingFormData.profession || '');
-                    fd.append('institution',      _pendingFormData.institution || '');
-                    fd.append('paymentMethod',    _pendingFormData.paymentmode || 'unknown');
-                    fd.append('paymentType',      _pendingFormData.paymentType || 'membership');
-                    fd.append('membershipPeriod', _pendingFormData.membershipPeriod || '1_year');
-                    fd.append('amount',           _pendingFormData.amount || 100000);
-                    fd.append('transactionId',    _pendingFormData.transactionId || '');
-                }
-                try {
-                    const data = await fetch('api.php?action=register_member', { method: 'POST', body: fd }).then(r => r.json());
-                    if (data.success && data.receipt_token) {
-                        resetForm();
-                        window.location.href = 'receipt.php?token=' + data.receipt_token;
-                        return;
-                    }
-                } catch(_) {}
-                document.getElementById('modalSpinner').style.display = 'none';
-                document.getElementById('modalMessage').textContent = (gatewayMessage || 'Payment received') + ' Thank you!';
-                document.getElementById('closeModalButton').style.display = 'block';
-                resetForm();
-            }
-        }
-
-        /* ── Airtel status polling via server proxy ────────────────── */
-        async function checkAirtelStatus() {
-            if (_airtelPollActive) return;
-            _airtelPollActive = true;
-            const MAX_POLLS = 18;
-            const INTERVAL  = 10000;
-
-            document.getElementById('modalMessage').textContent    = 'Waiting for your approval…';
-            document.getElementById('modalSubMessage').innerHTML = 'Check your phone and enter your mobile money PIN.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-
-            for (let i = 0; i < MAX_POLLS; i++) {
-                if (!_airtelPollActive) return;
-
-                const secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                const cd = document.getElementById('airtelCountdown');
-                if (cd) { cd.style.display = 'block'; cd.textContent = `Time remaining: ${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`; }
-
-                await new Promise(r => setTimeout(r, INTERVAL));
-                if (!_airtelPollActive) return;
-
-                try {
-                    const params = 'action=check_airtel&txn_id=' + encodeURIComponent(_txnId || _txnRef)
-                        + '&payment_id=' + (_paymentId || 0);
-                    const result = await fetch('payment.php?' + params).then(r => r.json());
-
-                    if (result.status === 'completed') {
-                        _airtelPollActive = false;
-                        showSuccess(result.message);
-                        return;
-                    } else if (result.status === 'failed' || result.status === 'expired') {
-                        _airtelPollActive = false;
-                        showError(result.message || 'Payment was declined or failed. Please try again.');
-                        return;
-                    }
-                } catch (e) {
-                    console.error('Airtel status check error:', e);
-                }
-            }
-            _airtelPollActive = false;
-            showError('Payment timed out. The transaction has been cancelled.', 'If money was deducted, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
-        }
-
-        /* ── MTN status polling via server proxy ───────────────────── */
-        async function checkMtnStatus() {
-            _airtelPollActive = true; // reuse flag
-            const MAX_POLLS = 12;
-            const INTERVAL  = 10000;
-
-            document.getElementById('modalMessage').textContent    = 'Waiting for your approval…';
-            document.getElementById('modalSubMessage').innerHTML = 'Approve the MTN Mobile Money prompt on your phone.<br><br>If you complete payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-
-            for (let i = 0; i < MAX_POLLS; i++) {
-                if (!_airtelPollActive) return;
-
-                const secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                const cd = document.getElementById('airtelCountdown');
-                if (cd) { cd.style.display = 'block'; cd.textContent = `Time remaining: ${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`; }
-
-                await new Promise(r => setTimeout(r, INTERVAL));
-                if (!_airtelPollActive) return;
-
-                try {
-                    const params = 'action=check_mtn&txn_ref=' + encodeURIComponent(_txnRef)
-                        + (_txnId ? '&txn_id=' + encodeURIComponent(_txnId) : '')
-                        + '&payment_id=' + (_paymentId || 0);
-                    const result = await fetch('payment.php?' + params).then(r => r.json());
-
-                    if (result.status === 'completed') {
-                        _airtelPollActive = false;
-                        showSuccess(result.message);
-                        return;
-                    } else if (result.status === 'failed') {
-                        _airtelPollActive = false;
-                        showError(result.message || 'Payment failed. Please try again.');
-                        return;
-                    }
-                } catch (e) {
-                    console.error('MTN status check error:', e);
-                }
-            }
-            _airtelPollActive = false;
-            showError('Payment timed out. The transaction has been cancelled.', 'If money was deducted, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
         }
 
         function resetForm() {
@@ -2777,6 +2511,26 @@ document.getElementById('expiryDate').addEventListener('input', function(e) {
         });
 
         document.getElementById('closeModalButton').addEventListener('click', closeProcessingModal);
+
+        /* Auto-detect MTN / Airtel from the phone number the user types */
+        (function () {
+            var contactEl = document.getElementById('contact');
+            if (!contactEl) return;
+            function autoDetect() {
+                var digits = getPhoneDigits();
+                var net = detectUgandaNetwork(digits);
+                if (net && net !== selectedMethod) selectPayment(net);
+            }
+            contactEl.addEventListener('input',  autoDetect);
+            contactEl.addEventListener('change', autoDetect);
+            /* Also hook into intlPhone change when it initialises */
+            var intlCheckId = setInterval(function () {
+                var api = window.intlPhone ? window.intlPhone.get('contact') : null;
+                if (!api) return;
+                clearInterval(intlCheckId);
+                api.onUpdate(autoDetect);
+            }, 300);
+        }());
     </script>
 <style>
 .login-trigger-wrap { position: relative; display: inline-block; }

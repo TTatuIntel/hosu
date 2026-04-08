@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+﻿<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -474,6 +474,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                         <option value="rejected">? Rejected</option>
                     </select>
                     <div class="search-wrap"><input type="text" id="pay-search" placeholder="Search�" oninput="filterPayments()"></div>
+                    <button id="sync-all-btn" class="btn-sm" style="background:#e8f0fe;color:#1a56db;border:1px solid #c7d7fa;" onclick="syncAllPending()" title="Re-query PesaPal for all pending payments that have a tracking ID">&#x1F504; Sync Pending</button>
                     <a href="api.php?action=export_payments_csv" class="btn-primary btn-nodecor">? Export CSV</a>
                 </div>
             </div>
@@ -967,6 +968,10 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="pem-file-hint">Upload screenshot or PDF of MoMo/payment confirmation</div>
             </div>
             <div id="pem-verify-actions"></div>
+            <div id="pem-pesapal-sync" style="margin:.6rem 0;display:none;">
+                <button class="btn-sm" style="background:#e8f0fe;color:#1a56db;border:1px solid #c7d7fa;width:100%;" onclick="syncFromModal()" id="pem-sync-btn">&#x1F504; Check PesaPal Live Status</button>
+                <div id="pem-sync-result" style="margin-top:.4rem;font-size:.78rem;"></div>
+            </div>
             <div class="pem-btn-row">
                 <button class="btn-primary btn-sm" onclick="savePaymentEdit()">?? Save Changes</button>
                 <button class="btn-sm btn-outline-xs" onclick="closeModal('pay-edit-modal')">Cancel</button>
@@ -2027,6 +2032,15 @@ function renderPayments(){
         var receiptBtn=p.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(p.receipt_token)+'" target="_blank" title="View Receipt">??</a>':'';
         var verifyAttr=isEvReg?'verifyEvPay('+p.registrant_id:'verifyPay('+p.payment_id;
         var editBtn='<button class="btn-sm btn-outline-xs" style="padding:.28rem .55rem;" onclick="openPayEditModal('+p.payment_id+',\''+esc(p.source)+'\')" title="Edit Transaction ID / Upload Proof">??</button>';
+        // PesaPal sync button — only for pending/unverified rows that have a tracking ID
+        var syncBtn='';
+        if(p.payment_status!=='verified' && txFull){
+            var syncSource=p.source==='event_registrants'?'event_registrants':'payments';
+            var syncKey=p.source==='event_registrants'?'registrant_id='+p.registrant_id:'payment_id='+p.payment_id;
+            syncBtn='<button class="btn-sm" style="padding:.28rem .55rem;background:#e8f0fe;color:#1a56db;" '
+                +'onclick="syncPesapalPayment(\''+syncSource+'\','+p.payment_id+','+p.registrant_id+',this)" '
+                +'title="Re-query PesaPal for live status">?? Sync</button>';
+        }
         html+='<tr>'
             +'<td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
             +'<td>'+payerCell+'</td>'
@@ -2037,12 +2051,83 @@ function renderPayments(){
             +'<td style="white-space:nowrap;display:flex;gap:.25rem;align-items:center;flex-wrap:wrap;">'
             +(p.payment_status!=='verified'?'<button class="btn-green btn-sm" style="padding:.28rem .55rem;" onclick="'+verifyAttr+',\'verified\')" title="Verify">?</button>':'')
             +(p.payment_status==='pending'?'<button class="btn-danger" style="padding:.28rem .5rem;" onclick="'+verifyAttr+',\'rejected\')" title="Reject">?</button>':'')
-            +editBtn+receiptBtn+invBtn
+            +syncBtn+editBtn+receiptBtn+invBtn
             +'</td></tr>';
     });
     document.getElementById('pay-body').innerHTML=html;
 }
 function filterPayments(){renderPayments();}
+
+/* ── PesaPal live-status sync (single row) ────────────────────────── */
+async function syncPesapalPayment(source,paymentId,registrantId,btn){
+    if(btn){btn.disabled=true;btn.textContent='...';
+    }
+    var isEvReg=source==='event_registrants';
+    var qs=isEvReg?'source=event_registrants&registrant_id='+registrantId:'source=payments&payment_id='+paymentId;
+    try{
+        var d=await fetch('payment.php?action=sync_pesapal_payment&'+qs,{credentials:'same-origin'}).then(r=>r.json());
+        if(d.error){toast(d.error,'error');if(btn){btn.disabled=false;btn.textContent='?? Sync';} return;}
+        if(d.status==='verified'){
+            toast('??? Verified! Payment confirmed by PesaPal.','success');
+            loadPayments();
+        }else if(d.status==='failed'||d.status==='reversed'){
+            toast('?? '+d.message,'error');
+            loadPayments();
+        }else{
+            toast('? Still pending: '+(d.pesapal_status||d.message||'Waiting for approval'),'info');
+            if(btn){btn.disabled=false;btn.textContent='?? Sync';}
+        }
+    }catch(e){toast('Network error.','error');if(btn){btn.disabled=false;btn.textContent='?? Sync';}}
+}
+
+/* ── PesaPal bulk sync all pending-with-tracking-id rows ─────────── */
+async function syncAllPending(){
+    var pending=_payments.filter(p=>p.payment_status!=='verified'&&(p.transaction_id||'').trim());
+    if(!pending.length){toast('No pending payments with a PesaPal tracking ID.','info');return;}
+    var btn=document.getElementById('sync-all-btn');
+    if(btn){btn.disabled=true;btn.textContent='Syncing '+pending.length+'...';}
+    var verified=0,still=0,failed=0;
+    for(var i=0;i<pending.length;i++){
+        var p=pending[i];
+        var isEvReg=p.source==='event_registrants';
+        var qs=isEvReg?'source=event_registrants&registrant_id='+p.registrant_id:'source=payments&payment_id='+p.payment_id;
+        try{
+            var d=await fetch('payment.php?action=sync_pesapal_payment&'+qs,{credentials:'same-origin'}).then(r=>r.json());
+            if(d.status==='verified') verified++;
+            else if(d.status==='failed'||d.status==='reversed') failed++;
+            else still++;
+        }catch(e){still++;}
+    }
+    await new Promise(r=>setTimeout(r,300));
+    loadPayments();
+    toast('Sync complete: '+verified+' verified, '+still+' still pending, '+failed+' failed.', verified>0?'success':'info');
+    if(btn){btn.disabled=false;btn.textContent='🔄 Sync Pending';}
+}
+
+/* ── PesaPal sync from the Edit modal ── */
+async function syncFromModal(){
+    if(!_editingPay) return;
+    var p=_editingPay;
+    var btn=document.getElementById('pem-sync-btn');
+    var res=document.getElementById('pem-sync-result');
+    btn.disabled=true; btn.textContent='Checking…'; res.textContent='';
+    var isEvReg=p.source==='event_registrants';
+    var qs=isEvReg?'source=event_registrants&registrant_id='+p.registrant_id:'source=payments&payment_id='+p.payment_id;
+    try{
+        var d=await fetch('payment.php?action=sync_pesapal_payment&'+qs,{credentials:'same-origin'}).then(r=>r.json());
+        if(d.error){res.innerHTML='<span style="color:#dc2626;">'+esc(d.error)+'</span>';}
+        else if(d.status==='verified'){
+            res.innerHTML='<span style="color:#16a34a;">✅ Verified! Payment confirmed by PesaPal.</span>';
+            setTimeout(function(){closeModal('pay-edit-modal');loadPayments();},900);
+        }else if(d.status==='failed'||d.status==='reversed'){
+            res.innerHTML='<span style="color:#dc2626;">❌ '+esc(d.message)+'</span>';
+        }else{
+            res.innerHTML='<span style="color:#d97706;">⏳ Still pending: '+esc(d.pesapal_status||d.message||'Waiting for approval')+'</span>';
+        }
+    }catch(e){res.innerHTML='<span style="color:#dc2626;">Network error.</span>';}
+    btn.disabled=false; btn.textContent='🔄 Check PesaPal Live Status';
+}
+
 function goToTab(tab,filterId,val){
     showTab(tab);
     if(filterId){var el=document.getElementById(filterId);if(el){el.value=val;if(tab==='members')filterMembers();else if(tab==='payments')filterPayments();}}
@@ -2098,6 +2183,13 @@ function openPayEditModal(paymentId,source){
             +'</div>';
     }
     document.getElementById('pem-verify-actions').innerHTML=va;
+    // Show PesaPal sync panel if a tracking ID exists and payment not yet verified
+    var syncPanel=document.getElementById('pem-pesapal-sync');
+    if(syncPanel){
+        var hasTxId=(p.transaction_id||'').trim()!=='';
+        syncPanel.style.display=(hasTxId && p.payment_status!=='verified')?'block':'none';
+        document.getElementById('pem-sync-result').textContent='';
+    }
     openModal('pay-edit-modal');
 }
 function savePaymentEdit(){

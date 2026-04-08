@@ -25,54 +25,96 @@ require_once 'mailer.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 
-// ── Gateway config (from environment) ─────────────────────────────────
-// Flutterwave API (supports MTN MoMo, Airtel Money, Visa for Uganda)
-// Sign up: https://dashboard.flutterwave.com — get keys from Settings > API
-define('FLW_BASE', 'https://api.flutterwave.com/v3');
-define('FLW_SECRET_KEY', getenv('FLW_SECRET_KEY') ?: '');
-define('FLW_PUBLIC_KEY', getenv('FLW_PUBLIC_KEY') ?: '');
+// ── Gateway config (PesaPal v3) ───────────────────────────────────────
+define('PESAPAL_ENV',             getenv('PESAPAL_ENV') ?: 'production');
+define('PESAPAL_BASE',            PESAPAL_ENV === 'sandbox'
+    ? 'https://cybqa.pesapal.com/pesapalv3'
+    : 'https://pay.pesapal.com/v3');
+define('PESAPAL_CONSUMER_KEY',    getenv('PESAPAL_CONSUMER_KEY') ?: '');
+define('PESAPAL_CONSUMER_SECRET', getenv('PESAPAL_CONSUMER_SECRET') ?: '');
 
 /**
- * Make an authenticated request to Flutterwave API.
+ * Make a request to the PesaPal API.
  */
-function flwRequest(string $method, string $endpoint, array $body = null): array
+function pesapalRequest(string $method, string $endpoint, ?array $body, string $token = ''): array
 {
-    $url = FLW_BASE . $endpoint;
-
-    $headers = [
-        'Authorization: Bearer ' . FLW_SECRET_KEY,
-        'Content-Type: application/json',
-        'Accept: application/json',
-    ];
+    $url     = PESAPAL_BASE . $endpoint;
+    $headers = ['Content-Type: application/json', 'Accept: application/json'];
+    if ($token) $headers[] = 'Authorization: Bearer ' . $token;
 
     $ch = curl_init($url);
     curl_setopt_array($ch, [
         CURLOPT_RETURNTRANSFER => true,
-        CURLOPT_TIMEOUT        => 60,
+        CURLOPT_TIMEOUT        => 30,
         CURLOPT_SSL_VERIFYPEER => true,
         CURLOPT_HTTPHEADER     => $headers,
     ]);
-
-    if ($method === 'POST' && $body !== null) {
+    if ($method === 'POST') {
         curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body));
+        curl_setopt($ch, CURLOPT_POSTFIELDS, json_encode($body ?? new stdClass()));
     }
 
-    $resp = curl_exec($ch);
+    $resp     = curl_exec($ch);
     $httpCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-    $err = curl_error($ch);
+    $err      = curl_error($ch);
     curl_close($ch);
 
-    if ($err) {
-        throw new RuntimeException('Gateway connection error: ' . $err);
-    }
-
+    if ($err) throw new RuntimeException('PesaPal connection error: ' . $err);
     $data = json_decode($resp, true);
-    if (!is_array($data)) {
-        throw new RuntimeException("Gateway returned invalid response (HTTP $httpCode)");
-    }
-
+    if (!is_array($data)) throw new RuntimeException("PesaPal returned invalid response (HTTP $httpCode)");
     return $data;
+}
+
+/**
+ * Get a PesaPal bearer token (cached in temp dir for 4 minutes).
+ */
+function pesapalGetToken(): string
+{
+    $cache = sys_get_temp_dir() . '/hosu_pp_token.json';
+    if (is_file($cache)) {
+        $c = json_decode(file_get_contents($cache), true);
+        if ($c && !empty($c['token']) && !empty($c['exp']) && time() < $c['exp']) {
+            return $c['token'];
+        }
+    }
+    $res = pesapalRequest('POST', '/api/Auth/RequestToken', [
+        'consumer_key'    => PESAPAL_CONSUMER_KEY,
+        'consumer_secret' => PESAPAL_CONSUMER_SECRET,
+    ], '');
+    if (($res['status'] ?? '') !== '200' || empty($res['token'])) {
+        throw new RuntimeException('PesaPal auth failed: ' . ($res['message'] ?? json_encode($res)));
+    }
+    file_put_contents($cache, json_encode(['token' => $res['token'], 'exp' => time() + 240]));
+    return $res['token'];
+}
+
+/**
+ * Get (or register) the PesaPal IPN ID for this site.
+ */
+function pesapalGetIpnId(string $token): string
+{
+    $cache = sys_get_temp_dir() . '/hosu_pp_ipn.json';
+    if (is_file($cache)) {
+        $c = json_decode(file_get_contents($cache), true);
+        if ($c && !empty($c['ipn_id'])) return $c['ipn_id'];
+    }
+    // Check for existing registrations
+    $list = pesapalRequest('GET', '/api/URLSetup/GetIpnList', null, $token);
+    if (is_array($list) && !empty($list[0]['ipn_id'])) {
+        file_put_contents($cache, json_encode(['ipn_id' => $list[0]['ipn_id']]));
+        return $list[0]['ipn_id'];
+    }
+    // Register a new IPN endpoint
+    $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+    $host     = preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+    $ipnUrl   = $protocol . '://' . $host . rtrim(dirname($_SERVER['SCRIPT_NAME']), '/') . '/pesapal_ipn.php';
+    $reg = pesapalRequest('POST', '/api/URLSetup/RegisterIPN', [
+        'url'                   => $ipnUrl,
+        'ipn_notification_type' => 'GET',
+    ], $token);
+    if (empty($reg['ipn_id'])) throw new RuntimeException('PesaPal IPN registration failed: ' . json_encode($reg));
+    file_put_contents($cache, json_encode(['ipn_id' => $reg['ipn_id']]));
+    return $reg['ipn_id'];
 }
 
 /**
@@ -320,19 +362,117 @@ function saveTxnRef(PDO $pdo, int $regId, int $payId, string $txnRef, string $me
 switch ($action) {
 
     // ──────────────────────────────────────────────────────────────────
-    // Initiate MTN Mobile Money payment (via Flutterwave)
+    // Initialise a PesaPal hosted-page payment
+    // Supports: membership, donation (payment_id) and event (registrant_id)
     // ──────────────────────────────────────────────────────────────────
-    case 'pay_mtn':
+    case 'init_pesapal':
         try {
-            $phone  = sanitizePhone(trim($_POST['phone'] ?? ''));
-            $amount = (int)($_POST['amount'] ?? 0);
-            $regId  = (int)($_POST['registrant_id'] ?? 0);
-            $payId  = (int)($_POST['payment_id'] ?? 0);
-            $email  = trim($_POST['email'] ?? 'info@hosu.or.ug');
+            $payId   = (int)($_POST['payment_id']    ?? 0);
+            $regId   = (int)($_POST['registrant_id'] ?? 0);
+            $tok     = trim($_POST['receipt_token']  ?? '');
+            $amount  = (float)($_POST['amount']      ?? 0);
+            $email   = trim($_POST['email']          ?? '');
+            $name    = trim($_POST['name']           ?? '');
+            $phone   = trim($_POST['phone']          ?? '');
+            $type    = trim($_POST['type']           ?? 'membership');
 
-            if (!$phone || strlen($phone) < 7) {
+            if (!in_array($type, ['membership','event_registration','donation'])) $type = 'membership';
+
+            if ($amount <= 0) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Invalid phone number. Please enter a valid number with country code.']);
+                echo json_encode(['error' => 'Invalid payment amount.']);
+                break;
+            }
+            if (!$payId && !$regId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Payment reference required.']);
+                break;
+            }
+            if (empty(PESAPAL_CONSUMER_KEY) || empty(PESAPAL_CONSUMER_SECRET)) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Payment gateway not configured. Please contact info@hosu.or.ug.']);
+                break;
+            }
+
+            $ppToken  = pesapalGetToken();
+            $ipnId    = pesapalGetIpnId($ppToken);
+
+            $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host     = preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+            $base     = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+
+            $callbackUrl = $protocol . '://' . $host . $base . '/pesapal_callback.php?' . http_build_query([
+                'payment_id'    => $payId,
+                'registrant_id' => $regId,
+                'receipt_token' => $tok,
+                'type'          => $type,
+            ]);
+
+            $merchantRef = 'HOSU-' . strtoupper(substr($type, 0, 1)) . '-' . ($payId ?: $regId) . '-' . time();
+
+            // Persist merchant reference
+            if ($payId)  $pdo->prepare("UPDATE payments SET transaction_ref = ?, payment_method = 'PesaPal' WHERE id = ?")->execute([$merchantRef, $payId]);
+            if ($regId)  $pdo->prepare("UPDATE event_registrants SET transaction_ref = ?, payment_method = 'PesaPal' WHERE id = ?")->execute([$merchantRef, $regId]);
+
+            $parts     = explode(' ', trim($name), 2);
+            $firstName = $parts[0];
+            $lastName  = $parts[1] ?? $parts[0];
+
+            $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
+                'id'              => $merchantRef,
+                'currency'        => 'UGX',
+                'amount'          => $amount,
+                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'callback_url'    => $callbackUrl,
+                'notification_id' => $ipnId,
+                'billing_address' => [
+                    'email_address' => $email,
+                    'phone_number'  => $phone,
+                    'country_code'  => 'UG',
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                ],
+            ], $ppToken);
+
+            if (!empty($result['redirect_url'])) {
+                $trackingId = $result['order_tracking_id'] ?? '';
+                if ($trackingId) {
+                    if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([$trackingId, $payId]);
+                    if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([$trackingId, $regId]);
+                }
+                echo json_encode(['success' => true, 'redirect_url' => $result['redirect_url'], 'tracking_id' => $trackingId]);
+            } else {
+                error_log('PesaPal order failed: ' . json_encode($result));
+                $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initialize payment. Please try again.');
+                http_response_code(500);
+                echo json_encode(['error' => $msg]);
+            }
+        } catch (\Throwable $e) {
+            error_log('PesaPal init: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Payment gateway error. Please try again or contact info@hosu.or.ug.']);
+        }
+        break;
+
+    // ──────────────────────────────────────────────────────────────────
+    // Direct mobile money via PesaPal channel (USSD push to phone)
+    // channel = UGMTNMOMODIR or UGAIRTELMODIR
+    // ──────────────────────────────────────────────────────────────────
+    case 'pay_mobile':
+        try {
+            $phone   = trim($_POST['phone']          ?? '');
+            $amount  = (float)($_POST['amount']      ?? 0);
+            $payId   = (int)($_POST['payment_id']    ?? 0);
+            $regId   = (int)($_POST['registrant_id'] ?? 0);
+            $email   = trim($_POST['email']          ?? '');
+            $name    = trim($_POST['name']           ?? '');
+            $channel = strtoupper(trim($_POST['channel'] ?? ''));
+            $type    = trim($_POST['type']           ?? 'membership');
+            $tok     = trim($_POST['receipt_token']  ?? '');
+
+            if (!in_array($channel, ['UGMTNMOMODIR', 'UGAIRTELMODIR'], true)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Invalid payment channel.']);
                 break;
             }
             if ($amount <= 0) {
@@ -340,219 +480,163 @@ switch ($action) {
                 echo json_encode(['error' => 'Invalid payment amount.']);
                 break;
             }
-            if (empty(FLW_SECRET_KEY)) {
+            if (!$payId && !$regId) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Payment reference required.']);
+                break;
+            }
+            if (empty(PESAPAL_CONSUMER_KEY) || empty(PESAPAL_CONSUMER_SECRET)) {
                 http_response_code(500);
-                echo json_encode(['error' => 'Payment gateway not configured. Please set your live Flutterwave key in .env to enable real-time payments.']);
+                echo json_encode(['error' => 'Payment gateway not configured. Please contact info@hosu.or.ug.']);
                 break;
             }
 
-            $txnRef = generateTxnRef('MTN');
-            saveTxnRef($pdo, $regId, $payId, $txnRef, 'MTN Mobile Money');
+            $phone       = sanitizePhone($phone);
+            $ppToken     = pesapalGetToken();
+            $ipnId       = pesapalGetIpnId($ppToken);
+            $methodName  = $channel === 'UGMTNMOMODIR' ? 'MTN Mobile Money' : 'Airtel Money';
 
-            // Lookup email from DB if not passed
-            if ($email === 'info@hosu.or.ug') {
-                if ($payId) {
-                    $r = $pdo->prepare("SELECT m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
-                    $r->execute([$payId]); $row = $r->fetch(); if ($row) $email = $row['email'];
-                } elseif ($regId) {
-                    $r = $pdo->prepare("SELECT email FROM event_registrants WHERE id=?");
-                    $r->execute([$regId]); $row = $r->fetch(); if ($row) $email = $row['email'];
-                }
-            }
-
-
-            $result = flwRequest('POST', '/charges?type=mobile_money_uganda', [
-                'tx_ref'       => $txnRef,
-                'amount'       => $amount,
-                'currency'     => 'UGX',
-                'email'        => $email,
-                'phone_number' => $phone,
-                'network'      => 'MTN',
-                'order_id'     => $txnRef,
+            $protocol    = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+            $host        = preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'localhost');
+            $base        = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/');
+            $callbackUrl = $protocol . '://' . $host . $base . '/pesapal_callback.php?' . http_build_query([
+                'payment_id'    => $payId,
+                'registrant_id' => $regId,
+                'receipt_token' => $tok,
+                'type'          => $type,
             ]);
 
-            $status = $result['status'] ?? '';
-            $flwId  = $result['data']['id'] ?? null;
+            $merchantRef = 'HOSU-' . strtoupper(substr($type, 0, 1)) . '-' . ($payId ?: $regId) . '-' . time();
+            if ($payId) $pdo->prepare("UPDATE payments SET transaction_ref = ?, payment_method = ? WHERE id = ?")->execute([$merchantRef, $methodName, $payId]);
+            if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_ref = ?, payment_method = ? WHERE id = ?")->execute([$merchantRef, $methodName, $regId]);
 
-            // Save Flutterwave transaction ID
-            if ($flwId) {
-                if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([(string)$flwId, $regId]);
-                if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([(string)$flwId, $payId]);
+            $parts     = explode(' ', trim($name), 2);
+            $firstName = $parts[0];
+            $lastName  = $parts[1] ?? $parts[0];
+
+            $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
+                'id'              => $merchantRef,
+                'currency'        => 'UGX',
+                'amount'          => $amount,
+                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'callback_url'    => $callbackUrl,
+                'notification_id' => $ipnId,
+                'channel'         => $channel,
+                'billing_address' => [
+                    'email_address' => $email,
+                    'phone_number'  => $phone,
+                    'country_code'  => 'UG',
+                    'first_name'    => $firstName,
+                    'last_name'     => $lastName,
+                ],
+            ], $ppToken);
+
+            $trackingId = $result['order_tracking_id'] ?? '';
+            if ($trackingId) {
+                if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([$trackingId, $payId]);
+                if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([$trackingId, $regId]);
             }
 
-            if ($status === 'success' && ($result['data']['status'] ?? '') === 'successful') {
-                markPaymentVerified($pdo, $regId, $payId, $txnRef, (string)$flwId);
-                echo json_encode(['success' => true, 'status' => 'completed', 'message' => 'Payment successful!', 'txn_ref' => $txnRef]);
-            } elseif ($status === 'success') {
-                echo json_encode([
-                    'success' => true,
-                    'status'  => 'pending',
-                    'message' => 'Payment prompt sent to your phone. Please approve on your MTN phone.',
-                    'txn_ref' => $txnRef,
-                    'txn_id'  => (string)$flwId,
-                ]);
+            if ($trackingId && empty($result['redirect_url'])) {
+                // Direct USSD push confirmed — poll using tracking_id
+                echo json_encode(['success' => true, 'tracking_id' => $trackingId, 'status' => 'pending']);
+            } elseif (!empty($result['redirect_url'])) {
+                // PesaPal wants redirect for this account setting — return redirect_url as fallback
+                echo json_encode(['success' => true, 'tracking_id' => $trackingId, 'redirect_url' => $result['redirect_url'], 'status' => 'redirect']);
             } else {
-                $msg = $result['message'] ?? 'Payment request failed. Please try again.';
+                $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initiate mobile money payment. Please try again.');
+                error_log('pay_mobile failed: ' . json_encode($result));
+                http_response_code(500);
                 echo json_encode(['error' => $msg]);
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
+            error_log('pay_mobile: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => 'Payment service error: ' . $e->getMessage()]);
+            echo json_encode(['error' => 'Payment gateway error. Please try again or contact info@hosu.or.ug.']);
         }
         break;
 
     // ──────────────────────────────────────────────────────────────────
-    // Initiate Airtel Money payment (via Flutterwave)
+    // Poll PesaPal status for mobile money USSD payment
     // ──────────────────────────────────────────────────────────────────
-    case 'pay_airtel':
+    case 'check_mobile':
         try {
-            $phone  = sanitizePhone(trim($_POST['phone'] ?? ''));
-            $amount = (int)($_POST['amount'] ?? 0);
-            $regId  = (int)($_POST['registrant_id'] ?? 0);
-            $payId  = (int)($_POST['payment_id'] ?? 0);
-            $email  = trim($_POST['email'] ?? 'info@hosu.or.ug');
+            $trackingId = trim($_GET['tracking_id'] ?? '');
+            $payId      = (int)($_GET['payment_id']    ?? 0);
+            $regId      = (int)($_GET['registrant_id'] ?? 0);
 
-            if (!$phone || strlen($phone) < 7) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid phone number. Please enter a valid number with country code.']);
-                break;
-            }
-            if ($amount <= 0) {
-                http_response_code(400);
-                echo json_encode(['error' => 'Invalid payment amount.']);
-                break;
-            }
-            if (empty(FLW_SECRET_KEY)) {
-                http_response_code(500);
-                echo json_encode(['error' => 'Payment gateway not configured. Please set your live Flutterwave key in .env to enable real-time payments.']);
+            if (!$trackingId) {
+                echo json_encode(['status' => 'failed', 'message' => 'Missing tracking ID.']);
                 break;
             }
 
-            $txnRef = generateTxnRef('AIR');
-            saveTxnRef($pdo, $regId, $payId, $txnRef, 'Airtel Money');
+            $ppToken = pesapalGetToken();
+            $status  = pesapalRequest('GET', '/api/Transactions/GetTransactionStatus?orderTrackingId=' . urlencode($trackingId), null, $ppToken);
+            $code    = (int)($status['status_code'] ?? -1);
+            $txnRef  = $status['merchant_reference'] ?? '';
+            $desc    = $status['payment_status_description'] ?? ($status['message'] ?? '');
 
-            // Lookup email from DB if not passed
-            if ($email === 'info@hosu.or.ug') {
+            if ($code === 1) {
+                markPaymentVerified($pdo, $regId, $payId, $txnRef, $trackingId);
+                $receiptToken = '';
                 if ($payId) {
-                    $r = $pdo->prepare("SELECT m.email FROM payments p JOIN members m ON m.id=p.member_id WHERE p.id=?");
-                    $r->execute([$payId]); $row = $r->fetch(); if ($row) $email = $row['email'];
+                    $r = $pdo->prepare("SELECT receipt_token FROM payments WHERE id = ?");
+                    $r->execute([$payId]);
+                    $receiptToken = (string)($r->fetchColumn() ?: '');
                 } elseif ($regId) {
-                    $r = $pdo->prepare("SELECT email FROM event_registrants WHERE id=?");
-                    $r->execute([$regId]); $row = $r->fetch(); if ($row) $email = $row['email'];
+                    $r = $pdo->prepare("SELECT receipt_token FROM event_registrants WHERE id = ?");
+                    $r->execute([$regId]);
+                    $receiptToken = (string)($r->fetchColumn() ?: '');
                 }
-            }
-
-
-            $result = flwRequest('POST', '/charges?type=mobile_money_uganda', [
-                'tx_ref'       => $txnRef,
-                'amount'       => $amount,
-                'currency'     => 'UGX',
-                'email'        => $email,
-                'phone_number' => $phone,
-                'network'      => 'AIRTEL',
-                'order_id'     => $txnRef,
-            ]);
-
-            $status = $result['status'] ?? '';
-            $flwId  = $result['data']['id'] ?? null;
-
-            // Save transaction ID
-            if ($flwId) {
-                if ($regId) $pdo->prepare("UPDATE event_registrants SET transaction_id = ? WHERE id = ?")->execute([(string)$flwId, $regId]);
-                if ($payId) $pdo->prepare("UPDATE payments SET transaction_id = ? WHERE id = ?")->execute([(string)$flwId, $payId]);
-            }
-
-            if ($status === 'success' && ($result['data']['status'] ?? '') === 'successful') {
-                markPaymentVerified($pdo, $regId, $payId, $txnRef, (string)$flwId);
-                echo json_encode(['success' => true, 'status' => 'completed', 'message' => 'Payment successful!', 'txn_ref' => $txnRef, 'txn_id' => (string)$flwId]);
-            } elseif ($status === 'success') {
-                echo json_encode([
-                    'success' => true,
-                    'status'  => 'pending',
-                    'message' => 'Payment prompt sent to your phone. Please enter your Airtel Money PIN to approve.',
-                    'txn_ref' => $txnRef,
-                    'txn_id'  => (string)$flwId,
-                ]);
+                echo json_encode(['status' => 'completed', 'message' => 'Payment confirmed! ✅', 'receipt_token' => $receiptToken]);
+            } elseif ($code === 2) {
+                echo json_encode(['status' => 'failed', 'message' => $desc ?: 'Payment was declined. Please try again.']);
+            } elseif ($code === 3) {
+                echo json_encode(['status' => 'failed', 'message' => 'Payment was reversed.']);
             } else {
-                $msg = $result['message'] ?? 'Airtel payment request failed. Please try again.';
-                echo json_encode(['error' => $msg]);
+                echo json_encode(['status' => 'pending', 'message' => $desc ?: 'Waiting for your confirmation…']);
             }
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Payment service error: ' . $e->getMessage()]);
+        } catch (\Throwable $e) {
+            error_log('check_mobile: ' . $e->getMessage());
+            echo json_encode(['status' => 'pending', 'message' => 'Checking payment status…']);
         }
         break;
 
     // ──────────────────────────────────────────────────────────────────
-    // Poll Airtel payment status (via Flutterwave verify)
+    // Check PesaPal transaction status by orderTrackingId
     // ──────────────────────────────────────────────────────────────────
-    case 'check_airtel':
+    case 'check_pesapal':
         try {
-            $txnId = trim($_GET['txn_id'] ?? $_POST['txn_id'] ?? '');
-            $regId = (int)($_GET['registrant_id'] ?? $_POST['registrant_id'] ?? 0);
-            $payId = (int)($_GET['payment_id'] ?? $_POST['payment_id'] ?? 0);
+            $trackingId = trim($_GET['tracking_id'] ?? $_POST['tracking_id'] ?? '');
+            $payId      = (int)($_GET['payment_id']    ?? $_POST['payment_id']    ?? 0);
+            $regId      = (int)($_GET['registrant_id'] ?? $_POST['registrant_id'] ?? 0);
 
-            if (!$txnId) {
+            if (!$trackingId) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Transaction ID required.']);
+                echo json_encode(['error' => 'Tracking ID required.']);
                 break;
             }
 
+            $ppToken = pesapalGetToken();
+            $status  = pesapalRequest('GET', '/api/Transactions/GetTransactionStatus?orderTrackingId=' . urlencode($trackingId), null, $ppToken);
 
-            $result = flwRequest('GET', '/transactions/' . urlencode($txnId) . '/verify');
-
-            $txStatus = $result['data']['status'] ?? '';
-
-            if ($txStatus === 'successful') {
-                markPaymentVerified($pdo, $regId, $payId, '', $txnId);
+            $code = (int)($status['status_code'] ?? -1);
+            if ($code === 1) {
+                // COMPLETED
+                $txnRef = $status['merchant_reference'] ?? '';
+                markPaymentVerified($pdo, $regId, $payId, $txnRef, $trackingId);
                 echo json_encode(['success' => true, 'status' => 'completed', 'message' => 'Payment confirmed!']);
-            } elseif ($txStatus === 'failed') {
+            } elseif ($code === 2) {
                 echo json_encode(['success' => false, 'status' => 'failed', 'message' => 'Payment was declined. Please try again.']);
+            } elseif ($code === 3) {
+                echo json_encode(['success' => false, 'status' => 'reversed', 'message' => 'Payment was reversed.']);
             } else {
-                echo json_encode(['success' => true, 'status' => 'pending', 'message' => 'Waiting for payment approval...']);
+                echo json_encode(['success' => true, 'status' => 'pending', 'message' => 'Awaiting payment confirmation…']);
             }
-        } catch (Exception $e) {
+        } catch (\Throwable $e) {
+            error_log('PesaPal check: ' . $e->getMessage());
             http_response_code(500);
-            echo json_encode(['error' => 'Status check failed: ' . $e->getMessage()]);
-        }
-        break;
-
-    // ──────────────────────────────────────────────────────────────────
-    // Poll MTN payment status (via Flutterwave verify)
-    // ──────────────────────────────────────────────────────────────────
-    case 'check_mtn':
-        try {
-            $txnRef = trim($_GET['txn_ref'] ?? $_POST['txn_ref'] ?? '');
-            $txnId  = trim($_GET['txn_id'] ?? $_POST['txn_id'] ?? '');
-            $regId  = (int)($_GET['registrant_id'] ?? $_POST['registrant_id'] ?? 0);
-            $payId  = (int)($_GET['payment_id'] ?? $_POST['payment_id'] ?? 0);
-
-
-            // Try by Flutterwave ID first, then by tx_ref
-            if ($txnId) {
-                $result = flwRequest('GET', '/transactions/' . urlencode($txnId) . '/verify');
-            } elseif ($txnRef) {
-                $result = flwRequest('GET', '/transactions/verify_by_reference?tx_ref=' . urlencode($txnRef));
-            } else {
-                http_response_code(400);
-                echo json_encode(['error' => 'Transaction reference required.']);
-                break;
-            }
-
-            $txStatus = $result['data']['status'] ?? '';
-
-            if ($txStatus === 'successful') {
-                markPaymentVerified($pdo, $regId, $payId, $txnRef);
-                echo json_encode(['success' => true, 'status' => 'completed', 'message' => 'Payment confirmed!']);
-            } elseif ($txStatus === 'failed') {
-                $msg = $result['data']['processor_response'] ?? 'Payment failed.';
-                echo json_encode(['success' => false, 'status' => 'failed', 'message' => $msg]);
-            } else {
-                echo json_encode(['success' => true, 'status' => 'pending', 'message' => 'Waiting for payment approval...']);
-            }
-        } catch (Exception $e) {
-            http_response_code(500);
-            echo json_encode(['error' => 'Status check failed: ' . $e->getMessage()]);
+            echo json_encode(['error' => 'Status check failed. Please try again.']);
         }
         break;
 
@@ -570,7 +654,7 @@ switch ($action) {
             $eventTitle  = trim($_POST['eventTitle'] ?? '');
             $eventDate   = trim($_POST['eventDate'] ?? '');
             $amount      = (float)($_POST['amount'] ?? 0);
-            $payMethod   = trim($_POST['paymentMethod'] ?? '');
+            $payMethod   = trim($_POST['paymentMethod'] ?? 'PesaPal');
 
             if (!$name || !$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 http_response_code(400);
@@ -667,6 +751,70 @@ switch ($action) {
         } catch (Exception $e) {
             http_response_code(500);
             echo json_encode(['error' => $e->getMessage()]);
+        }
+        break;
+
+    // ──────────────────────────────────────────────────────────────────
+    // Admin: re-query PesaPal for a single payment's current status
+    // Usage: payment.php?action=sync_pesapal_payment&payment_id=X&source=payments
+    //        or &registrant_id=X&source=event_registrants
+    // ──────────────────────────────────────────────────────────────────
+    case 'sync_pesapal_payment':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $source  = $_GET['source'] ?? $_POST['source'] ?? 'payments';
+            $payId   = (int)($_GET['payment_id']    ?? $_POST['payment_id']    ?? 0);
+            $regId   = (int)($_GET['registrant_id'] ?? $_POST['registrant_id'] ?? 0);
+
+            if (!in_array($source, ['payments', 'event_registrants'], true)) $source = 'payments';
+
+            // Look up the transaction_id from DB
+            $trackingId = '';
+            if ($source === 'event_registrants' && $regId) {
+                $row = $pdo->prepare("SELECT transaction_id, transaction_ref, payment_status FROM event_registrants WHERE id = ?");
+                $row->execute([$regId]);
+                $row = $row->fetch(PDO::FETCH_ASSOC);
+            } else {
+                $row = $pdo->prepare("SELECT transaction_id, transaction_ref, status AS payment_status FROM payments WHERE id = ?");
+                $row->execute([$payId]);
+                $row = $row->fetch(PDO::FETCH_ASSOC);
+            }
+
+            if (!$row) {
+                http_response_code(404); echo json_encode(['error' => 'Payment record not found.']); break;
+            }
+            $trackingId = trim($row['transaction_id'] ?? '');
+            if (!$trackingId) {
+                echo json_encode(['success' => false, 'status' => $row['payment_status'], 'message' => 'No PesaPal tracking ID on record — cannot query PesaPal.']);
+                break;
+            }
+
+            if (empty(PESAPAL_CONSUMER_KEY) || empty(PESAPAL_CONSUMER_SECRET)) {
+                http_response_code(500); echo json_encode(['error' => 'PesaPal not configured.']); break;
+            }
+
+            $ppToken = pesapalGetToken();
+            $status  = pesapalRequest('GET', '/api/Transactions/GetTransactionStatus?orderTrackingId=' . urlencode($trackingId), null, $ppToken);
+            $code    = (int)($status['status_code'] ?? -1);
+            $txnRef  = $status['merchant_reference'] ?? ($row['transaction_ref'] ?? '');
+            $desc    = $status['payment_status_description'] ?? ($status['message'] ?? '');
+
+            if ($code === 1) {
+                markPaymentVerified($pdo, $source === 'event_registrants' ? $regId : 0, $source !== 'event_registrants' ? $payId : 0, $txnRef, $trackingId);
+                echo json_encode(['success' => true, 'status' => 'verified', 'message' => 'Payment confirmed and marked as verified.', 'pesapal_status' => $desc]);
+            } elseif ($code === 2) {
+                echo json_encode(['success' => true, 'status' => 'failed', 'message' => 'PesaPal reports payment was declined.', 'pesapal_status' => $desc]);
+            } elseif ($code === 3) {
+                echo json_encode(['success' => true, 'status' => 'reversed', 'message' => 'PesaPal reports payment was reversed.', 'pesapal_status' => $desc]);
+            } else {
+                echo json_encode(['success' => true, 'status' => 'pending', 'message' => 'PesaPal reports payment is still pending.', 'pesapal_status' => $desc ?: 'Pending']);
+            }
+        } catch (\Throwable $e) {
+            error_log('sync_pesapal_payment: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to query PesaPal: ' . $e->getMessage()]);
         }
         break;
 
