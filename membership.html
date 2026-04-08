@@ -2287,10 +2287,15 @@ async function initiateRealBankTransfer(transferDetails) {
             }
 
             if (selectedMethod === 'bank') {
-                showProcessingModal();
-                document.getElementById('modalMessage').textContent      = 'Please follow bank transfer instructions.';
-                document.getElementById('modalSpinner').style.display    = 'none';
-                document.getElementById('closeModalButton').style.display = 'block';
+                window.HosuPay.processPayment({
+                    purpose: 'Membership (' + _selectedPlan.period + ')',
+                    type: 'membership',
+                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
+                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
+                    phone: getPhoneDigits(),
+                    amount: _selectedPlan.amount,
+                    method: 'bank'
+                });
                 return;
             }
             if (selectedMethod === 'banktobank') {
@@ -2312,162 +2317,28 @@ async function initiateRealBankTransfer(transferDetails) {
             };
             _pendingFormData = formObject;
 
-            const isMobile = (selectedMethod === 'mtn' || selectedMethod === 'airtel');
-            const channel  = selectedMethod === 'mtn' ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
             const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
 
-            // ── Step 1: Pre-register ───────────────────────────────
-            showProcessingModal();
-            _setStep(1);
-            document.getElementById('modalMessage').textContent    = 'Preparing your registration…';
-            document.getElementById('modalSubMessage').textContent = 'Securing your membership slot';
-            _receiptToken = null;
-            _paymentId    = null;
-
-            try {
-                const preFd = new FormData();
-                preFd.append('fullName',         formObject.fullName);
-                preFd.append('email',            formObject.email);
-                preFd.append('phone',            formObject.contact);
-                preFd.append('profession',       formObject.profession);
-                preFd.append('institution',      formObject.institution);
-                preFd.append('paymentMethod',    methodLabel);
-                preFd.append('paymentType',      formObject.paymentType);
-                preFd.append('membershipPeriod', formObject.membershipPeriod);
-                preFd.append('amount',           formObject.amount);
-                preFd.append('transactionId',    '');
-                preFd.append('transactionRef',   '');
-
-                const preRes = await fetch('api.php?action=pre_register', { method: 'POST', body: preFd }).then(r => r.json());
-                if (preRes.success) {
-                    _receiptToken = preRes.receipt_token;
-                    _paymentId    = preRes.payment_id;
-                } else {
-                    showError(preRes.error || 'Registration failed. Please try again.');
-                    return;
-                }
-            } catch(e) {
-                showError('Connection error. Please check your network and try again.');
-                return;
-            }
-
-            // ── Step 2: Initiate payment ───────────────────────────
-            _setStep(2);
-
-            if (isMobile) {
-                // ── MTN / Airtel: direct USSD push ──────────────
-                document.getElementById('modalMessage').textContent    = `Sending prompt to your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone…`;
-                document.getElementById('modalSubMessage').textContent = 'Please wait a moment…';
-
-                try {
-                    const payFd = new FormData();
-                    payFd.append('phone',         formObject.contact);
-                    payFd.append('amount',        formObject.amount);
-                    payFd.append('email',         formObject.email || 'info@hosu.or.ug');
-                    payFd.append('name',          formObject.fullName);
-                    payFd.append('payment_id',    _paymentId || 0);
-                    payFd.append('receipt_token', _receiptToken || '');
-                    payFd.append('channel',       channel);
-                    payFd.append('type',          'membership');
-
-                    const payRes = await fetch('payment.php?action=pay_mobile', { method: 'POST', body: payFd }).then(r => r.json());
-
-                    if (payRes.error) { showError(payRes.error); return; }
-
-                    // Fallback: PesaPal returned a redirect_url instead of direct USSD push
-                    if (payRes.redirect_url) {
-                        _setStep(3);
-                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
-                        document.getElementById('modalSubMessage').textContent = 'Complete your payment on the PesaPal page.';
-                        await new Promise(r => setTimeout(r, 600));
-                        window.location.href = payRes.redirect_url;
-                        return;
-                    }
-
-                    // Direct USSD push sent — show countdown and poll
-                    const trackingId = payRes.tracking_id || '';
-                    _setStep(2);
-                    document.getElementById('modalMessage').textContent    = `📱 Check your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone!`;
-                    document.getElementById('modalSubMessage').innerHTML   = `Enter your mobile money PIN to approve the payment of <strong>UGX ${formObject.amount.toLocaleString()}</strong>.`;
-
-                    // ── Poll check_mobile ──────────────────────────
-                    const MAX_POLLS = 15;
-                    const INTERVAL  = 8000;
-                    _airtelPollActive = true;
-
-                    for (let i = 0; i < MAX_POLLS; i++) {
-                        if (!_airtelPollActive) return;
-                        const secsLeft = (MAX_POLLS - i) * (INTERVAL / 1000);
-                        const cd = document.getElementById('airtelCountdown');
-                        if (cd) { cd.style.display = 'block'; cd.textContent = `Time remaining: ${Math.floor(secsLeft / 60)}m ${secsLeft % 60}s`; }
-
-                        await new Promise(r => setTimeout(r, INTERVAL));
-                        if (!_airtelPollActive) return;
-
-                        try {
-                            const params = `action=check_mobile&tracking_id=${encodeURIComponent(trackingId)}&payment_id=${_paymentId || 0}`;
-                            const result = await fetch('payment.php?' + params).then(r => r.json());
-
-                            if (result.status === 'completed') {
-                                _airtelPollActive = false;
-                                _setStep(3);
-                                document.getElementById('airtelCountdown').style.display = 'none';
-                                document.getElementById('modalSpinner').style.display    = 'none';
-                                document.getElementById('modalMessage').textContent = '✅ Payment confirmed!';
-                                document.getElementById('modalMessage').style.color = '#27ae60';
-                                document.getElementById('modalSubMessage').innerHTML = 'A receipt has been sent to your email.<br><br>'
-                                    + `<a href="receipt.php?token=${encodeURIComponent(result.receipt_token || _receiptToken)}" `
-                                    + 'style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">📄 View Receipt</a>';
-                                resetForm();
-                                return;
-                            } else if (result.status === 'failed') {
-                                _airtelPollActive = false;
-                                showError(result.message || 'Payment was declined. Please try again.');
-                                return;
-                            }
-                        } catch(e) { /* continue polling on network hiccup */ }
-                    }
-
-                    _airtelPollActive = false;
-                    showError('Payment timed out (2 minutes). The request was cancelled.',
-                        'If money was deducted, please contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or '
-                        + '<a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.');
-                } catch(e) {
-                    showError('Network error. Please check your connection and try again.');
-                }
-
-            } else {
-                // ── Visa/Mastercard: PesaPal hosted redirect ──────
-                document.getElementById('modalMessage').textContent    = 'Connecting to payment gateway…';
-                document.getElementById('modalSubMessage').textContent = 'Preparing your secure payment page…';
-
-                try {
-                    const payFd = new FormData();
-                    payFd.append('payment_id',    _paymentId || 0);
-                    payFd.append('receipt_token', _receiptToken || '');
-                    payFd.append('amount',        formObject.amount);
-                    payFd.append('email',         formObject.email || 'info@hosu.or.ug');
-                    payFd.append('name',          formObject.fullName);
-                    payFd.append('phone',         formObject.contact);
-                    payFd.append('type',          'membership');
-
-                    const payRes = await fetch('payment.php?action=init_pesapal', { method: 'POST', body: payFd }).then(r => r.json());
-
-                    if (payRes.error) { showError(payRes.error); return; }
-
-                    if (payRes.redirect_url) {
-                        _setStep(3);
-                        document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
-                        document.getElementById('modalSubMessage').textContent = 'You will complete payment on the PesaPal secure page.';
-                        await new Promise(r => setTimeout(r, 600));
-                        window.location.href = payRes.redirect_url;
-                    } else {
-                        showError('Could not get a payment link. Please try again.');
-                    }
-                } catch(e) {
-                    showError('Network error. Please check your connection and try again.');
-                }
-            }
+            window.HosuPay.processPayment({
+                purpose: 'Membership (' + _selectedPlan.period + ')',
+                type: 'membership',
+                name: formObject.fullName,
+                email: formObject.email,
+                phone: formObject.contact,
+                amount: formObject.amount,
+                method: selectedMethod,
+                preRegUrl: 'api.php?action=pre_register',
+                preRegFields: {
+                    profession: formObject.profession,
+                    institution: formObject.institution,
+                    paymentMethod: methodLabel,
+                    paymentType: 'membership',
+                    membershipPeriod: formObject.membershipPeriod,
+                    transactionId: '',
+                    transactionRef: ''
+                },
+                onSuccess: function() { resetForm(); }
+            });
         }
 
         /* ── Step indicator helpers ────────────────────────────────── */
@@ -2590,6 +2461,7 @@ async function initiateRealBankTransfer(transferDetails) {
 </style>
 
 <script src="intl-phone.js?v=2026040404"></script>
+<script src="hosu-payment.js?v=2026040801"></script>
 <script src="shared-components.js?v=2026040701"></script>
 <script src="shared-login.js?v=2026040404"></script>
 <script src="donate-float.js?v=2026040404"></script>

@@ -375,6 +375,7 @@ switch ($action) {
             $name    = trim($_POST['name']           ?? '');
             $phone   = trim($_POST['phone']          ?? '');
             $type    = trim($_POST['type']           ?? 'membership');
+            $purpose = trim($_POST['purpose']        ?? '');
 
             if (!in_array($type, ['membership','event_registration','donation'])) $type = 'membership';
 
@@ -418,11 +419,15 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
+            $ppDescription = $purpose
+                ? 'HOSU - ' . $purpose
+                : 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
                 'amount'          => $amount,
-                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'description'     => $ppDescription,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
                 'billing_address' => [
@@ -469,6 +474,7 @@ switch ($action) {
             $channel = strtoupper(trim($_POST['channel'] ?? ''));
             $type    = trim($_POST['type']           ?? 'membership');
             $tok     = trim($_POST['receipt_token']  ?? '');
+            $purpose = trim($_POST['purpose']        ?? '');
 
             if (!in_array($channel, ['UGMTNMOMODIR', 'UGAIRTELMODIR'], true)) {
                 http_response_code(400);
@@ -514,11 +520,15 @@ switch ($action) {
             $firstName = $parts[0];
             $lastName  = $parts[1] ?? $parts[0];
 
+            $ppDescription = $purpose
+                ? 'HOSU - ' . $purpose
+                : 'HOSU ' . ucfirst(str_replace('_', ' ', $type));
+
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
                 'amount'          => $amount,
-                'description'     => 'HOSU ' . ucfirst(str_replace('_', ' ', $type)),
+                'description'     => $ppDescription,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
                 'channel'         => $channel,

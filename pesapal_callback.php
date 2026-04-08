@@ -65,8 +65,14 @@ function pesapalGetToken(): string
 }
 
 // ── Output helper ─────────────────────────────────────────────────────
-function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593'): void
+function renderPage(string $title, string $icon, string $heading, string $body, string $btnLabel, string $btnHref, string $color = '#0d4593', string $pmStatus = '', string $pmReceipt = ''): void
 {
+    $pmScript = '';
+    if ($pmStatus) {
+        $safeStatus  = htmlspecialchars($pmStatus,  ENT_QUOTES, 'UTF-8');
+        $safeReceipt = htmlspecialchars($pmReceipt, ENT_QUOTES, 'UTF-8');
+        $pmScript = "<script>(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'hosu_payment',status:'{$safeStatus}',receiptToken:'{$safeReceipt}'},'*');}}catch(e){}})();</script>";
+    }
     echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -96,6 +102,7 @@ function renderPage(string $title, string $icon, string $heading, string $body, 
   <p>{$body}</p>
   <a href="{$btnHref}" class="btn">{$btnLabel}</a>
 </div>
+{$pmScript}
 </body>
 </html>
 HTML;
@@ -198,26 +205,27 @@ try {
             } catch (\Throwable $e) { error_log('Callback pay email: ' . $e->getMessage()); }
         }
 
-        // Redirect to receipt
+        // Redirect to receipt (or postMessage if in iframe)
         if ($receiptToken) {
-            header('Location: receipt.php?token=' . urlencode($receiptToken));
-            exit;
+            renderPage('Payment Confirmed', '✅', 'Payment Confirmed!',
+                "Your payment has been received and confirmed. Redirecting to receipt…",
+                'View Receipt', 'receipt.php?token=' . urlencode($receiptToken), '#27ae60', 'success', $receiptToken);
         }
         renderPage('Payment Confirmed', '✅', 'Payment Confirmed!',
             "Your payment has been received and confirmed. Confirmation code: <strong>$confCode</strong>.",
-            'Return to Home', 'index.html', '#27ae60');
+            'Return to Home', 'index.html', '#27ae60', 'success', '');
 
     } elseif ($statusCode === 2) {
         // FAILED
         renderPage('Payment Failed', '❌', 'Payment Failed',
             'Your payment was not completed. Please try again or contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Try Again', 'membership.html', '#e63946');
+            'Try Again', 'membership.html', '#e63946', 'error');
 
     } elseif ($statusCode === 3) {
         // REVERSED
         renderPage('Payment Reversed', '↩️', 'Payment Reversed',
             'Your payment was reversed. Please contact us at <a class="contact-link" href="mailto:info@hosu.or.ug">info@hosu.or.ug</a> or <a class="contact-link" href="https://wa.me/256709752107">WhatsApp +256 709 752107</a>.',
-            'Contact Us', 'contact.html', '#e63946');
+            'Contact Us', 'contact.html', '#e63946', 'error');
 
     } else {
         // PENDING — user may have cancelled or payment is still processing

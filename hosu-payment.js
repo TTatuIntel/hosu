@@ -386,15 +386,178 @@
     /** Close/dismiss the modal. */
     function close() { _build(); _dismiss(); if (_cbCancel) _cbCancel(); }
 
+    /**
+     * Full payment flow: pre-register → process → poll/redirect.
+     * Unified for membership, donation, and event payments.
+     *
+     * opts = {
+     *   purpose      : string — "Membership (1yr)", "Donation", "Event: Title"
+     *   type         : string — "membership" | "donation" | "event_registration"
+     *   name, email, phone (digits), amount
+     *   method       : "mtn" | "airtel" | "visa" | "bank" | "banktobank"
+     *   preRegUrl    : string (default "api.php?action=pre_register")
+     *   preRegFields : {} extra FormData fields for pre-registration
+     *   onSuccess    : fn(token)
+     *   onError      : fn(msg)
+     *   onCancel     : fn()
+     * }
+     */
+    async function processPayment(opts) {
+        _build();
+        opts = opts || {};
+        _cbSuccess = opts.onSuccess || null;
+        _cbError   = opts.onError   || null;
+        _cbCancel  = opts.onCancel  || null;
+        _stopAll();
+
+        var purpose = opts.purpose || 'Payment';
+        var type    = opts.type    || 'membership';
+        var method  = opts.method;
+
+        /* Bank / Bank-to-Bank — show transfer instructions */
+        if (method === 'bank' || method === 'banktobank') {
+            open({
+                title: 'Bank Transfer',
+                purpose: 'HOSU \u2014 ' + purpose,
+                step: 1, spinner: false,
+                message: 'Transfer UGX ' + Number(opts.amount).toLocaleString() + ' to:',
+                submessage:
+                    '<strong>HOSU Limited</strong><br>A/C: 9030025235214<br>Stanbic Bank, Mulago Branch<br><br>' +
+                    'Send proof of payment to ' +
+                    '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
+                    ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
+                    'style="color:#0d4593;font-weight:700;">WhatsApp +256\u00A0709\u00A0752107</a>.',
+                onCancel: opts.onCancel
+            });
+            _btn(true, 'Close');
+            return;
+        }
+
+        /* Show processing modal */
+        open({
+            title: 'Processing Payment',
+            purpose: 'HOSU \u2014 ' + purpose,
+            step: 1,
+            message: 'Preparing your payment\u2026',
+            onSuccess: opts.onSuccess,
+            onError: opts.onError,
+            onCancel: opts.onCancel
+        });
+
+        /* Step 1: Pre-register */
+        var preUrl = opts.preRegUrl || 'api.php?action=pre_register';
+        var fd = new FormData();
+        fd.append('fullName', opts.name);
+        fd.append('email',    opts.email);
+        fd.append('phone',    opts.phone);
+        fd.append('amount',   opts.amount);
+        var extra = opts.preRegFields || {};
+        for (var k in extra) { if (extra.hasOwnProperty(k)) fd.append(k, extra[k]); }
+
+        var preRes;
+        try {
+            preRes = await (await fetch(preUrl, { method: 'POST', body: fd })).json();
+        } catch (e) { _showErr('Connection error', 'Please check your internet and try again.'); return; }
+        if (!preRes.success) { _showErr(preRes.error || 'Registration failed'); return; }
+
+        var paymentId    = preRes.payment_id    || 0;
+        var registrantId = preRes.registrant_id || 0;
+        var receiptToken = preRes.receipt_token || '';
+
+        /* Step 2 */
+        _step(2);
+
+        if (method === 'visa') {
+            /* Visa — PesaPal hosted page (opens in iframe overlay) */
+            _msg('Connecting to payment gateway\u2026');
+            var vFd = new FormData();
+            vFd.append('payment_id',    paymentId);
+            vFd.append('registrant_id', registrantId);
+            vFd.append('receipt_token', receiptToken);
+            vFd.append('amount',        opts.amount);
+            vFd.append('email',         opts.email);
+            vFd.append('name',          opts.name);
+            vFd.append('phone',         opts.phone);
+            vFd.append('type',          type);
+            vFd.append('purpose',       purpose);
+
+            var vRes;
+            try { vRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vFd })).json(); }
+            catch (e) { _showErr('Network error'); return; }
+            if (vRes.error) { _showErr(vRes.error); return; }
+
+            if (vRes.redirect_url) {
+                _msg('Redirecting to PesaPal\u2026');
+                _openIfr({
+                    redirectUrl: vRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                    trackingId: vRes.tracking_id, payId: paymentId, registrantId: registrantId,
+                    receiptToken: receiptToken, purpose: 'HOSU \u2014 ' + purpose
+                });
+            } else { _showErr('Could not get payment link. Please try again.'); }
+            return;
+        }
+
+        /* MTN / Airtel — USSD push via PesaPal */
+        var isMtn        = method === 'mtn';
+        var channel      = isMtn ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
+        var merchantCode = isMtn ? '721212' : '4373226';
+        var netName      = isMtn ? 'MTN' : 'Airtel';
+
+        _msg('Sending prompt to your ' + netName + ' phone\u2026');
+
+        var mFd = new FormData();
+        mFd.append('phone',         opts.phone);
+        mFd.append('amount',        opts.amount);
+        mFd.append('email',         opts.email);
+        mFd.append('name',          opts.name);
+        mFd.append('payment_id',    paymentId);
+        mFd.append('registrant_id', registrantId);
+        mFd.append('receipt_token', receiptToken);
+        mFd.append('channel',       channel);
+        mFd.append('type',          type);
+        mFd.append('purpose',       purpose);
+
+        var mRes;
+        try { mRes = await (await fetch('payment.php?action=pay_mobile', { method: 'POST', body: mFd })).json(); }
+        catch (e) { _showErr('Network error. Please try again.'); return; }
+        if (mRes.error) { _showErr(mRes.error); return; }
+
+        /* Fallback: PesaPal redirect (some account configurations) */
+        if (mRes.redirect_url) {
+            _msg('Redirecting to PesaPal\u2026');
+            _openIfr({
+                redirectUrl: mRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                trackingId: mRes.tracking_id, payId: paymentId, registrantId: registrantId,
+                receiptToken: receiptToken, purpose: 'HOSU \u2014 ' + purpose
+            });
+            return;
+        }
+
+        /* USSD push sent — show instructions and poll */
+        _step(2);
+        _msg('\uD83D\uDCF1 Check your ' + netName + ' phone!');
+        _sub(
+            'Enter your PIN to approve <strong>UGX ' + Number(opts.amount).toLocaleString() + '</strong>.<br>' +
+            '<small style="color:#94a3b8">Merchant code <strong>' + merchantCode + '</strong> (HOSU)</small>'
+        );
+
+        _startPoll({
+            trackingId: mRes.tracking_id || '', payId: paymentId,
+            registrantId: registrantId, receiptToken: receiptToken,
+            maxPolls: 15, interval: 8000
+        });
+    }
+
     global.HosuPay = {
-        open:       open,
-        setStep:    setStep,
-        update:     update,
-        openIframe: openIframe,
-        startPoll:  startPoll,
-        success:    success,
-        error:      error,
-        close:      close
+        open:           open,
+        setStep:        setStep,
+        update:         update,
+        openIframe:     openIframe,
+        startPoll:      startPoll,
+        success:        success,
+        error:          error,
+        close:          close,
+        processPayment: processPayment
     };
 
 }(window));
