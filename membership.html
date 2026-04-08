@@ -60,76 +60,86 @@
         }
 
         body {
-            function payNow() {
-                if (!validateForm()) return;
+            font-family: 'Inter', sans-serif;
+            line-height: 1.6;
+            color: var(--text-color);
+            background-color: var(--white);
+        }
 
-                const membershipForm  = document.getElementById('membershipForm');
-                const otherProfession = document.getElementById('otherProfession');
-                const membershipPackage = document.getElementById('membershipPackage');
-                const membershipAmount = document.getElementById('membershipAmount');
+        /* Navbar styles handled by navbar.css */
 
-                if (document.getElementById('profession').value === 'other' && !otherProfession.value) {
-                    alert('Please specify your profession');
-                    return;
-                }
+        .membership-hero {
+            padding-top: var(--navbar-height);
+            background-color: var(--gray-100);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            position: relative;
+            overflow: visible;
+            min-height: 380px;
+        }
 
-                // Always use the selected package and amount from the form
-                const selectedPeriod = membershipPackage.value;
-                const selectedAmount = parseInt(membershipAmount.value, 10);
-                _selectedPlan = { period: selectedPeriod, amount: selectedAmount };
+        .hero-inner {
+            display: flex;
+            flex-direction: row;
+            width: var(--section-width);
+            max-width: var(--section-max-width);
+            margin: 0 auto;
+            position: relative;
+            overflow: visible;
+            padding: 1.25rem 0;
+            gap: 3%;
+            justify-content: space-between;
+            align-items: center;
+            min-height: 380px;
+        }
 
-                // Payment method limits (UGX)
-                const MM_LIMIT = 1000000; // Mobile money max (example: 1,000,000)
-                const CARD_LIMIT = 5000000; // Card max (example: 5,000,000)
+        .hero-content {
+            width: 48%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            padding: 0.5rem 0;
+            z-index: 10;
+            text-align: left;
+            position: relative;
+            min-height: 280px;
+            margin-left: auto;
+        }
 
-                // Show error if amount exceeds method limit
-                if ((selectedMethod === 'mtn' || selectedMethod === 'airtel') && selectedAmount > MM_LIMIT) {
-                    alert('Mobile Money payments are limited to UGX ' + MM_LIMIT.toLocaleString() + '. Please use Visa/Mastercard or Bank for larger amounts.');
-                    return;
-                }
-                if (selectedMethod === 'visa' && selectedAmount > CARD_LIMIT) {
-                    alert('Card payments are limited to UGX ' + CARD_LIMIT.toLocaleString() + '. Please use Bank for larger amounts.');
-                    return;
-                }
+        .hero-slide {
+            display: none;
+            flex-direction: column;
+            animation: heroFadeIn 0.6s ease;
+        }
+        .hero-slide.active { display: flex; }
+        @keyframes heroFadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
 
-                // ── Collect form data ──────────────────────────────────
-                const formData   = new FormData(membershipForm);
-                const formObject = {
-                    fullName:         formData.get('fullName'),
-                    email:            formData.get('email'),
-                    profession:       formData.get('profession') === 'other' ? otherProfession.value : formData.get('profession'),
-                    institution:      formData.get('institution') || '',
-                    contact:          getPhoneDigits(),
-                    amount:           selectedAmount,
-                    membershipPeriod: selectedPeriod,
-                    paymentType:      'membership'
-                };
-                _pendingFormData = formObject;
+        .hero-pills {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.4rem;
+            margin-bottom: 0.75rem;
+        }
+        .hero-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 0.25rem;
+            background: rgba(255,255,255,0.85);
+            color: var(--secondary-color);
+            font-size: 0.72rem;
+            font-weight: 600;
+            padding: 0.3rem 0.6rem;
+            border-radius: 16px;
+            border: 1px solid rgba(13,69,147,0.12);
+            -webkit-backdrop-filter: blur(4px);
+            backdrop-filter: blur(4px);
+        }
 
-                const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : selectedMethod === 'visa' ? 'Visa/Mastercard' : selectedMethod;
-
-                // Unified payment logic for all methods
-                window.HosuPay.processPayment({
-                    purpose: 'Membership (' + selectedPeriod + ')',
-                    type: 'membership',
-                    name: formObject.fullName,
-                    email: formObject.email,
-                    phone: formObject.contact,
-                    amount: formObject.amount,
-                    method: selectedMethod,
-                    preRegUrl: 'api.php?action=pre_register',
-                    preRegFields: {
-                        profession: formObject.profession,
-                        institution: formObject.institution,
-                        paymentMethod: methodLabel,
-                        paymentType: 'membership',
-                        membershipPeriod: formObject.membershipPeriod,
-                        transactionId: '',
-                        transactionRef: ''
-                    },
-                    onSuccess: function() { resetForm(); }
-                });
-            }
+        .hero-image-container {
             position: absolute;
             left: -5%;
             top: 50%;
