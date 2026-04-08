@@ -1006,29 +1006,31 @@
         }
 
         .bank-details-content, .processing-content {
-            background: rgba(255,255,255,0.82);
+            background: rgba(255,255,255,0.95);
             -webkit-backdrop-filter: blur(28px) saturate(1.5);
             backdrop-filter: blur(28px) saturate(1.5);
             border: 1px solid rgba(255,255,255,0.6);
-            border-radius: 22px;
+            border-radius: 18px;
             box-shadow: 0 20px 60px rgba(0,0,0,0.12), 0 1px 3px rgba(0,0,0,0.06);
-            width: min(92vw, 380px);
-            padding: 1.4rem 1.3rem 1.1rem;
+            width: min(92vw, 360px);
+            padding: 1rem 1.1rem 1rem;
             position: relative;
             animation: profPopIn 0.35s cubic-bezier(.21,1.02,.73,1);
         }
 
         .bank-details-content h3, .processing-content h3 {
             color: var(--secondary-color);
-            margin-bottom: 0.6rem;
-            font-size: 0.95rem;
+            margin: 0 0 0.4rem;
+            font-size: 0.88rem;
             font-weight: 700;
+            line-height: 1.3;
         }
 
         .bank-details-content p, .processing-content p {
-            font-size: 0.78rem;
+            font-size: 0.74rem;
             color: var(--text-color);
-            margin-bottom: 0.25rem;
+            margin: 0 0 0.2rem;
+            line-height: 1.45;
         }
 
         .bank-details-close, .processing-close {
@@ -1232,17 +1234,17 @@
 /* Bank details / processing modal buttons */
 .modal-btn-full{display:block;width:auto;min-width:100px;padding:0.45rem 1.6rem;margin:0 auto;border-radius:12px;font-size:0.78rem;font-weight:600;font-family:inherit;border:none;background:var(--primary-color);color:white;cursor:pointer;transition:all 0.2s;}
 .modal-btn-full:hover{background:var(--primary-dark);}
-#processingCloseBtn{display:none;}
-#closeModalButton{display:none;}
+#processingCloseBtn{display:none;position:absolute;top:.6rem;right:.6rem;width:26px;height:26px;}
+#closeModalButton{display:none;margin-top:.6rem;}
 #closeVisaModalButton{display:none;}
 /* Processing step indicator */
-#paySteps{display:flex;justify-content:center;align-items:center;gap:0;margin:0.7rem 0 0.35rem;}
-.pay-step{display:flex;flex-direction:column;align-items:center;gap:3px;}
-.pay-step-label{font-size:.62rem;color:var(--text-light);}
-.pay-step-line{width:36px;height:2px;background:var(--gray-300);margin-bottom:14px;}
-#modalMessage{margin:.4rem 0;font-size:0.82rem;}
-#modalSubMessage{font-size:.72rem;color:var(--text-light);margin:.15rem 0;}
-#airtelCountdown{display:none;font-size:.76rem;font-weight:600;color:#e40000;margin:.3rem 0;}
+#paySteps{display:flex;justify-content:center;align-items:center;gap:0;margin:.4rem 0 .3rem;}
+.pay-step{display:flex;flex-direction:column;align-items:center;gap:2px;}
+.pay-step-label{font-size:.58rem;color:var(--text-light);}
+.pay-step-line{width:30px;height:2px;background:var(--gray-300);margin-bottom:12px;}
+#modalMessage{margin:.35rem 0;font-size:0.78rem;font-weight:600;line-height:1.4;word-break:break-word;}
+#modalSubMessage{font-size:.68rem;color:var(--text-light);margin:.1rem 0;line-height:1.45;word-break:break-word;}
+#airtelCountdown{display:none;font-size:.72rem;font-weight:600;color:#e40000;margin:.25rem 0;}
 /* Partner logo */
 .partner-logo{height:70px;max-width:150px;display:flex;align-items:center;justify-content:center;transition:all .3s ease;}
 .partner-logo img{max-height:100%;max-width:100%;object-fit:contain;filter:none;opacity:1;}
@@ -1738,7 +1740,7 @@
             <button class="processing-close" onclick="closeProcessingModal()" id="processingCloseBtn">
                 <i class="fas fa-times"></i>
             </button>
-            <h3 id="processingTitle">Processing Payment</h3>
+            <h3 id="processingTitle" style="display:none;">Processing Payment</h3>
             <!-- Step indicator -->
             <div id="paySteps">
                 <div class="pay-step" id="pstep-1">
@@ -2207,13 +2209,14 @@ async function initiateRealBankTransfer(transferDetails) {
 
         function resetProcessingModal() {
             document.getElementById('modalSpinner').style.display    = 'block';
-            document.getElementById('modalMessage').textContent      = 'Processing payment, please wait...';
+            document.getElementById('modalMessage').textContent      = 'Processing payment, please wait…';
             document.getElementById('modalMessage').style.color      = 'inherit';
             document.getElementById('modalSubMessage').textContent   = '';
             document.getElementById('closeModalButton').style.display = 'none';
             document.getElementById('processingCloseBtn').style.display = 'none';
             document.getElementById('airtelCountdown').style.display  = 'none';
-            document.getElementById('processingTitle').textContent   = 'Processing Payment';
+            var pt = document.getElementById('processingTitle');
+            if(pt){ pt.style.display = 'none'; }
             _setStep(0);
         }
 
@@ -2482,8 +2485,9 @@ async function initiateRealBankTransfer(transferDetails) {
             _airtelPollActive = false;
             document.getElementById('modalSpinner').style.display = 'none';
             document.getElementById('airtelCountdown').style.display = 'none';
+            document.getElementById('processingTitle').style.display = 'none';
             document.getElementById('modalMessage').textContent = message;
-            document.getElementById('modalMessage').style.color = 'red';
+            document.getElementById('modalMessage').style.color = '#dc2626';
             document.getElementById('modalSubMessage').innerHTML = detailsHtml || 'If you need help, contact us at <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
             document.getElementById('closeModalButton').style.display = 'block';
             document.getElementById('processingCloseBtn').style.display = 'flex';
