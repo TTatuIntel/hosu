@@ -1640,6 +1640,7 @@
                 <h2>Membership Application</h2>
             </div>
 
+
             <form id="membershipForm" class="form-grid">
                 <div class="form-group fg-full">
                     <label for="fullName">Full Name</label>
@@ -1684,8 +1685,50 @@
                     <label for="institution">Institution / Organization</label>
                     <input type="text" id="institution" name="institution" placeholder="e.g., Mulago Hospital">
                 </div>
+
+                <!-- Membership Package Selection -->
+                <div class="form-group fg-full">
+                    <label for="membershipPackage">Membership Package</label>
+                    <select id="membershipPackage" name="membershipPackage" required>
+                        <option value="1_year" data-amount="100000">1 Year — UGX 100,000</option>
+                        <option value="2_years" data-amount="180000">2 Years — UGX 180,000 (Save UGX 20,000)</option>
+                        <option value="3_years" data-amount="250000">3 Years — UGX 250,000 (Save UGX 50,000)</option>
+                        <option value="lifetime" data-amount="500000">5+ Years Premium — UGX 500,000 (Premium ⭐)</option>
+                    </select>
+                </div>
+                <div class="form-group fg-full">
+                    <label for="membershipAmount">Amount (UGX)</label>
+                    <input type="number" id="membershipAmount" name="membershipAmount" min="100000" step="1000" required readonly style="background:#f7fafc;cursor:not-allowed;">
+                </div>
                 <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
             </form>
+        // Membership Package selection logic
+        const membershipPackage = document.getElementById('membershipPackage');
+        const membershipAmount = document.getElementById('membershipAmount');
+        function updateMembershipAmount() {
+            const selected = membershipPackage.options[membershipPackage.selectedIndex];
+            membershipAmount.value = selected.getAttribute('data-amount');
+            // Also update _selectedPlan for payment
+            _selectedPlan = {
+                period: membershipPackage.value,
+                amount: parseInt(membershipAmount.value, 10)
+            };
+        }
+        membershipPackage.addEventListener('change', updateMembershipAmount);
+        // Set default on modal open
+        document.getElementById('subscriptionModal').addEventListener('show', updateMembershipAmount);
+        // Set default on page load
+        updateMembershipAmount();
+
+        // When modal opens, sync plan selection to dropdown
+        function openSubscriptionForm() {
+            document.getElementById('subscriptionModal').style.display = 'flex';
+            // Sync dropdown to selected plan
+            if (membershipPackage && _selectedPlan && _selectedPlan.period) {
+                membershipPackage.value = _selectedPlan.period;
+                updateMembershipAmount();
+            }
+        }
 
             <div class="pay-divider">Payment Method</div>
 
@@ -2280,32 +2323,39 @@ async function initiateRealBankTransfer(transferDetails) {
 
             const membershipForm  = document.getElementById('membershipForm');
             const otherProfession = document.getElementById('otherProfession');
+            const membershipPackage = document.getElementById('membershipPackage');
+            const membershipAmount = document.getElementById('membershipAmount');
 
             if (document.getElementById('profession').value === 'other' && !otherProfession.value) {
                 alert('Please specify your profession');
                 return;
             }
 
+            // Always use the selected package and amount from the form
+            const selectedPeriod = membershipPackage.value;
+            const selectedAmount = parseInt(membershipAmount.value, 10);
+            _selectedPlan = { period: selectedPeriod, amount: selectedAmount };
+
             if (selectedMethod === 'bank') {
                 window.HosuPay.processPayment({
-                    purpose: 'Membership (' + _selectedPlan.period + ')',
+                    purpose: 'Membership (' + selectedPeriod + ')',
                     type: 'membership',
                     name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
                     email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
                     phone: getPhoneDigits(),
-                    amount: _selectedPlan.amount,
+                    amount: selectedAmount,
                     method: 'bank'
                 });
                 return;
             }
             if (selectedMethod === 'banktobank') {
                 window.HosuPay.processPayment({
-                    purpose: 'Membership (' + _selectedPlan.period + ')',
+                    purpose: 'Membership (' + selectedPeriod + ')',
                     type: 'membership',
                     name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
                     email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
                     phone: getPhoneDigits(),
-                    amount: _selectedPlan.amount,
+                    amount: selectedAmount,
                     method: 'banktobank'
                 });
                 return;
@@ -2319,8 +2369,8 @@ async function initiateRealBankTransfer(transferDetails) {
                 profession:       formData.get('profession') === 'other' ? otherProfession.value : formData.get('profession'),
                 institution:      formData.get('institution') || '',
                 contact:          getPhoneDigits(),
-                amount:           _selectedPlan.amount,
-                membershipPeriod: _selectedPlan.period,
+                amount:           selectedAmount,
+                membershipPeriod: selectedPeriod,
                 paymentType:      'membership'
             };
             _pendingFormData = formObject;
@@ -2328,7 +2378,7 @@ async function initiateRealBankTransfer(transferDetails) {
             const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
 
             window.HosuPay.processPayment({
-                purpose: 'Membership (' + _selectedPlan.period + ')',
+                purpose: 'Membership (' + selectedPeriod + ')',
                 type: 'membership',
                 name: formObject.fullName,
                 email: formObject.email,
