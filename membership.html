@@ -1967,8 +1967,35 @@
             'nurse': ['oncology-nurse']
         };
 
+
+        // --- Membership Package logic (added for payment integration) ---
+        function updateMembershipAmount() {
+            const membershipPackage = document.getElementById('membershipPackage');
+            const membershipAmount = document.getElementById('membershipAmount');
+            if (!membershipPackage || !membershipAmount) return;
+            const selected = membershipPackage.options[membershipPackage.selectedIndex];
+            membershipAmount.value = selected.getAttribute('data-amount');
+            // Also update _selectedPlan for payment
+            _selectedPlan = {
+                period: membershipPackage.value,
+                amount: parseInt(membershipAmount.value, 10)
+            };
+        }
+        document.addEventListener('DOMContentLoaded', function() {
+            const membershipPackage = document.getElementById('membershipPackage');
+            if (membershipPackage) {
+                membershipPackage.addEventListener('change', updateMembershipAmount);
+                updateMembershipAmount();
+            }
+        });
+        // When modal opens, sync plan selection to dropdown
         function openSubscriptionForm() {
             document.getElementById('subscriptionModal').style.display = 'flex';
+            const membershipPackage = document.getElementById('membershipPackage');
+            if (membershipPackage && _selectedPlan && _selectedPlan.period) {
+                membershipPackage.value = _selectedPlan.period;
+                updateMembershipAmount();
+            }
         }
 
         function closeSubscriptionForm() {
