@@ -2,3 +2,9 @@
 
 #Ignore vscode AI rules
 .github\instructions\codacy.instructions.md
+
+# Environment config (contains DB credentials — NEVER commit)
+.env
+
+# Diagnostic tools
+payment_test.php

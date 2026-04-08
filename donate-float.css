@@ -19,14 +19,19 @@
     color: var(--white, #ffffff);
     padding: 0.6rem 1.25rem;
     border-radius: 30px;
-    font-weight: 500;
-    box-shadow: 0 4px 6px rgba(0,0,0,0.1), 0 1px 3px rgba(0,0,0,0.08);
+    font-weight: 600;
+    box-shadow: 0 4px 12px rgba(230,57,70,0.35), 0 1px 3px rgba(0,0,0,0.08);
     transition: all 0.3s ease;
     border: none;
     font-size: 0.9rem;
     text-decoration: none;
     cursor: pointer;
     font-family: inherit;
+    animation: donatePulse 3s ease-in-out infinite;
+}
+@keyframes donatePulse {
+    0%, 100% { box-shadow: 0 4px 12px rgba(230,57,70,0.35); }
+    50% { box-shadow: 0 4px 20px rgba(230,57,70,0.55), 0 0 0 4px rgba(230,57,70,0.12); }
 }
 
 .donate-button:hover {
@@ -57,12 +62,12 @@
     background: rgba(255, 255, 255, 0.99);
     -webkit-backdrop-filter: blur(24px) saturate(1.4);
     backdrop-filter: blur(24px) saturate(1.4);
-    border: 1px solid rgba(200, 200, 200, 0.4);
-    border-radius: 12px;
+    border: 1px solid rgba(200, 200, 200, 0.35);
+    border-radius: 14px;
     padding: 1rem 1rem 0.8rem;
     box-shadow:
-        0 16px 48px rgba(0, 0, 0, 0.25),
-        0 6px 16px rgba(0, 0, 0, 0.12),
+        0 20px 56px rgba(0, 0, 0, 0.22),
+        0 6px 16px rgba(0, 0, 0, 0.1),
         inset 0 1px 0 rgba(255, 255, 255, 0.6);
     animation: donatePopUp 0.3s cubic-bezier(0.22, 1, 0.36, 1);
     text-align: left;

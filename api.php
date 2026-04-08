@@ -1228,9 +1228,17 @@ HTML;
             echo json_encode(['success' => true, 'payment_id' => $paymentId, 'member_id' => $memberId, 'receipt_token' => $receiptToken, 'receipt_number' => $receiptNum]);
         } catch (Exception $e) {
             if ($pdo->inTransaction()) $pdo->rollBack();
-            error_log('pre_register error: ' . $e->getMessage() . ' | File: ' . $e->getFile() . ':' . $e->getLine());
+            $errMsg = $e->getMessage();
+            error_log('pre_register error: ' . $errMsg . ' | File: ' . $e->getFile() . ':' . $e->getLine());
             http_response_code(500);
-            echo json_encode(['error' => 'Payment setup failed. Please try again or contact info@hosu.or.ug.']);
+            // Provide actionable message based on error type
+            if (stripos($errMsg, 'connect') !== false || stripos($errMsg, 'SQLSTATE[HY000]') !== false) {
+                echo json_encode(['error' => 'Database temporarily unavailable. Please try again in a moment.']);
+            } elseif (stripos($errMsg, 'Duplicate') !== false) {
+                echo json_encode(['error' => 'A record with this email already exists. Try a different email or contact info@hosu.or.ug.']);
+            } else {
+                echo json_encode(['error' => 'Payment setup failed. Please try again or contact info@hosu.or.ug.']);
+            }
         }
         break;
 

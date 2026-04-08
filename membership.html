@@ -2299,7 +2299,15 @@ async function initiateRealBankTransfer(transferDetails) {
                 return;
             }
             if (selectedMethod === 'banktobank') {
-                document.getElementById('bankToBankModal').style.display = 'flex';
+                window.HosuPay.processPayment({
+                    purpose: 'Membership (' + _selectedPlan.period + ')',
+                    type: 'membership',
+                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
+                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
+                    phone: getPhoneDigits(),
+                    amount: _selectedPlan.amount,
+                    method: 'banktobank'
+                });
                 return;
             }
 
