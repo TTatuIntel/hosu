@@ -1601,34 +1601,36 @@ HTML;
                 FROM payments p
                 JOIN members m ON m.id = p.member_id
                 WHERE p.payment_type IN ('membership','donation')
+                  AND p.status = 'verified'
                 ORDER BY p.paid_at DESC
             ");
             $membPay = $stmt1->fetchAll(PDO::FETCH_ASSOC);
 
             // 2. Paid event registrations — only for events that are currently NOT free
-            $stmt2 = $pdo->query("
-                SELECT
-                    r.id           AS payment_id,
-                    'event_registrants' AS source,
-                    r.id           AS registrant_id,
-                    r.full_name, r.email, r.phone,
-                    'event_registration' AS payment_type,
-                    r.amount, r.currency, r.payment_method,
-                    r.transaction_ref, r.transaction_id,
-                    r.proof_file, r.payment_status,
-                    0              AS invoice_sent,
-                    r.receipt_number, r.receipt_token,
-                    NULL           AS membership_period,
-                    NULL           AS membership_expires_at,
-                    r.event_id, r.event_title, r.event_date,
-                    r.registered_at AS paid_at,
-                    NULL           AS member_id
-                FROM event_registrants r
-                INNER JOIN events e ON e.id = r.event_id
-                WHERE e.is_free = 0
-                  AND r.amount > 0
-                ORDER BY r.registered_at DESC
-            ");
+                        $stmt2 = $pdo->query("
+                                SELECT
+                                        r.id           AS payment_id,
+                                        'event_registrants' AS source,
+                                        r.id           AS registrant_id,
+                                        r.full_name, r.email, r.phone,
+                                        'event_registration' AS payment_type,
+                                        r.amount, r.currency, r.payment_method,
+                                        r.transaction_ref, r.transaction_id,
+                                        r.proof_file, r.payment_status,
+                                        0              AS invoice_sent,
+                                        r.receipt_number, r.receipt_token,
+                                        NULL           AS membership_period,
+                                        NULL           AS membership_expires_at,
+                                        r.event_id, r.event_title, r.event_date,
+                                        r.registered_at AS paid_at,
+                                        NULL           AS member_id
+                                FROM event_registrants r
+                                INNER JOIN events e ON e.id = r.event_id
+                                WHERE e.is_free = 0
+                                    AND r.amount > 0
+                                    AND r.payment_status = 'verified'
+                                ORDER BY r.registered_at DESC
+                        ");
             $evPay = $stmt2->fetchAll(PDO::FETCH_ASSOC);
 
             // 3. Grant application payments (linked via grant_applications.payment_id)
@@ -1656,6 +1658,7 @@ HTML;
                     FROM grant_applications ga
                     INNER JOIN payments p ON ga.payment_id = p.id
                     INNER JOIN grants_opportunities g ON g.id = ga.grant_id
+                    WHERE p.status = 'verified'
                     ORDER BY p.paid_at DESC
                 ");
                 $grantPay = $stmt3->fetchAll(PDO::FETCH_ASSOC);
