@@ -1329,6 +1329,13 @@ HTML;
             $status = $_POST['status'] ?? '';
             $id = (int)($_POST['id'] ?? 0);
             if (!in_array($status, $allowed) || !$id) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); break; }
+            if ($status === 'rejected') {
+                // Remove member completely if rejected
+                $pdo->prepare("DELETE FROM members WHERE id=?")->execute([$id]);
+                auditLog($pdo, 'delete_member', 'member', $id, 'rejected');
+                echo json_encode(['success' => true, 'deleted' => true]);
+                break;
+            }
             $pdo->prepare("UPDATE members SET status=? WHERE id=?")->execute([$status, $id]);
             auditLog($pdo, 'update_member_status', 'member', $id, $status);
             // Notify member of status change
