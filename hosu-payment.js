@@ -257,6 +257,7 @@
     function _dismiss() {
         _stopAll();
         _ifrClose();
+        _autoCancelPending();
         _off();
     }
 
@@ -291,6 +292,18 @@
         if (_cbSuccess) _cbSuccess(tok);
     }
 
+    /* ── Auto-cancel pending payment from DB ─────────────────── */
+    function _autoCancelPending() {
+        if (!_lastPayId || !_lastRecTok) return;
+        var pid = _lastPayId, tok = _lastRecTok;
+        _lastPayId = null; _lastRecTok = null;
+        var fd = new FormData();
+        fd.append('action', 'cancel_pending_payment');
+        fd.append('payment_id', pid);
+        fd.append('receipt_token', tok);
+        fetch('api.php', { method: 'POST', body: fd }).catch(function () {});
+    }
+
     /* ── Error ────────────────────────────────────────────────── */
     function _showErr(msg, detail) {
         _stopAll();
@@ -298,50 +311,19 @@
         _spin(false);
         _cd('');
         _msg('\u274C ' + (msg || 'Payment could not be completed.'), '#dc2626');
+
+        /* Auto-cancel pending payment record so it doesn't linger in the DB */
+        _autoCancelPending();
+
         var helpHtml = detail ||
-            'If you completed payment by mobile money, provide your proof of payment on ' +
+            'Your pending payment has been cancelled automatically.<br>' +
+            'If money was deducted from your account, contact us at ' +
             '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
             ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
             'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.';
-        if (_lastPayId && _lastRecTok) {
-            helpHtml += '<br><br><button id="_hpCancelPend" style="background:#ef4444;color:#fff;border:none;' +
-                'padding:8px 20px;border-radius:6px;font-weight:600;cursor:pointer;font-size:.85rem;">' +
-                '\u274C Cancel Pending Payment</button>' +
-                '<br><small style="color:#94a3b8;">Cancel to start a fresh payment. Uncancelled pending payments auto-expire after 2 days.</small>';
-        }
         _sub(helpHtml);
-        _btn(true, 'Close');
+        _btn(true, 'Try Again');
         _on();
-        if (_lastPayId && _lastRecTok) {
-            var cancelBtn = _g('_hpCancelPend');
-            if (cancelBtn) {
-                var pid = _lastPayId, tok = _lastRecTok;
-                cancelBtn.addEventListener('click', function () {
-                    cancelBtn.disabled = true;
-                    cancelBtn.textContent = 'Cancelling\u2026';
-                    var fd = new FormData();
-                    fd.append('action', 'cancel_pending_payment');
-                    fd.append('payment_id', pid);
-                    fd.append('receipt_token', tok);
-                    fetch('api.php', { method: 'POST', body: fd })
-                        .then(function (r) { return r.json(); })
-                        .then(function (d) {
-                            if (d.success) {
-                                _lastPayId = null; _lastRecTok = null;
-                                _msg('\u2705 Pending payment cancelled.', '#16a34a');
-                                _sub('<strong>You can now initiate a new payment.</strong>');
-                            } else {
-                                cancelBtn.disabled = false;
-                                cancelBtn.textContent = '\u274C Cancel Pending Payment';
-                                _msg('\u274C ' + (d.error || 'Could not cancel. It may have already been processed.'), '#dc2626');
-                            }
-                        }).catch(function () {
-                            cancelBtn.disabled = false;
-                            cancelBtn.textContent = '\u274C Cancel Pending Payment';
-                        });
-                });
-            }
-        }
         if (_cbError) _cbError(msg);
     }
 
@@ -373,7 +355,7 @@
             _pollCount = 0;
             _pollTimer = setInterval(async function () {
                 if (++_pollCount > 22) {
-                    _showErr('Payment timed out. If money was deducted, please contact info@hosu.or.ug.');
+                    _showErr('Payment timed out. Your pending payment has been cancelled.');
                     return;
                 }
                 try {
@@ -400,8 +382,9 @@
             var secs = Math.max(0, (MAX - _pollCount + 1) * (INT / 1000));
             _cd('Time remaining: ' + Math.floor(secs / 60) + 'm ' + (secs % 60) + 's');
             if (_pollCount > MAX) {
-                _showErr('Payment timed out (15 minutes). The request was cancelled.',
-                    'If money was deducted, contact us at ' +
+                _showErr('Payment timed out. Your pending payment has been cancelled.',
+                    'No money was deducted. You can try again.<br>' +
+                    'If you believe a payment was made, contact ' +
                     '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
                     ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" ' +
                     'style="color:#0d4593;font-weight:700;">WhatsApp +256&nbsp;709&nbsp;752107</a>.');
