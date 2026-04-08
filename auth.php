@@ -160,7 +160,7 @@ function seedAdmin(PDO $pdo): void {
         $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'Admin@hosu2026';
         $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
         $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)");
-        $stmt->execute(['admin', 'info@hosu.or.ug', '+256766529869', $hash]);
+        $stmt->execute(['admin', 'info@mcare.or.ug', '+256766529869', $hash]);
     }
 }
 
@@ -399,6 +399,12 @@ switch ($action) {
 
     case 'check_session':
         if (!empty($_SESSION['user_id'])) {
+            $mustChange = false;
+            try {
+                $stmt = $pdo->prepare("SELECT must_change_password FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $mustChange = (bool)(int)($stmt->fetchColumn() ?: 0);
+            } catch (\Exception $e) {}
             echo json_encode([
                 'logged_in' => true,
                 'user' => [
@@ -406,7 +412,8 @@ switch ($action) {
                     'role' => $_SESSION['user_role'],
                 ],
                 'csrf_token' => generateCsrfToken(),
-                'idle_timeout' => SESSION_IDLE_TIMEOUT
+                'idle_timeout' => SESSION_IDLE_TIMEOUT,
+                'must_change_password' => $mustChange
             ]);
         } else {
             echo json_encode(['logged_in' => false, 'expired' => true]);
@@ -417,11 +424,18 @@ switch ($action) {
         // Lightweight keep-alive — only refreshes last_activity
         if (!empty($_SESSION['user_id'])) {
             $_SESSION['last_activity'] = time();
+            $mustChange = false;
+            try {
+                $stmt = $pdo->prepare("SELECT must_change_password FROM users WHERE id = ?");
+                $stmt->execute([$_SESSION['user_id']]);
+                $mustChange = (bool)(int)($stmt->fetchColumn() ?: 0);
+            } catch (\Exception $e) {}
             echo json_encode([
                 'success'  => true,
                 'alive'    => true,
                 'username' => $_SESSION['username'] ?? 'Admin',
-                'role'     => $_SESSION['user_role'] ?? 'member'
+                'role'     => $_SESSION['user_role'] ?? 'member',
+                'must_change_password' => $mustChange
             ]);
         } else {
             http_response_code(401);

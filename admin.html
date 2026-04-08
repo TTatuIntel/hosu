@@ -1215,6 +1215,10 @@ function showDashboard(user){
     fetch('auth.php?action=check_session',{credentials:'same-origin'})
         .then(r=>r.json()).then(d=>{
             if(d.csrf_token) window._hosuCsrfToken=d.csrf_token;
+            if(d.must_change_password){
+                window._hosuMustChangePassword = true;
+                showForcePasswordChange();
+            }
         });
 }
 
@@ -1234,8 +1238,15 @@ window.showForcePasswordChange = function(){
         + '<label style="font-size:0.78rem;font-weight:600;">Confirm New Password</label>'
         + '<input type="password" id="fpw-confirm" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:1rem;">'
         + '<button onclick="submitForcePasswordChange()" style="width:100%;padding:0.55rem;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.88rem;">Change Password</button>'
+        + '<button onclick="skipPasswordChange()" style="width:100%;padding:0.45rem;margin-top:0.5rem;background:transparent;color:#6b7280;border:1px solid #d1d5db;border-radius:6px;font-weight:500;cursor:pointer;font-size:0.8rem;">Skip for now</button>'
+        + '<p style="font-size:0.7rem;color:#9ca3af;margin:0.5rem 0 0;text-align:center;">You will be reminded on each login until you change it.</p>'
         + '</div>';
     document.body.appendChild(overlay);
+};
+window.skipPasswordChange = function(){
+    var ov = document.getElementById('force-pw-overlay');
+    if(ov) ov.remove();
+    showToast('You can change your password anytime from the top bar.','info');
 };
 window.submitForcePasswordChange = function(){
     var cur = document.getElementById('fpw-current').value;
