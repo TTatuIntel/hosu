@@ -653,11 +653,17 @@
 
             if (payRes.error) { showError(overlay, payRes.error); return; }
 
-            // Fallback: PesaPal wants hosted page — embed inline, no full-page redirect
+            if (!payRes.tracking_id && !payRes.redirect_url) {
+                showError(overlay, 'Could not initiate payment. Please try again.');
+                return;
+            }
+
+            // PesaPal triggers the USSD push when the user visits redirect_url.
+            // Always show our HOSU iframe so the push fires — tracking_id is used for polling inside dfpShowPesapalIframe.
             if (payRes.redirect_url) {
                 setStep(overlay, 2);
                 msgEl.textContent = '\uD83D\uDCF1 Complete payment below\u2026';
-                subEl.textContent = 'Enter your PIN when prompted on your phone.';
+                subEl.textContent = 'Enter your mobile money PIN when prompted on your phone.';
                 spinner.style.display = 'none';
                 closeBtnEl.style.display = 'none';
                 dfpShowPesapalIframe(
@@ -669,7 +675,8 @@
                 return;
             }
 
-            st.txnRef = payRes.tracking_id || null;
+            // No redirect_url but have tracking_id — poll directly
+            st.txnRef = payRes.tracking_id;
             setStep(overlay, 2);
             msgEl.textContent = '📱 Check your ' + (st.method === 'mtn' ? 'MTN' : 'Airtel') + ' phone!';
             subEl.innerHTML = 'Enter your mobile money PIN to approve <strong>UGX ' + amount.toLocaleString() + '</strong>.';

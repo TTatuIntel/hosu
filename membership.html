@@ -2294,39 +2294,46 @@ async function initiateRealBankTransfer(transferDetails) {
                 + '<button id="_hosuPpClose" style="background:rgba(255,255,255,0.2);border:none;color:#fff;width:28px;height:28px;border-radius:50%;font-size:1rem;cursor:pointer;line-height:1;">\u00D7</button>'
                 + '</div>'
                 + '<div style="background:#f0f4ff;padding:5px 14px;font-size:0.75rem;color:#0d4593;font-weight:600;border-bottom:1px solid #dce8ff;flex-shrink:0;">'
-                + '\u2705 Your phone number is pre-filled. Click Proceed, then enter your PIN to approve.'
+                + '\uD83D\uDD12 Complete your payment securely below. Your billing details are pre-filled.'
                 + '</div>'
                 + '<iframe src="' + redirectUrl.replace(/"/g,'&quot;') + '" style="flex:1;width:100%;border:none;background:#fff;" allowpaymentrequest></iframe>';
             document.body.appendChild(ifrWrap);
             var _ifrActive = true;
             var _ifrPolls  = 0;
-            var _ifrTimer  = setInterval(async function () {
-                if (!_ifrActive) { clearInterval(_ifrTimer); return; }
+            var _ifrMsgHandler, _ifrTimer;
+            _ifrMsgHandler = function(event) {
+                if (!event || !event.data || event.data.type !== 'hosu_payment') return;
+                window.removeEventListener('message', _ifrMsgHandler);
+                clearInterval(_ifrTimer); _ifrActive = false;
+                if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
+                if (event.data.status === 'success') {
+                    _memberConfirmSuccess((event.data.receiptToken) || receiptToken);
+                } else {
+                    showError((event.data && event.data.message) || 'Payment was not completed. Please try again.');
+                }
+            };
+            window.addEventListener('message', _ifrMsgHandler);
+            _ifrTimer = setInterval(async function () {
+                if (!_ifrActive) { clearInterval(_ifrTimer); window.removeEventListener('message', _ifrMsgHandler); return; }
                 _ifrPolls++;
                 if (_ifrPolls > 22) {
                     clearInterval(_ifrTimer); _ifrActive = false;
+                    window.removeEventListener('message', _ifrMsgHandler);
                     if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                     showError('Payment timed out. If money was deducted, please contact us at info@hosu.or.ug.');
                     return;
                 }
+                if (!trackingId) return;
                 try {
                     const res = await fetch('payment.php?action=check_mobile&tracking_id=' + encodeURIComponent(trackingId) + '&payment_id=' + payId).then(r => r.json());
                     if (res.status === 'completed') {
                         clearInterval(_ifrTimer); _ifrActive = false;
+                        window.removeEventListener('message', _ifrMsgHandler);
                         if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
-                        _setStep(3);
-                        document.getElementById('airtelCountdown').style.display = 'none';
-                        document.getElementById('modalSpinner').style.display    = 'none';
-                        document.getElementById('modalMessage').textContent      = '\u2705 Payment confirmed!';
-                        document.getElementById('modalMessage').style.color      = '#27ae60';
-                        document.getElementById('modalSubMessage').innerHTML     = 'A receipt has been sent to your email.<br><br>'
-                            + '<a href="receipt.php?token=' + encodeURIComponent(res.receipt_token || receiptToken)
-                            + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>';
-                        document.getElementById('closeModalButton').style.display   = 'block';
-                        document.getElementById('processingCloseBtn').style.display = 'flex';
-                        resetForm();
+                        _memberConfirmSuccess(res.receipt_token || receiptToken);
                     } else if (res.status === 'failed') {
                         clearInterval(_ifrTimer); _ifrActive = false;
+                        window.removeEventListener('message', _ifrMsgHandler);
                         if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                         showError(res.message || 'Payment was declined. Please try again.');
                     }
@@ -2334,9 +2341,25 @@ async function initiateRealBankTransfer(transferDetails) {
             }, 8000);
             document.getElementById('_hosuPpClose').addEventListener('click', function () {
                 _ifrActive = false; clearInterval(_ifrTimer);
+                window.removeEventListener('message', _ifrMsgHandler);
                 if (document.body.contains(ifrWrap)) document.body.removeChild(ifrWrap);
                 showError('Payment cancelled. Please try again.');
             });
+        }
+
+        /* Shared success handler — called from polling loop and postMessage */
+        function _memberConfirmSuccess(tok) {
+            _setStep(3);
+            document.getElementById('airtelCountdown').style.display = 'none';
+            document.getElementById('modalSpinner').style.display    = 'none';
+            document.getElementById('modalMessage').textContent      = '\u2705 Payment confirmed!';
+            document.getElementById('modalMessage').style.color      = '#27ae60';
+            document.getElementById('modalSubMessage').innerHTML     = 'Thank you! A receipt has been sent to your email.<br><br>'
+                + (tok ? '<a href="receipt.php?token=' + encodeURIComponent(tok)
+                  + '" style="display:inline-block;background:#0d4593;color:#fff;padding:10px 24px;border-radius:8px;text-decoration:none;font-weight:700;">\uD83D\uDCC4 View Receipt</a>' : '');
+            document.getElementById('closeModalButton').style.display   = 'block';
+            document.getElementById('processingCloseBtn').style.display = 'flex';
+            resetForm();
         }
 
         // Gateway calls now go through payment.php server proxy
@@ -2428,26 +2451,31 @@ async function initiateRealBankTransfer(transferDetails) {
 
                     if (payRes.error) { showError(payRes.error); return; }
 
-                    // Only show PesaPal iframe when there is truly no tracking_id
-                    if (!payRes.tracking_id && payRes.redirect_url) {
+                    if (!payRes.tracking_id && !payRes.redirect_url) {
+                        showError('Could not initiate payment. Please try again.');
+                        return;
+                    }
+
+                    // PesaPal triggers the USSD push when the user visits redirect_url.
+                    // Always show our HOSU iframe so the push fires — tracking_id is passed
+                    // for background polling inside showMemberPesapalIframe.
+                    if (payRes.redirect_url) {
                         const _ifrPhone = formObject.contact.length >= 11 && !formObject.contact.startsWith('0')
                             ? '+' + formObject.contact
                             : formObject.contact.startsWith('0') ? '+256' + formObject.contact.slice(1) : '+256' + formObject.contact;
                         _setStep(2);
                         document.getElementById('modalMessage').textContent    = '\uD83D\uDCF1 Complete payment below\u2026';
-                        document.getElementById('modalSubMessage').textContent = 'Enter your PIN when prompted.';
+                        document.getElementById('modalSubMessage').textContent = 'Enter your mobile money PIN when prompted.';
                         document.getElementById('modalSpinner').style.display  = 'none';
                         showMemberPesapalIframe(
                             payRes.redirect_url, _ifrPhone, formObject.amount,
-                            '', _paymentId || 0, _receiptToken || ''
+                            payRes.tracking_id || '', _paymentId || 0, _receiptToken || ''
                         );
                         return;
                     }
 
-                    // Direct USSD push sent — show in-app countdown and poll
-                    const trackingId = payRes.tracking_id || '';
-                    if (!trackingId) { showError('Could not initiate payment. Please try again.'); return; }
-
+                    // No redirect_url but have tracking_id — poll directly
+                    const trackingId = payRes.tracking_id;
                     _setStep(2);
                     document.getElementById('modalMessage').textContent    = `\uD83D\uDCF1 Check your ${selectedMethod === 'mtn' ? 'MTN' : 'Airtel'} phone!`;
                     document.getElementById('modalSubMessage').innerHTML   = `Enter your mobile money PIN to approve <strong>UGX ${formObject.amount.toLocaleString()}</strong>.`;
@@ -2510,20 +2538,13 @@ async function initiateRealBankTransfer(transferDetails) {
 
                     if (payRes.redirect_url) {
                         _setStep(3);
-                        if (selectedMethod === 'visa') {
-                            document.getElementById('modalMessage').textContent    = 'Redirecting to PesaPal…';
-                            document.getElementById('modalSubMessage').textContent = 'You will complete payment on the PesaPal secure page.';
-                            await new Promise(r => setTimeout(r, 600));
-                            window.location.href = payRes.redirect_url;
-                        } else {
-                            document.getElementById('modalMessage').textContent    = '🏦 Complete payment below…';
-                            document.getElementById('modalSubMessage').textContent = '';
-                            document.getElementById('modalSpinner').style.display  = 'none';
-                            showMemberPesapalIframe(
-                                payRes.redirect_url, formObject.contact, formObject.amount,
-                                payRes.tracking_id || '', _paymentId || 0, _receiptToken || ''
-                            );
-                        }
+                        document.getElementById('modalMessage').textContent    = '\uD83D\uDCB3 Complete payment below\u2026';
+                        document.getElementById('modalSubMessage').textContent = '';
+                        document.getElementById('modalSpinner').style.display  = 'none';
+                        showMemberPesapalIframe(
+                            payRes.redirect_url, formObject.contact, formObject.amount,
+                            payRes.tracking_id || '', _paymentId || 0, _receiptToken || ''
+                        );
                     } else {
                         showError('Could not get a payment link. Please try again.');
                     }

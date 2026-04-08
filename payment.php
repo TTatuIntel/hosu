@@ -538,10 +538,14 @@ switch ($action) {
             }
 
             if ($trackingId) {
-                // Tracking ID available — always poll; never redirect user away for mobile money
-                echo json_encode(['success' => true, 'tracking_id' => $trackingId, 'status' => 'pending']);
+                // Return both tracking_id (for status polling) and redirect_url (needed to trigger USSD push)
+                $payload = ['success' => true, 'tracking_id' => $trackingId, 'status' => 'pending'];
+                if (!empty($result['redirect_url'])) {
+                    $payload['redirect_url'] = $result['redirect_url'];
+                }
+                echo json_encode($payload);
             } elseif (!empty($result['redirect_url'])) {
-                // No tracking ID but PesaPal gave a hosted page — last-resort iframe fallback
+                // No tracking ID — hosted page only
                 echo json_encode(['success' => true, 'tracking_id' => '', 'redirect_url' => $result['redirect_url'], 'status' => 'redirect']);
             } else {
                 $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initiate mobile money payment. Please try again.');
