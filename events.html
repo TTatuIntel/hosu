@@ -800,20 +800,20 @@ footer {
     font-size: 0.74rem; padding: 0.35rem 0.5rem;
 }
 .reg-textarea { resize: vertical; min-height: 50px; }
-/* Payment chips (matching membership design) */
+/* Payment chips — matches donation popup (donate-float.css) */
 .reg-payment-label {
-    font-size: 0.68rem; font-weight: 700; color: var(--secondary-color);
-    margin: 0.4rem 0 0.25rem; display: block; text-align: center;
+    font-size: 0.62rem; font-weight: 700; color: var(--secondary-color);
+    margin: 0.4rem 0 0.2rem; display: block; text-align: center;
 }
 .reg-pay-chips {
-    display: flex; gap: 0.25rem; flex-wrap: wrap; margin-bottom: 0.35rem; justify-content: center;
+    display: flex; gap: 0.2rem; flex-wrap: wrap; margin-bottom: 0.2rem; justify-content: center;
 }
 .reg-pay-chip {
-    display: inline-flex; align-items: center; gap: 0.25rem;
-    padding: 0.28rem 0.6rem;
-    border: 1.5px solid var(--gray-300, #e2e8f0); border-radius: 20px;
-    cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.5);
-    font-size: 0.68rem; font-weight: 600; color: var(--text-color);
+    display: inline-flex; align-items: center; gap: 0.15rem;
+    padding: 0.2rem 0.4rem;
+    border: 1px solid var(--gray-300, #e2e8f0); border-radius: 12px;
+    cursor: pointer; transition: all 0.2s; background: rgba(255,255,255,0.6);
+    font-size: 0.58rem; font-weight: 600; color: var(--text-color);
     font-family: inherit;
 }
 .reg-pay-chip:hover {
@@ -822,9 +822,9 @@ footer {
 .reg-pay-chip.selected {
     border-color: var(--primary-color); background: rgba(230,57,70,0.08); color: var(--primary-color);
 }
-.reg-chip-icon { font-size: 0.78rem; }
-.reg-chip-visa { font-weight: 900; font-style: italic; font-size: 0.65rem; letter-spacing: -0.5px; }
-.reg-chip-img { width: 18px; height: 18px; object-fit: contain; }
+.reg-chip-icon { font-size: 0.65rem; }
+.reg-chip-visa { font-weight: 900; font-style: italic; font-size: 0.58rem; letter-spacing: -0.5px; }
+.reg-chip-img { width: 14px; height: 14px; object-fit: contain; }
 .reg-mtn-chip { border-color: #ffcc00; background: rgba(255,204,0,0.06); }
 .reg-mtn-chip.selected { background: rgba(255,204,0,0.16); border-color: #ffcc00; }
 .reg-airtel-chip { border-color: #e4002b; background: rgba(228,0,0,0.03); }
@@ -836,11 +836,11 @@ footer {
 }
 .reg-bank-info p { margin: 0.1rem 0; }
 /* Payment processing handled by unified HosuPay engine (hosu-payment.js) */
-/* Submit */
+/* Submit — matches donation popup */
 .reg-submit {
     width: 100%; background: var(--primary-color); color: white; border: none;
-    padding: 0.48rem; border-radius: 20px; font-size: 0.78rem; font-weight: 600;
-    font-family: inherit; cursor: pointer; transition: all 0.3s; margin-top: 0.5rem;
+    padding: 0.4rem; border-radius: 12px; font-size: 0.7rem; font-weight: 600;
+    font-family: inherit; cursor: pointer; transition: all 0.2s; margin-top: 0.4rem;
     display: flex; align-items: center; justify-content: center; gap: 0.3rem;
 }
 .reg-submit:hover { background: var(--primary-dark); transform: translateY(-1px); }
@@ -922,7 +922,7 @@ footer {
 .reg-free-banner { background:linear-gradient(135deg,#e8f5e9,#c8e6c9); border-radius:8px; padding:0.5rem 0.7rem; text-align:center; font-weight:600; color:#2e7d32; font-size:0.74rem; }
 #reg-fee-display { display:none; background:linear-gradient(135deg,#fff3e0,#ffe0b2); border-radius:8px; padding:0.4rem 0.7rem; margin-bottom:0.3rem; text-align:center; font-weight:600; color:#e65100; font-size:0.74rem; }
 .reg-payment-required { color:var(--primary-color); }
-.reg-pay-desc { font-size:0.58rem; font-weight:400; color:var(--text-light); }
+.reg-pay-desc { font-size:0.52rem; font-weight:400; color:var(--text-light); }
 .reg-success-actions { display:flex; gap:.4rem; justify-content:center; flex-wrap:wrap; margin-top:.4rem; }
 #reg-receipt-link { display:none; align-items:center; gap:.3rem; background:var(--primary-color); color:#fff; padding:.38rem .9rem; border-radius:20px; text-decoration:none; font-size:.74rem; font-weight:600; }
 </style>
@@ -1093,14 +1093,14 @@ footer {
                         <div id="reg-fee-display">Registration Fee: <span id="reg-fee-amount"></span></div>
                         <label class="reg-payment-label">Payment Method <span class="reg-payment-required">*</span></label>
                         <div class="reg-pay-chips" id="reg-pay-chips">
+                            <button type="button" class="reg-pay-chip" data-method="visa" onclick="window._regSelectPay('visa')">
+                                <span class="reg-chip-icon reg-chip-visa">VISA</span> Card
+                            </button>
                             <button type="button" class="reg-pay-chip reg-mtn-chip" data-method="mtn" onclick="window._regSelectPay('mtn')">
                                 <img src="img/mtn.png" alt="MTN" class="reg-chip-img"> MTN
                             </button>
                             <button type="button" class="reg-pay-chip reg-airtel-chip" data-method="airtel" onclick="window._regSelectPay('airtel')">
                                 <img src="img/airtel.png" alt="Airtel" class="reg-chip-img"> Airtel
-                            </button>
-                            <button type="button" class="reg-pay-chip" data-method="visa" onclick="window._regSelectPay('visa')">
-                                <span class="reg-chip-icon reg-chip-visa">VISA</span> Card / Bank
                             </button>
                         </div>
                     </div>
