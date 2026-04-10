@@ -1532,13 +1532,9 @@
                 <div class="reg-subtitle">Complete the form below — we'll send confirmation to your email</div>
                 <form id="membershipForm" novalidate>
                     <div class="reg-grid">
-                        <div class="full">
+                        <div>
                             <label class="reg-label" for="fullName">Full Name <span>*</span></label>
                             <input class="reg-input" type="text" id="fullName" name="fullName" required placeholder="John Doe">
-                        </div>
-                        <div class="full">
-                            <label class="reg-label" for="email">Email Address <span>*</span></label>
-                            <input class="reg-input" type="email" id="email" name="email" required placeholder="you@example.com">
                         </div>
                         <div>
                             <label class="reg-label" for="profession">Profession <span>*</span></label>
@@ -1563,9 +1559,13 @@
                                 <option value="other">Other</option>
                             </select>
                         </div>
-                        <div id="otherProfessionGroup" style="display:none">
+                        <div class="full" id="otherProfessionGroup" style="display:none">
                             <label class="reg-label" for="otherProfession">Specify Profession</label>
                             <input class="reg-input" type="text" id="otherProfession" name="otherProfession" placeholder="Your profession">
+                        </div>
+                        <div class="full">
+                            <label class="reg-label" for="email">Email Address <span>*</span></label>
+                            <input class="reg-input" type="email" id="email" name="email" required placeholder="you@example.com">
                         </div>
                         <div class="full">
                             <label class="reg-label" for="contact">Phone Number <span>*</span></label>
@@ -1588,7 +1588,7 @@
                             <div id="reg-fee-display">Membership Fee: UGX 100,000</div>
                             <input type="hidden" id="membershipAmount" name="membershipAmount" value="100000">
                         </div>
-                        <div class="full" id="mem-payment-section">
+                        <div class="full">
                             <label class="reg-payment-label">Payment Method <span style="color:var(--primary-color)">*</span></label>
                             <div class="reg-pay-chips">
                                 <button type="button" class="reg-pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')">
