@@ -10,7 +10,7 @@
     (function() {
         if (window.HosuPay || document.querySelector('script[src*="hosu-payment"]')) return;
         var s = document.createElement('script');
-        s.src = 'hosu-payment.js?v=2026041003';
+        s.src = 'hosu-payment.js?v=2026041004';
         document.head.appendChild(s);
     })();
 
@@ -320,7 +320,7 @@
         return new Promise(function(resolve, reject) {
             if (window.HosuPay) { resolve(); return; }
             var s = document.createElement('script');
-            s.src = 'hosu-payment.js?v=2026041003';
+            s.src = 'hosu-payment.js?v=2026041004';
             s.onload = resolve;
             s.onerror = function() { reject(new Error('Payment system failed to load.')); };
             document.head.appendChild(s);
