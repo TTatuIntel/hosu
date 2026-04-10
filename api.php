@@ -1303,15 +1303,15 @@ HTML;
         }
         try {
             $stmt = $pdo->query("
-                SELECT m.*, 
-                    p.id as payment_id, p.amount, p.currency, p.payment_method,
-                    p.transaction_ref, p.transaction_id, p.proof_file, p.status as payment_status,
-                    p.invoice_sent, p.receipt_number, p.receipt_token, p.qr_scanned, p.paid_at,
-                    p.payment_type, p.membership_period, p.membership_expires_at,
-                    DATE_FORMAT(m.created_at,'%d %b %Y') as joined_date
+                SELECT m.id, m.full_name, m.email, m.phone, m.profession, m.institution,
+                    m.membership_type, m.status,
+                    DATE_FORMAT(m.created_at,'%d %b %Y') as joined_date,
+                    p.membership_period, p.membership_expires_at
                 FROM members m
-                LEFT JOIN payments p ON p.member_id = m.id
+                INNER JOIN payments p ON p.member_id = m.id
                 WHERE m.membership_type != 'event_registration'
+                  AND p.payment_type = 'membership'
+                  AND p.status = 'verified'
                 ORDER BY m.created_at DESC
             ");
             echo json_encode(['success' => true, 'members' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
@@ -1608,7 +1608,6 @@ HTML;
                 FROM payments p
                 JOIN members m ON m.id = p.member_id
                 WHERE p.payment_type IN ('membership','donation')
-                  AND p.status = 'verified'
                 ORDER BY p.paid_at DESC
             ");
             $membPay = $stmt1->fetchAll(PDO::FETCH_ASSOC);
@@ -1635,7 +1634,6 @@ HTML;
                                 INNER JOIN events e ON e.id = r.event_id
                                 WHERE e.is_free = 0
                                     AND r.amount > 0
-                                    AND r.payment_status = 'verified'
                                 ORDER BY r.registered_at DESC
                         ");
             $evPay = $stmt2->fetchAll(PDO::FETCH_ASSOC);
@@ -1665,7 +1663,6 @@ HTML;
                     FROM grant_applications ga
                     INNER JOIN payments p ON ga.payment_id = p.id
                     INNER JOIN grants_opportunities g ON g.id = ga.grant_id
-                    WHERE p.status = 'verified'
                     ORDER BY p.paid_at DESC
                 ");
                 $grantPay = $stmt3->fetchAll(PDO::FETCH_ASSOC);

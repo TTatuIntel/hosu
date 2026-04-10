@@ -2203,10 +2203,13 @@ footer {
                 return;
             }
 
-            // --- PAID events: use unified HosuPay ---
+            // --- PAID events: use unified HosuPay (PesaPal iframe popup) ---
             if (!_regSelectedPay) { alert('Please select a payment method.'); return; }
 
             var methodLabel = _regSelectedPay === 'mtn' ? 'MTN Mobile Money' : _regSelectedPay === 'airtel' ? 'Airtel Money' : _regSelectedPay === 'visa' ? 'Visa/Mastercard' : 'PesaPal';
+
+            // Close the registration modal first (matches donation flow)
+            closeRegModal();
 
             window.HosuPay.processPayment({
                 purpose: 'Event: ' + (ev.title || 'Registration'),
@@ -2225,6 +2228,17 @@ footer {
                     eventId: ev.id || '',
                     eventTitle: ev.title || '',
                     eventDate: ev.date || ''
+                },
+                onSuccess: function(token) {
+                    // Reset the registration form after successful payment
+                    var regForm = document.getElementById('reg-form');
+                    if (regForm) regForm.reset();
+                    _regSelectedPay = null;
+                    document.querySelectorAll('.reg-pay-chip').forEach(function(c) { c.classList.remove('selected'); });
+                },
+                onCancel: function() {
+                    // Reopen registration modal so user can retry
+                    openRegModal(ev.id);
                 }
             });
         });

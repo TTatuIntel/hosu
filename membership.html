@@ -2349,6 +2349,9 @@ async function initiateRealBankTransfer(transferDetails) {
 
             const methodLabel = selectedMethod === 'mtn' ? 'MTN Mobile Money' : selectedMethod === 'airtel' ? 'Airtel Money' : 'Visa/Mastercard';
 
+            // Close the subscription modal first (matches donation flow)
+            closeSubscriptionForm();
+
             window.HosuPay.processPayment({
                 purpose: 'Membership (' + selectedPeriod + ')',
                 type: 'membership',
@@ -2367,7 +2370,13 @@ async function initiateRealBankTransfer(transferDetails) {
                     transactionId: '',
                     transactionRef: ''
                 },
-                onSuccess: function() { resetForm(); }
+                onSuccess: function() {
+                    resetForm();
+                },
+                onCancel: function() {
+                    // Reopen the subscription modal so user can retry
+                    openSubscriptionForm();
+                }
             });
         }
 

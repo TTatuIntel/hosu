@@ -426,7 +426,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
         <!-- ===== MEMBERS ===== -->
         <div class="panel" id="panel-members">
             <div class="ph">
-                <div><h1>👥 Members</h1><p>All society members and their membership status.</p></div>
+                <div><h1>👥 Members</h1><p>Paid society members and their membership status.</p></div>
                 <div class="filter-toolbar">
                     <select id="mem-type-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Plans</option>
@@ -437,10 +437,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
                     </select>
                     <select id="mem-status-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Statuses</option>
-                        <option value="active">? Active</option>
-                        <option value="pending">? Pending</option>
-                        <option value="expired">?? Expired</option>
-                        <option value="rejected">? Rejected</option>
+                        <option value="active">✅ Active</option>
+                        <option value="expired">⌛ Expired</option>
                     </select>
                     <div class="search-wrap"><input type="text" id="mem-search" placeholder="Search members…" oninput="filterMembers()"></div>
                     <a href="api.php?action=export_csv" class="btn-primary btn-nodecor" id="csv-btn">📥 Export CSV</a>
@@ -449,7 +447,7 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
             <div class="card">
                 <div class="card-hd"><h2>Members (<span id="mem-count">0</span>)</h2></div>
                 <div class="card-body card-body-flush">
-                    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Profession</th><th>Type</th><th>Status</th><th>Joined</th><th>Payment</th><th>Actions</th></tr></thead>
+                    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Profession</th><th>Type</th><th>Status</th><th>Joined</th><th>Expires</th><th>Actions</th></tr></thead>
                     <tbody id="mem-body"><tr><td colspan="9" class="empty"><div class="big">👥</div>Loading members…</td></tr></tbody></table>
                 </div>
             </div>
@@ -1964,9 +1962,9 @@ function renderMembers(){
     var _PLAN_LABELS={'1_year':'1 Year','2_years':'2 Years','3_years':'3 Years','lifetime':'5+ Yrs Premium'};
     if(!_filteredMem.length){html='<tr><td colspan="9" class="empty"><div class="big">👥</div>No members found.</td></tr>';}
     else _filteredMem.forEach((m,i)=>{
-        var payStatus=m.payment_status?'<span class="tag tag-'+esc(m.payment_status)+'">'+esc(m.payment_status)+'</span>':'<span class="tag tag-past">none</span>';
-        var planLabel=_PLAN_LABELS[m.membership_type]||esc(m.membership_type);
+        var planLabel=_PLAN_LABELS[m.membership_type]||_PLAN_LABELS[m.membership_period]||esc(m.membership_type);
         var typeLabel='<span class="tag tag-upcoming">'+planLabel+'</span>';
+        var expiresAt=m.membership_expires_at?((m.membership_period==='lifetime'||m.membership_type==='lifetime')?'<span style="color:#0d4593;font-weight:700;">Lifetime</span>':esc(m.membership_expires_at.substring(0,10))):'—';
         html+='<tr><td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
             +'<td style="font-weight:600;font-size:.82rem;">'+esc(m.full_name)+'</td>'
             +'<td style="font-size:.78rem;">'+esc(m.email)+'</td>'
@@ -1974,13 +1972,12 @@ function renderMembers(){
             +'<td>'+typeLabel+'</td>'
             +'<td><span class="tag tag-'+esc(m.status)+'">'+esc(m.status)+'</span></td>'
             +'<td style="font-size:.76rem;">'+esc(m.joined_date||'—')+'</td>'
-            +'<td>'+payStatus+'</td>'
+            +'<td style="font-size:.76rem;">'+expiresAt+'</td>'
             +'<td style="white-space:nowrap;">'
             +'<select class="btn-sm" style="padding:.28rem .5rem;font-size:.7rem;" onchange="updateMemberStatus('+m.id+',this.value)">'
             +'<option value="">Change status…</option>'
-            +'<option value="active">✅ Active</option><option value="pending">⏳ Pending</option><option value="expired">⌛ Expired</option><option value="rejected">❌ Rejected</option>'
+            +'<option value="active">✅ Active</option><option value="expired">⌛ Expired</option><option value="rejected">❌ Remove</option>'
             +'</select>'
-            +(m.payment_id?'<button class="btn-sm" style="margin-left:.3rem;" onclick="openPayModal('+m.id+')">💳 Payment</button>':'')
             +'</td></tr>';
     });
     document.getElementById('mem-body').innerHTML=html;
