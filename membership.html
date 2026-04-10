@@ -1683,14 +1683,6 @@
 
             <form id="paymentForm">
                 <div class="pay-chips">
-                    <button type="button" class="pay-chip payment-option" onclick="selectPayment('bank')">
-                        <i class="fas fa-university"></i> Bank
-                        <input type="radio" name="paymentmode" value="bank" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="pay-chip payment-option" onclick="selectPayment('banktobank')">
-                        <i class="fas fa-exchange-alt"></i> Bank to Bank
-                        <input type="radio" name="paymentmode" value="banktobank" class="payment-radio-hidden">
-                    </button>
                     <button type="button" class="pay-chip payment-option mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
                         <img src="img/mtn.png" alt="MTN" onerror="this.style.display='none'"> MTN
                         <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
@@ -2108,11 +2100,7 @@ function selectPayment(method) {
     document.getElementById('paymentDetails').classList.add('hidden');
     document.getElementById('paymentDetails').innerHTML = '';
 
-    if (method === 'bank') {
-        document.getElementById('bankDetailsModal').style.display = 'flex';
-    } else if (method === 'banktobank') {
-        document.getElementById('bankToBankModal').style.display = 'flex';
-    } else if (method === 'mtn') {
+    if (method === 'mtn') {
         const pd = document.getElementById('paymentDetails');
         pd.classList.remove('hidden');
         pd.innerHTML = '<i class="fas fa-mobile-alt"></i> A <strong>MTN Mobile Money</strong> prompt will be sent to your phone. Enter your PIN to confirm.';
@@ -2323,31 +2311,6 @@ async function initiateRealBankTransfer(transferDetails) {
             const selectedPeriod = membershipPackage.value;
             const selectedAmount = parseInt(membershipAmount.value, 10);
             _selectedPlan = { period: selectedPeriod, amount: selectedAmount };
-
-            if (selectedMethod === 'bank') {
-                window.HosuPay.processPayment({
-                    purpose: 'Membership (' + selectedPeriod + ')',
-                    type: 'membership',
-                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
-                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
-                    phone: getPhoneDigits(),
-                    amount: selectedAmount,
-                    method: 'bank'
-                });
-                return;
-            }
-            if (selectedMethod === 'banktobank') {
-                window.HosuPay.processPayment({
-                    purpose: 'Membership (' + selectedPeriod + ')',
-                    type: 'membership',
-                    name: document.getElementById('membershipForm').querySelector('[name="fullName"]').value.trim(),
-                    email: document.getElementById('membershipForm').querySelector('[name="email"]').value.trim(),
-                    phone: getPhoneDigits(),
-                    amount: selectedAmount,
-                    method: 'banktobank'
-                });
-                return;
-            }
 
             // ── Collect form data ──────────────────────────────────
             const formData   = new FormData(membershipForm);

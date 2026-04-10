@@ -579,7 +579,38 @@
             var mRes;
             try { mRes = await (await fetch('payment.php?action=pay_mobile', { method: 'POST', body: mFd })).json(); }
             catch (e) { _showErr('Network error. Please try again.'); return; }
-            if (mRes.error) { _showErr(mRes.error); return; }
+
+            /* If direct USSD push fails (e.g. "Transaction amount exceeds limit"),
+               fall back to PesaPal hosted page instead of showing the error.
+               The hosted page supports all channels and has different limits. */
+            if (mRes.error) {
+                _msg('Switching to secure payment page\u2026');
+                var fbFd = new FormData();
+                fbFd.append('payment_id',    paymentId);
+                fbFd.append('registrant_id', registrantId);
+                fbFd.append('receipt_token', receiptToken);
+                fbFd.append('amount',        opts.amount);
+                fbFd.append('email',         opts.email);
+                fbFd.append('name',          opts.name);
+                fbFd.append('phone',         opts.phone);
+                fbFd.append('type',          type);
+                fbFd.append('purpose',       purpose);
+                var fbRes;
+                try { fbRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: fbFd })).json(); }
+                catch (e2) { _showErr('Network error. Please try again.'); return; }
+                if (fbRes.redirect_url) {
+                    _msg('Opening secure payment page\u2026');
+                    _openIfr({
+                        redirectUrl: fbRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                        trackingId: fbRes.tracking_id, payId: paymentId, registrantId: registrantId,
+                        receiptToken: receiptToken, purpose: typeLabel + ': ' + purpose
+                    });
+                    return;
+                }
+                /* Both direct push and hosted page failed — show the original error */
+                _showErr(mRes.error);
+                return;
+            }
 
             // If PesaPal returns a redirect_url, open the iframe for the user to complete payment
             if (mRes.redirect_url) {
