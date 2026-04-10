@@ -835,38 +835,7 @@ footer {
     font-size: 0.68rem; color: var(--text-color);
 }
 .reg-bank-info p { margin: 0.1rem 0; }
-/* Processing step indicator */
-.reg-process { text-align: center; padding: 1rem; }
-.reg-process-steps {
-    display: flex; align-items: center; justify-content: center; margin: 0.3rem 0 0.8rem;
-}
-.reg-proc-step { display: flex; flex-direction: column; align-items: center; gap: 0.2rem; }
-.reg-proc-step span { font-size: 0.6rem; font-weight: 600; color: var(--text-light); }
-.reg-proc-dot {
-    width: 26px; height: 26px; border-radius: 50%;
-    display: flex; align-items: center; justify-content: center;
-    font-size: 0.68rem; font-weight: 700;
-    border: 2px solid var(--gray-300); background: white; color: var(--text-light);
-    transition: all 0.3s;
-}
-.reg-proc-dot.active { border-color: var(--secondary-color); background: var(--secondary-color); color: white; }
-.reg-proc-dot.done { border-color: #27ae60; background: #27ae60; color: white; }
-.reg-proc-line {
-    width: 32px; height: 2px; background: var(--gray-300);
-    margin: 0 0.2rem; margin-bottom: 1rem; transition: background 0.3s;
-}
-.reg-proc-line.active { background: var(--secondary-color); }
-.reg-proc-line.done { background: #27ae60; }
-.reg-proc-spinner {
-    width: 32px; height: 32px;
-    border: 3px solid var(--gray-300); border-top-color: var(--secondary-color);
-    border-radius: 50%; margin: 0.4rem auto;
-    animation: regSpin 0.7s linear infinite;
-}
-@keyframes regSpin { to { transform: rotate(360deg); } }
-.reg-proc-msg { font-size: 0.78rem; font-weight: 600; color: var(--text-color); margin: 0.4rem 0 0.15rem; }
-.reg-proc-sub { font-size: 0.68rem; color: var(--text-light); margin: 0 0 0.2rem; }
-.reg-proc-countdown { font-size: 0.68rem; font-weight: 600; color: var(--primary-color); margin: 0.2rem 0; }
+/* Payment processing handled by unified HosuPay engine (hosu-payment.js) */
 /* Submit */
 .reg-submit {
     width: 100%; background: var(--primary-color); color: white; border: none;
@@ -1149,21 +1118,7 @@ footer {
                 <button class="reg-back-btn" id="reg-back-btn">&#8592; Back to Events</button>
             </div>
         </div>
-        <!-- Processing modal -->
-        <div class="reg-process" id="reg-process" style="display:none">
-            <div class="reg-process-steps">
-                <div class="reg-proc-step"><div class="reg-proc-dot active" id="reg-pd1">1</div><span>Register</span></div>
-                <div class="reg-proc-line" id="reg-pl1"></div>
-                <div class="reg-proc-step"><div class="reg-proc-dot" id="reg-pd2">2</div><span>Authorize</span></div>
-                <div class="reg-proc-line" id="reg-pl2"></div>
-                <div class="reg-proc-step"><div class="reg-proc-dot" id="reg-pd3">3</div><span>Receipt</span></div>
-            </div>
-            <div class="reg-proc-spinner" id="reg-spinner"></div>
-            <p class="reg-proc-msg" id="reg-proc-msg">Processing, please wait...</p>
-            <p class="reg-proc-sub" id="reg-proc-sub"></p>
-            <div id="reg-countdown" class="reg-proc-countdown" style="display:none"></div>
-            <button class="reg-submit" id="reg-proc-close" style="display:none" onclick="window._regBackToForm()">Close</button>
-        </div>
+        <!-- Payment processing handled by unified HosuPay engine -->
     </div>
 </div>
 
@@ -2042,11 +1997,6 @@ footer {
 
         // --- Payment chip selection ---
         var _regSelectedPay = null;
-        var _regReceiptToken = null;
-        var _regPaymentId = null;
-        var _regRegistrantId = null;
-        var _regPollActive = false;
-        var _regTrackingId = null;
 
         /* Detect MTN / Airtel from Uganda phone number */
         function _detectUgandaNetwork(digits) {
@@ -2065,62 +2015,6 @@ footer {
             var chip = document.querySelector('.reg-pay-chip[data-method="' + method + '"]');
             if (chip) chip.classList.add('selected');
         };
-
-        window._regBackToForm = function() {
-            _regPollActive = false;
-            document.getElementById('reg-form-area').style.display = '';
-            document.getElementById('reg-process').style.display = 'none';
-            document.getElementById('reg-spinner').style.display = '';
-            document.getElementById('reg-proc-close').style.display = 'none';
-            document.getElementById('reg-countdown').style.display = 'none';
-            document.getElementById('reg-proc-msg').style.color = '';
-        };
-
-        function _regSetStep(n) {
-            [1,2,3].forEach(function(i) {
-                var dot = document.getElementById('reg-pd' + i);
-                var line = document.getElementById('reg-pl' + i);
-                if (dot) dot.className = 'reg-proc-dot' + (i < n ? ' done' : i === n ? ' active' : '');
-                if (line) line.className = 'reg-proc-line' + (i < n ? ' done' : i === n ? ' active' : '');
-            });
-        }
-
-        function _regShowError(msg, detailsHtml) {
-            _regPollActive = false;
-            document.getElementById('reg-spinner').style.display = 'none';
-            document.getElementById('reg-countdown').style.display = 'none';
-            document.getElementById('reg-proc-msg').textContent = msg;
-            document.getElementById('reg-proc-msg').style.color = '#e63946';
-            document.getElementById('reg-proc-sub').innerHTML = detailsHtml || 'If you completed payment by mobile money, provide your proof of payment on <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a> or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">WhatsApp +256 709 752107</a>.';
-            document.getElementById('reg-proc-close').style.display = '';
-        }
-
-        async function _regShowSuccess(ev) {
-            _regPollActive = false;
-            _regSetStep(3);
-            document.getElementById('reg-countdown').style.display = 'none';
-            document.getElementById('reg-proc-msg').textContent = 'Confirming payment…';
-            document.getElementById('reg-proc-msg').style.color = '';
-            document.getElementById('reg-proc-sub').textContent = '';
-
-            if (_regReceiptToken && _regPaymentId) {
-                try {
-                    var cfd = new FormData();
-                    cfd.append('payment_id', _regPaymentId);
-                    cfd.append('receipt_token', _regReceiptToken);
-                    await fetch('api.php?action=confirm_payment', { method: 'POST', body: cfd });
-                } catch(e) {}
-                document.getElementById('reg-spinner').style.display = 'none';
-                document.getElementById('reg-proc-msg').textContent = '\u2705 Payment confirmed! Opening receipt…';
-                document.getElementById('reg-proc-msg').style.color = '#27ae60';
-                setTimeout(function() { window.location.href = 'receipt.php?token=' + _regReceiptToken; }, 700);
-            } else {
-                document.getElementById('reg-spinner').style.display = 'none';
-                document.getElementById('reg-proc-msg').textContent = '\u2705 Registration confirmed!';
-                document.getElementById('reg-proc-msg').style.color = '#27ae60';
-                document.getElementById('reg-proc-close').style.display = '';
-            }
-        }
 
         // Auto-detect MTN / Airtel from phone number and select chip
         (function() {
