@@ -73,6 +73,19 @@ function renderPage(string $title, string $icon, string $heading, string $body, 
         $safeReceipt = htmlspecialchars($pmReceipt, ENT_QUOTES, 'UTF-8');
         $pmScript = "<script>(function(){try{if(window.parent&&window.parent!==window){window.parent.postMessage({type:'hosu_payment',status:'{$safeStatus}',receiptToken:'{$safeReceipt}'},'*');}}catch(e){}})();</script>";
     }
+
+    // Map status to SVG icon
+    $iconSvg = '';
+    if ($pmStatus === 'success') {
+        $iconSvg = '<div class="status-icon success"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><polyline points="20 6 9 17 4 12"/></svg></div>';
+    } elseif ($pmStatus === 'error') {
+        $iconSvg = '<div class="status-icon error"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg></div>';
+    } elseif (strpos($icon, '⏳') !== false) {
+        $iconSvg = '<div class="status-icon pending"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg></div>';
+    } else {
+        $iconSvg = '<div class="status-icon warning"><svg viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z"/><line x1="12" y1="9" x2="12" y2="13"/><line x1="12" y1="17" x2="12.01" y2="17"/></svg></div>';
+    }
+
     echo <<<HTML
 <!DOCTYPE html>
 <html lang="en">
@@ -81,26 +94,53 @@ function renderPage(string $title, string $icon, string $heading, string $body, 
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>{$title} — HOSU</title>
 <style>
-  body{margin:0;font-family:'Segoe UI',Arial,sans-serif;background:#f4f6f9;display:flex;align-items:center;justify-content:center;min-height:100vh;}
-  .card{background:#fff;border-radius:12px;box-shadow:0 3px 16px rgba(0,0,0,.10);padding:28px 24px;max-width:360px;width:90%;text-align:center;}
-  .icon{font-size:2rem;margin-bottom:8px;}
-  h1{margin:0 0 8px;font-size:1.15rem;color:{$color};}
-  p{color:#555;line-height:1.55;margin:0 0 18px;font-size:0.88rem;}
-  a.btn{display:inline-block;padding:9px 26px;background:{$color};color:#fff;border-radius:7px;text-decoration:none;font-weight:700;font-size:0.88rem;}
-  a.btn:hover{opacity:.9;}
-  .logo{margin-bottom:14px;}
-  .logo img{height:34px;}
-  a.contact-link{color:{$color};font-weight:600;text-decoration:none;white-space:nowrap;}
-  a.contact-link:hover{text-decoration:underline;}
+  *{box-sizing:border-box}
+  body{margin:0;font-family:Inter,'Segoe UI',system-ui,-apple-system,sans-serif;
+    background:linear-gradient(135deg,#f0f4ff 0%,#f8fafc 50%,#f0fdf4 100%);
+    display:flex;align-items:center;justify-content:center;min-height:100vh;padding:16px}
+  .card{background:#fff;border-radius:16px;
+    box-shadow:0 20px 60px rgba(0,0,0,.08),0 1px 3px rgba(0,0,0,.04);
+    padding:28px 24px;max-width:380px;width:100%;text-align:center;position:relative;overflow:hidden}
+  .card::before{content:"";position:absolute;top:0;left:0;right:0;height:3px;
+    background:linear-gradient(90deg,#0d4593 0%,#2563eb 35%,#16a34a 65%,#22c55e 100%)}
+  .brand{display:flex;align-items:center;justify-content:center;gap:6px;margin-bottom:14px}
+  .brand svg{width:14px;height:14px;flex-shrink:0}
+  .brand span{font-size:.58rem;font-weight:700;letter-spacing:.1em;color:#94a3b8;text-transform:uppercase}
+  .status-icon{width:56px;height:56px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+    margin:0 auto 14px;animation:iconPop .4s cubic-bezier(.22,1,.36,1)}
+  .status-icon svg{width:28px;height:28px}
+  .status-icon.success{background:linear-gradient(135deg,#16a34a,#22c55e);box-shadow:0 4px 14px rgba(22,163,106,.25)}
+  .status-icon.error{background:linear-gradient(135deg,#e63946,#dc2626);box-shadow:0 4px 14px rgba(230,57,70,.25)}
+  .status-icon.pending{background:linear-gradient(135deg,#f59e0b,#eab308);box-shadow:0 4px 14px rgba(245,158,11,.25)}
+  .status-icon.warning{background:linear-gradient(135deg,#e63946,#dc2626);box-shadow:0 4px 14px rgba(230,57,70,.25)}
+  @keyframes iconPop{from{transform:scale(.5);opacity:0}to{transform:scale(1);opacity:1}}
+  h1{margin:0 0 6px;font-size:1.1rem;font-weight:800;color:#0f172a;letter-spacing:-.01em}
+  p{color:#64748b;line-height:1.6;margin:0 0 18px;font-size:.82rem}
+  a.btn{display:inline-block;padding:10px 28px;background:linear-gradient(135deg,{$color},color-mix(in srgb,{$color} 80%,#000));
+    color:#fff;border-radius:10px;text-decoration:none;font-weight:700;font-size:.82rem;
+    box-shadow:0 2px 10px rgba(0,0,0,.12);transition:all .2s}
+  a.btn:hover{transform:translateY(-1px);box-shadow:0 4px 14px rgba(0,0,0,.18)}
+  a.contact-link{color:#0d4593;font-weight:700;text-decoration:none;white-space:nowrap}
+  a.contact-link:hover{text-decoration:underline}
+  .secure-badge{display:flex;align-items:center;justify-content:center;gap:4px;margin-top:18px;
+    font-size:.58rem;color:#94a3b8;font-weight:600;letter-spacing:.04em}
+  .secure-badge svg{width:10px;height:10px}
 </style>
 </head>
 <body>
 <div class="card">
-  <div class="logo"><img src="img/hosu-logo.png" alt="HOSU" onerror="this.style.display='none'"></div>
-  <div class="icon">{$icon}</div>
+  <div class="brand">
+    <svg viewBox="0 0 24 24" fill="none" stroke="#16a34a" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4" stroke="#16a34a"/></svg>
+    <span>HOSU &mdash; Secure Payment</span>
+  </div>
+  {$iconSvg}
   <h1>{$heading}</h1>
   <p>{$body}</p>
   <a href="{$btnHref}" class="btn">{$btnLabel}</a>
+  <div class="secure-badge">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="11" width="18" height="11" rx="2" ry="2"/><path d="M7 11V7a5 5 0 0 1 10 0v4"/></svg>
+    Secured by PesaPal
+  </div>
 </div>
 {$pmScript}
 </body>
