@@ -824,12 +824,13 @@
                 0 20px 56px rgba(0, 0, 0, 0.22),
                 0 6px 16px rgba(0, 0, 0, 0.1),
                 inset 0 1px 0 rgba(255, 255, 255, 0.6);
-            width: min(92vw, 340px);
+            width: min(92vw, 320px);
             padding: 1rem 1rem 0.8rem;
             max-height: min(88vh, 640px);
             overflow-y: auto;
             position: relative;
             animation: profPopIn 0.35s cubic-bezier(.21,1.02,.73,1);
+            text-align: left;
         }
 
         .close-modal {
@@ -845,6 +846,7 @@
         }
         .close-modal:hover { background: var(--primary-color); color: white; }
 
+        /* --- Modal header (matches dfp-modal-header) --- */
         .modal-header {
             text-align: center;
             margin-bottom: 0.15rem;
@@ -864,8 +866,14 @@
             border-radius: 2px;
             margin: 0.2rem auto 0;
         }
+        .modal-subtitle {
+            font-size: 0.65rem;
+            color: var(--text-light);
+            margin-bottom: 0.35rem;
+            text-align: center;
+        }
 
-        /* 2-col form grid inside popup */
+        /* --- Form grid (matches dfp-form-grid) --- */
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
@@ -874,50 +882,52 @@
         }
         .form-grid .fg-full { grid-column: 1 / -1; }
 
-        .form-grid label {
-            display: block;
-            margin-bottom: 0.1rem;
-            font-weight: 600;
+        /* --- Shared dfp- classes inside modal (identical to donate-float.css) --- */
+        .modal-content .dfp-label {
             font-size: 0.62rem;
+            font-weight: 600;
             color: var(--text-color);
+            margin-bottom: 0.1rem;
+            display: block;
         }
-
-        .form-grid input,
-        .form-grid select {
+        .modal-content .dfp-input {
             width: 100%;
             padding: 0.35rem 0.5rem;
             border: 1px solid var(--gray-300, #e2e8f0);
             border-radius: 6px;
             font-size: 0.72rem;
             font-family: inherit;
+            outline: none;
             transition: border-color 0.2s;
             background: rgba(255,255,255,0.9);
-            outline: none;
             box-sizing: border-box;
         }
-        .form-grid input:focus,
-        .form-grid select:focus {
-            outline: none;
+        .modal-content .dfp-input:focus {
             border-color: var(--secondary-color);
         }
-        /* intl-phone inside form grid */
-        .form-grid .intl-phone-wrap {
+        .modal-content .dfp-field {
+            margin-bottom: 0.15rem;
+        }
+
+        /* intl-phone inside modal */
+        .modal-content .intl-phone-wrap {
             border: 1px solid var(--gray-300, #e2e8f0);
             border-radius: 6px;
         }
-        .form-grid .intl-phone-wrap:focus-within {
+        .modal-content .intl-phone-wrap:focus-within {
             border-color: var(--secondary-color);
         }
-        .form-grid .intl-phone-select {
+        .modal-content .intl-phone-select {
             font-size: 0.72rem; padding: 0.35rem 3px 0.35rem 5px;
             width: 64px; min-width: 64px; max-width: 64px;
             border-radius: 6px 0 0 6px;
         }
-        .form-grid .intl-phone-input {
-            font-size: 0.74rem; padding: 0.35rem 0.45rem;
+        .modal-content .intl-phone-input {
+            font-size: 0.72rem; padding: 0.35rem 0.5rem;
         }
 
-        .pay-divider {
+        /* --- Payment divider (matches dfp-pay-divider) --- */
+        .modal-content .dfp-pay-divider {
             font-size: 0.62rem;
             font-weight: 700;
             color: var(--secondary-color);
@@ -925,37 +935,63 @@
             text-align: center;
         }
 
-        /* Payment chips row — matches donation popup (donate-float.css) */
-        .pay-chips {
+        /* --- Payment chips (matches dfp-pay-chips) --- */
+        .modal-content .dfp-pay-chips {
             display: flex;
-            flex-wrap: wrap;
             gap: 0.2rem;
+            flex-wrap: wrap;
             justify-content: center;
             margin-bottom: 0.2rem;
         }
-        .pay-chip {
+        .modal-content .dfp-pay-chip {
             display: inline-flex;
             align-items: center;
             gap: 0.15rem;
-            border: 1px solid var(--gray-300, #e2e8f0);
-            border-radius: 12px;
             padding: 0.2rem 0.4rem;
-            cursor: pointer;
-            transition: all 0.2s;
+            border: 1px solid var(--gray-300, #e2e8f0);
             background: rgba(255,255,255,0.6);
+            border-radius: 12px;
+            cursor: pointer;
             font-size: 0.58rem;
             font-weight: 600;
             color: var(--text-color);
+            transition: all 0.2s;
             font-family: inherit;
         }
-        .pay-chip i { font-size: 0.65rem; color: var(--primary-color); }
-        .pay-chip img { width: 14px; height: 14px; object-fit: contain; }
-        .pay-chip:hover { border-color: var(--secondary-color); background: rgba(13,69,147,0.04); }
-        .pay-chip.selected { border-color: var(--primary-color); background: rgba(230,57,70,0.08); color: var(--primary-color); }
-        .pay-chip.mtn-chip { border-color: var(--mtn-yellow); background: rgba(255,204,0,0.06); }
-        .pay-chip.mtn-chip.selected { background: rgba(255,204,0,0.16); border-color: var(--mtn-yellow); }
-        .pay-chip.airtel-chip { border-color: var(--airtel-red); background: rgba(228,0,0,0.03); }
-        .pay-chip.airtel-chip.selected { background: rgba(228,0,0,0.1); border-color: var(--airtel-red); }
+        .modal-content .dfp-pay-chip i {
+            font-size: 0.65rem;
+            color: var(--primary-color);
+        }
+        .modal-content .dfp-pay-chip:hover {
+            border-color: var(--secondary-color);
+            background: rgba(13, 69, 147, 0.04);
+        }
+        .modal-content .dfp-pay-chip.selected {
+            border-color: var(--primary-color);
+            background: rgba(230,57,70,0.08);
+            color: var(--primary-color);
+        }
+        .modal-content .dfp-chip-img {
+            width: 14px;
+            height: 14px;
+            object-fit: contain;
+        }
+        .modal-content .dfp-mtn-chip {
+            border-color: var(--mtn-yellow);
+            background: rgba(255,204,0,0.06);
+        }
+        .modal-content .dfp-mtn-chip.selected {
+            background: rgba(255,204,0,0.16);
+            border-color: var(--mtn-yellow);
+        }
+        .modal-content .dfp-airtel-chip {
+            border-color: var(--airtel-red);
+            background: rgba(228,0,0,0.03);
+        }
+        .modal-content .dfp-airtel-chip.selected {
+            background: rgba(228,0,0,0.1);
+            border-color: var(--airtel-red);
+        }
 
         .pay-info {
             text-align: center;
@@ -965,33 +1001,30 @@
             min-height: 0.8rem;
         }
         .pay-info strong { color: var(--text-color); }
-        .pay-info a {
-            color: var(--secondary-color);
-            font-weight: 600;
-            text-decoration: none;
-            font-size: 0.6rem;
-        }
 
-        #submitButton {
-            display: block;
+        /* --- Submit button (matches dfp-submit) --- */
+        .modal-content .dfp-submit {
             width: 100%;
-            margin-top: 0.2rem;
             padding: 0.4rem 0;
-            border-radius: 12px;
-            border: none;
             background: var(--primary-color);
-            color: white;
+            color: var(--white, #fff);
+            border: none;
+            border-radius: 12px;
             font-size: 0.7rem;
             font-weight: 600;
-            font-family: inherit;
             cursor: pointer;
             transition: all 0.2s;
+            margin-top: 0.2rem;
+            font-family: inherit;
         }
-        #submitButton:hover:not(:disabled) {
+        .modal-content .dfp-submit:hover:not(:disabled) {
             background: var(--primary-dark);
             transform: translateY(-1px);
         }
-        #submitButton:disabled { opacity: 0.5; cursor: not-allowed; }
+        .modal-content .dfp-submit:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
 
         .hidden { display: none; }
 
@@ -1128,8 +1161,8 @@
             }
 
             .modal-content {
-                width: min(94vw, 340px);
-                padding: 1.2rem 1rem 1rem;
+                width: min(94vw, 320px);
+                padding: 0.8rem 0.75rem 0.6rem;
             }
 
             .form-grid {
@@ -1138,13 +1171,15 @@
         }
         /* Visa form inside modal */
 #visaForm input {
-    padding: 0.35rem 0.45rem;
+    padding: 0.35rem 0.5rem;
     border: 1px solid var(--gray-300, #e2e8f0);
-    border-radius: 10px;
+    border-radius: 6px;
     width: 100%;
-    margin-bottom: 0.3rem;
-    font-size: 0.74rem;
+    margin-bottom: 0.15rem;
+    font-size: 0.72rem;
     font-family: inherit;
+    outline: none;
+    background: rgba(255,255,255,0.9);
 }
 #visaForm label {
     display: block;
@@ -1551,27 +1586,25 @@
 
     <div class="modal" id="subscriptionModal">
         <div class="modal-content" onclick="event.stopPropagation()">
-            <button class="close-modal" onclick="closeSubscriptionForm()" aria-label="Close form">
-                <i class="fas fa-times"></i>
-            </button>
+            <button class="close-modal" onclick="closeSubscriptionForm()" aria-label="Close">&times;</button>
 
             <div class="modal-header">
                 <h2>Membership Application</h2>
             </div>
-
+            <p class="modal-subtitle">Join the oncology community in Uganda.</p>
 
             <form id="membershipForm" class="form-grid">
-                <div class="form-group fg-full">
-                    <label for="fullName">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" required>
+                <div class="dfp-field fg-full">
+                    <label for="fullName" class="dfp-label">Full Name</label>
+                    <input type="text" id="fullName" name="fullName" class="dfp-input" placeholder="Full name" required>
                 </div>
-                <div class="form-group fg-full">
-                    <label for="email">Email Address</label>
-                    <input type="email" id="email" name="email" required>
+                <div class="dfp-field fg-full">
+                    <label for="email" class="dfp-label">Email Address</label>
+                    <input type="email" id="email" name="email" class="dfp-input" placeholder="you@example.com" required>
                 </div>
-                <div class="form-group fg-full">
-                    <label for="profession">Profession</label>
-                    <select id="profession" name="profession" required>
+                <div class="dfp-field fg-full">
+                    <label for="profession" class="dfp-label">Profession</label>
+                    <select id="profession" name="profession" class="dfp-input" required>
                         <option value="">Select profession</option>
                         <option value="hematologist">Hematologist</option>
                         <option value="medical-oncologist">Medical Oncologist</option>
@@ -1592,59 +1625,58 @@
                         <option value="other">Other</option>
                     </select>
                 </div>
-                <div class="form-group fg-full" id="otherProfessionGroup">
-                    <label for="otherProfession">Specify Your Profession</label>
-                    <input type="text" id="otherProfession" name="otherProfession">
+                <div class="dfp-field fg-full" id="otherProfessionGroup">
+                    <label for="otherProfession" class="dfp-label">Specify Your Profession</label>
+                    <input type="text" id="otherProfession" name="otherProfession" class="dfp-input">
                 </div>
-                <div class="form-group fg-full">
-                    <label for="contact">Phone Number</label>
-                    <input type="tel" id="contact" name="contact" required>
+                <div class="dfp-field fg-full">
+                    <label for="contact" class="dfp-label">Phone Number</label>
+                    <input type="tel" id="contact" name="contact" class="dfp-input" required>
                 </div>
-                <div class="form-group fg-full">
-                    <label for="institution">Institution / Organization</label>
-                    <input type="text" id="institution" name="institution" placeholder="e.g., Mulago Hospital">
+                <div class="dfp-field fg-full">
+                    <label for="institution" class="dfp-label">Institution / Organization</label>
+                    <input type="text" id="institution" name="institution" class="dfp-input" placeholder="e.g., Mulago Hospital">
                 </div>
 
-                <!-- Membership Package Selection -->
-                <div class="pay-divider" style="margin-top:0.5rem;">Membership Package</div>
-                <div class="form-group fg-full">
-                    <label for="membershipPackage">Select Package</label>
-                    <select id="membershipPackage" name="membershipPackage" required>
+                <div class="dfp-pay-divider fg-full" style="margin-top:0.15rem;">Membership Package</div>
+                <div class="dfp-field fg-full">
+                    <label for="membershipPackage" class="dfp-label">Select Package</label>
+                    <select id="membershipPackage" name="membershipPackage" class="dfp-input" required>
                         <option value="1_year" data-amount="100000">1 Year — UGX 100,000</option>
                         <option value="2_years" data-amount="180000">2 Years — UGX 180,000 (Save UGX 20,000)</option>
                         <option value="3_years" data-amount="250000">3 Years — UGX 250,000 (Save UGX 50,000)</option>
                         <option value="lifetime" data-amount="500000">5+ Years Premium — UGX 500,000 (Premium ⭐)</option>
                     </select>
                 </div>
-                <div class="form-group fg-full">
-                    <label for="membershipAmount">Amount (UGX)</label>
-                    <input type="number" id="membershipAmount" name="membershipAmount" min="100000" step="1000" required readonly style="background:#f7fafc;cursor:not-allowed;">
+                <div class="dfp-field fg-full">
+                    <label for="membershipAmount" class="dfp-label">Amount (UGX)</label>
+                    <input type="number" id="membershipAmount" name="membershipAmount" class="dfp-input" min="100000" step="1000" required readonly style="background:#f7fafc;cursor:not-allowed;">
                 </div>
 
-                    <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
-                </form>
+                <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
+            </form>
 
-            <div class="pay-divider">Payment Method</div>
+            <div class="dfp-pay-divider">Payment Method</div>
 
             <form id="paymentForm">
-                <div class="pay-chips">
-                    <button type="button" class="pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')">
+                <div class="dfp-pay-chips">
+                    <button type="button" class="dfp-pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')">
                         <i class="fab fa-cc-visa"></i> Card
                         <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
                     </button>
-                    <button type="button" class="pay-chip payment-option mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
-                        <img src="img/mtn.png" alt="MTN" class="pay-chip-img" onerror="this.style.display='none'"> MTN
+                    <button type="button" class="dfp-pay-chip payment-option dfp-mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
+                        <img src="img/mtn.png" alt="MTN" class="dfp-chip-img" onerror="this.style.display='none'"> MTN
                         <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
                     </button>
-                    <button type="button" class="pay-chip payment-option airtel-chip" id="airtel-chip-btn" onclick="selectPayment('airtel')">
-                        <img src="img/airtel.png" alt="Airtel" class="pay-chip-img" onerror="this.style.display='none'"> Airtel
+                    <button type="button" class="dfp-pay-chip payment-option dfp-airtel-chip" id="airtel-chip-btn" onclick="selectPayment('airtel')">
+                        <img src="img/airtel.png" alt="Airtel" class="dfp-chip-img" onerror="this.style.display='none'"> Airtel
                         <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
                     </button>
                 </div>
 
                 <div id="paymentDetails" class="pay-info hidden"></div>
 
-                <button type="button" onclick="payNow()" id="submitButton" disabled>Process Payment</button>
+                <button type="button" class="dfp-submit" onclick="payNow()" id="submitButton" disabled>Process Payment</button>
             </form>
         </div>
     </div>
