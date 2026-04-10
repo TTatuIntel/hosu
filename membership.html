@@ -802,140 +802,178 @@
             }
         }
 
-        /* ── Subscription Modal (single-col, matches prof-popup) ── */
+        /* ── Subscription Modal (matches event registration modal) ── */
         .modal {
             display: none;
             position: fixed;
             inset: 0;
-            background: rgba(0,0,0,0.35);
+            background: rgba(18,41,74,0.35);
             z-index: 9000;
             justify-content: center;
             align-items: center;
             animation: profOverlayIn 0.25s ease;
+            padding: 1rem;
+            overflow-y: auto;
         }
 
         .modal-content {
-            background: rgba(255, 255, 255, 0.99);
-            -webkit-backdrop-filter: blur(24px) saturate(1.4);
-            backdrop-filter: blur(24px) saturate(1.4);
-            border: 1px solid rgba(200, 200, 200, 0.35);
-            border-radius: 14px;
-            box-shadow:
-                0 20px 56px rgba(0, 0, 0, 0.22),
-                0 6px 16px rgba(0, 0, 0, 0.1),
-                inset 0 1px 0 rgba(255, 255, 255, 0.6);
-            width: min(92vw, 320px);
-            padding: 1rem 1rem 0.8rem;
-            max-height: min(88vh, 640px);
+            background: rgba(255,255,255,0.82);
+            -webkit-backdrop-filter: blur(28px) saturate(1.5);
+            backdrop-filter: blur(28px) saturate(1.5);
+            border: 1px solid rgba(255,255,255,0.6);
+            border-radius: 18px;
+            width: min(92vw, 420px);
+            max-height: min(90vh, 720px);
             overflow-y: auto;
-            position: relative;
+            box-shadow:
+                0 12px 40px rgba(0,0,0,0.13),
+                0 4px 14px rgba(0,0,0,0.07),
+                inset 0 1px 0 rgba(255,255,255,0.65);
             animation: profPopIn 0.35s cubic-bezier(.21,1.02,.73,1);
-            text-align: left;
+            position: relative;
+            flex-shrink: 0;
         }
 
         .close-modal {
-            position: absolute;
-            top: 0.5rem; right: 0.5rem;
-            width: 22px; height: 22px;
+            position: absolute; top: 0.5rem; right: 0.55rem;
+            width: 24px; height: 24px;
             display: flex; align-items: center; justify-content: center;
-            background: rgba(0,0,0,0.08);
-            border: none; border-radius: 50%;
-            font-size: 0.95rem; color: var(--text-light);
-            cursor: pointer; transition: all 0.2s; z-index: 10;
-            line-height: 1;
+            background: rgba(0,0,0,0.06); border: none; border-radius: 50%;
+            font-size: 0.9rem; color: var(--text-light); cursor: pointer;
+            transition: all 0.2s; z-index: 5;
         }
         .close-modal:hover { background: var(--primary-color); color: white; }
 
-        /* --- Modal header (matches dfp-modal-header) --- */
+        /* --- Modal banner (matches reg-event-banner) --- */
+        .modal-banner {
+            display: flex; gap: 0.6rem; align-items: center;
+            background: var(--secondary-color); color: white;
+            padding: 0.65rem 0.9rem; border-radius: 18px 18px 0 0;
+        }
+        .modal-banner-icon {
+            width: 48px; height: 40px; border-radius: 8px;
+            background: rgba(255,255,255,0.15);
+            display: flex; align-items: center; justify-content: center;
+            font-size: 1.4rem; flex-shrink: 0;
+            border: 2px solid rgba(255,255,255,0.3);
+        }
+        .modal-banner-info { flex: 1; min-width: 0; }
+        .modal-banner-badge {
+            font-size: 0.55rem; font-weight: 700; text-transform: uppercase;
+            letter-spacing: 0.8px; opacity: 0.8; margin-bottom: 0.1rem;
+        }
+        .modal-banner-title {
+            font-size: 0.8rem; font-weight: 700; line-height: 1.25;
+        }
+        .modal-banner-meta {
+            font-size: 0.65rem; opacity: 0.8; margin-top: 0.1rem;
+        }
+
+        /* --- Modal body (matches reg-body) --- */
+        .modal-body {
+            padding: 0.9rem 1rem;
+        }
+
         .modal-header {
-            text-align: center;
             margin-bottom: 0.15rem;
         }
         .modal-header h2 {
-            font-size: 0.9rem;
+            font-size: 0.88rem;
             font-weight: 700;
             color: var(--secondary-color);
-            margin: 0;
-        }
-        .modal-header h2::after {
-            content: '';
-            display: block;
-            width: 30px;
-            height: 2px;
-            background: var(--primary-color);
-            border-radius: 2px;
-            margin: 0.2rem auto 0;
+            margin: 0 0 0.15rem;
         }
         .modal-subtitle {
-            font-size: 0.65rem;
+            font-size: 0.68rem;
             color: var(--text-light);
-            margin-bottom: 0.35rem;
-            text-align: center;
+            margin-bottom: 0.6rem;
         }
 
-        /* --- Form grid (matches dfp-form-grid) --- */
+        /* --- Form grid (matches reg-grid) --- */
         .form-grid {
             display: grid;
             grid-template-columns: 1fr 1fr;
-            gap: 0.2rem 0.35rem;
-            margin-bottom: 0.2rem;
+            gap: 0.35rem 0.45rem;
         }
-        .form-grid .fg-full { grid-column: 1 / -1; }
+        .form-grid .fg-full { grid-column: span 2; }
 
-        /* --- Shared dfp- classes inside modal (identical to donate-float.css) --- */
+        /* --- Labels & inputs (matches reg-label / reg-input) --- */
         .modal-content .dfp-label {
-            font-size: 0.62rem;
+            display: block;
+            font-size: 0.68rem;
             font-weight: 600;
             color: var(--text-color);
-            margin-bottom: 0.1rem;
-            display: block;
+            margin-bottom: 1px;
         }
+        .modal-content .dfp-label span { color: var(--primary-color); }
+        .modal-content .dfp-label .label-optional {
+            color: var(--primary-color);
+            font-weight: 500;
+            font-size: 0.6rem;
+        }
+
         .modal-content .dfp-input {
             width: 100%;
             padding: 0.35rem 0.5rem;
             border: 1px solid var(--gray-300, #e2e8f0);
-            border-radius: 6px;
-            font-size: 0.72rem;
+            border-radius: 8px;
+            font-size: 0.74rem;
             font-family: inherit;
             outline: none;
-            transition: border-color 0.2s;
-            background: rgba(255,255,255,0.9);
+            transition: border 0.2s, box-shadow 0.2s;
+            background: rgba(255,255,255,0.8);
+            color: var(--text-color);
             box-sizing: border-box;
         }
         .modal-content .dfp-input:focus {
             border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(13,69,147,0.08);
         }
         .modal-content .dfp-field {
-            margin-bottom: 0.15rem;
+            margin-bottom: 0;
         }
 
-        /* intl-phone inside modal */
+        /* intl-phone inside modal (matches reg-grid intl-phone) */
         .modal-content .intl-phone-wrap {
             border: 1px solid var(--gray-300, #e2e8f0);
-            border-radius: 6px;
+            border-radius: 8px;
         }
         .modal-content .intl-phone-wrap:focus-within {
             border-color: var(--secondary-color);
+            box-shadow: 0 0 0 3px rgba(13,69,147,0.08);
         }
         .modal-content .intl-phone-select {
             font-size: 0.72rem; padding: 0.35rem 3px 0.35rem 5px;
             width: 64px; min-width: 64px; max-width: 64px;
-            border-radius: 6px 0 0 6px;
+            border-radius: 8px 0 0 8px;
         }
         .modal-content .intl-phone-input {
-            font-size: 0.72rem; padding: 0.35rem 0.5rem;
+            font-size: 0.74rem; padding: 0.35rem 0.5rem;
         }
 
-        /* --- Payment divider (matches dfp-pay-divider) --- */
+        /* --- Fee display badge (matches reg-fee-display) --- */
+        .membership-fee-display {
+            background: linear-gradient(135deg, rgba(230,57,70,0.08), rgba(245,158,11,0.08));
+            border: 1px solid rgba(230,57,70,0.15);
+            border-radius: 10px;
+            padding: 0.4rem 0.6rem;
+            text-align: center;
+            font-size: 0.76rem;
+            font-weight: 700;
+            color: var(--primary-color);
+            margin: 0.3rem 0;
+        }
+
+        /* --- Payment label & chips (matches reg-payment-label / reg-pay-chips) --- */
         .modal-content .dfp-pay-divider {
             font-size: 0.62rem;
             font-weight: 700;
             color: var(--secondary-color);
-            margin: 0.25rem 0 0.2rem;
+            margin: 0.4rem 0 0.2rem;
+            display: block;
             text-align: center;
         }
 
-        /* --- Payment chips (matches dfp-pay-chips) --- */
         .modal-content .dfp-pay-chips {
             display: flex;
             gap: 0.2rem;
@@ -1002,20 +1040,24 @@
         }
         .pay-info strong { color: var(--text-color); }
 
-        /* --- Submit button (matches dfp-submit) --- */
+        /* --- Submit button (matches reg-submit) --- */
         .modal-content .dfp-submit {
             width: 100%;
-            padding: 0.4rem 0;
+            padding: 0.4rem;
             background: var(--primary-color);
-            color: var(--white, #fff);
+            color: white;
             border: none;
             border-radius: 12px;
             font-size: 0.7rem;
             font-weight: 600;
             cursor: pointer;
             transition: all 0.2s;
-            margin-top: 0.2rem;
+            margin-top: 0.4rem;
             font-family: inherit;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 0.3rem;
         }
         .modal-content .dfp-submit:hover:not(:disabled) {
             background: var(--primary-dark);
@@ -1030,6 +1072,12 @@
 
         .success-message { color: green; margin-top: 6px; font-weight: bold; font-size: 0.76rem; display: none; }
         .error-message { color: red; margin-top: 6px; font-weight: bold; font-size: 0.76rem; display: none; }
+
+        @media (max-width: 600px) {
+            .form-grid { grid-template-columns: 1fr; }
+            .form-grid .fg-full { grid-column: span 1; }
+            .modal-content .dfp-pay-chips { flex-direction: column; align-items: center; }
+        }
 
         /* ── Payment processing handled by HosuPay (hosu-payment.js) ── */
 
@@ -1588,96 +1636,109 @@
         <div class="modal-content" onclick="event.stopPropagation()">
             <button class="close-modal" onclick="closeSubscriptionForm()" aria-label="Close">&times;</button>
 
-            <div class="modal-header">
-                <h2>Membership Application</h2>
+            <!-- Banner (matches reg-event-banner) -->
+            <div class="modal-banner">
+                <div class="modal-banner-icon">🩺</div>
+                <div class="modal-banner-info">
+                    <div class="modal-banner-badge">Membership</div>
+                    <div class="modal-banner-title">HOSU — Hematology &amp; Oncology</div>
+                    <div class="modal-banner-meta">Join the oncology community in Uganda</div>
+                </div>
             </div>
-            <p class="modal-subtitle">Join the oncology community in Uganda.</p>
 
-            <form id="membershipForm" class="form-grid">
-                <div class="dfp-field fg-full">
-                    <label for="fullName" class="dfp-label">Full Name</label>
-                    <input type="text" id="fullName" name="fullName" class="dfp-input" placeholder="Full name" required>
+            <!-- Form body -->
+            <div class="modal-body">
+                <div class="modal-header">
+                    <h2>Membership Application</h2>
                 </div>
-                <div class="dfp-field fg-full">
-                    <label for="email" class="dfp-label">Email Address</label>
-                    <input type="email" id="email" name="email" class="dfp-input" placeholder="you@example.com" required>
-                </div>
-                <div class="dfp-field fg-full">
-                    <label for="profession" class="dfp-label">Profession</label>
-                    <select id="profession" name="profession" class="dfp-input" required>
-                        <option value="">Select profession</option>
-                        <option value="hematologist">Hematologist</option>
-                        <option value="medical-oncologist">Medical Oncologist</option>
-                        <option value="pediatric-oncologist">Pediatric Oncologist</option>
-                        <option value="surgical-oncologist">Surgical Oncologist</option>
-                        <option value="radiation-oncologist">Radiation Oncologist</option>
-                        <option value="pathologist">Pathologist</option>
-                        <option value="cancer-biologist">Cancer Biologist</option>
-                        <option value="pharmacist">Pharmacist</option>
-                        <option value="oncology-nurse">Oncology Nurse</option>
-                        <option value="gynecology-oncologist">Gynecology Oncologist</option>
-                        <option value="medical-physicist">Medical Physicist</option>
-                        <option value="radiologist">Radiologist</option>
-                        <option value="anesthesiologist">Anesthesiologist</option>
-                        <option value="researcher">Researcher</option>
-                        <option value="palliative-care">Palliative Care Specialist</option>
-                        <option value="civil-society">Civil Society Organization</option>
-                        <option value="other">Other</option>
-                    </select>
-                </div>
-                <div class="dfp-field fg-full" id="otherProfessionGroup">
-                    <label for="otherProfession" class="dfp-label">Specify Your Profession</label>
-                    <input type="text" id="otherProfession" name="otherProfession" class="dfp-input">
-                </div>
-                <div class="dfp-field fg-full">
-                    <label for="contact" class="dfp-label">Phone Number</label>
-                    <input type="tel" id="contact" name="contact" class="dfp-input" required>
-                </div>
-                <div class="dfp-field fg-full">
-                    <label for="institution" class="dfp-label">Institution / Organization</label>
-                    <input type="text" id="institution" name="institution" class="dfp-input" placeholder="e.g., Mulago Hospital">
-                </div>
+                <p class="modal-subtitle">Complete the form below — we'll send confirmation to your email</p>
 
-                <div class="dfp-pay-divider fg-full" style="margin-top:0.15rem;">Membership Package</div>
-                <div class="dfp-field fg-full">
-                    <label for="membershipPackage" class="dfp-label">Select Package</label>
-                    <select id="membershipPackage" name="membershipPackage" class="dfp-input" required>
-                        <option value="1_year" data-amount="100000">1 Year — UGX 100,000</option>
-                        <option value="2_years" data-amount="180000">2 Years — UGX 180,000 (Save UGX 20,000)</option>
-                        <option value="3_years" data-amount="250000">3 Years — UGX 250,000 (Save UGX 50,000)</option>
-                        <option value="lifetime" data-amount="500000">5+ Years Premium — UGX 500,000 (Premium ⭐)</option>
-                    </select>
-                </div>
-                <div class="dfp-field fg-full">
-                    <label for="membershipAmount" class="dfp-label">Amount (UGX)</label>
-                    <input type="number" id="membershipAmount" name="membershipAmount" class="dfp-input" min="100000" step="1000" required readonly style="background:#f7fafc;cursor:not-allowed;">
-                </div>
+                <form id="membershipForm" class="form-grid" novalidate>
+                    <div class="dfp-field fg-full">
+                        <label for="fullName" class="dfp-label">Full Name <span>*</span></label>
+                        <input type="text" id="fullName" name="fullName" class="dfp-input" placeholder="John Doe" required>
+                    </div>
+                    <div class="dfp-field fg-full">
+                        <label for="email" class="dfp-label">Email Address <span>*</span></label>
+                        <input type="email" id="email" name="email" class="dfp-input" placeholder="you@example.com" required>
+                    </div>
+                    <div class="dfp-field">
+                        <label for="profession" class="dfp-label">Profession <span>*</span></label>
+                        <select id="profession" name="profession" class="dfp-input" required>
+                            <option value="">Select profession</option>
+                            <option value="hematologist">Hematologist</option>
+                            <option value="medical-oncologist">Medical Oncologist</option>
+                            <option value="pediatric-oncologist">Pediatric Oncologist</option>
+                            <option value="surgical-oncologist">Surgical Oncologist</option>
+                            <option value="radiation-oncologist">Radiation Oncologist</option>
+                            <option value="pathologist">Pathologist</option>
+                            <option value="cancer-biologist">Cancer Biologist</option>
+                            <option value="pharmacist">Pharmacist</option>
+                            <option value="oncology-nurse">Oncology Nurse</option>
+                            <option value="gynecology-oncologist">Gynecology Oncologist</option>
+                            <option value="medical-physicist">Medical Physicist</option>
+                            <option value="radiologist">Radiologist</option>
+                            <option value="anesthesiologist">Anesthesiologist</option>
+                            <option value="researcher">Researcher</option>
+                            <option value="palliative-care">Palliative Care Specialist</option>
+                            <option value="civil-society">Civil Society Organization</option>
+                            <option value="other">Other</option>
+                        </select>
+                    </div>
+                    <div class="dfp-field" id="otherProfessionGroup">
+                        <label for="otherProfession" class="dfp-label">Specify Profession</label>
+                        <input type="text" id="otherProfession" name="otherProfession" class="dfp-input" placeholder="Your profession">
+                    </div>
+                    <div class="dfp-field fg-full">
+                        <label for="contact" class="dfp-label">Phone Number <span>*</span></label>
+                        <input type="tel" id="contact" name="contact" class="dfp-input" required>
+                    </div>
+                    <div class="dfp-field fg-full">
+                        <label for="institution" class="dfp-label">Institution / Organization <span class="label-optional">(optional)</span></label>
+                        <input type="text" id="institution" name="institution" class="dfp-input" placeholder="Mulago Hospital">
+                    </div>
 
-                <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
-            </form>
+                    <div class="fg-full">
+                        <label for="membershipPackage" class="dfp-label">Membership Package <span>*</span></label>
+                        <select id="membershipPackage" name="membershipPackage" class="dfp-input" required>
+                            <option value="1_year" data-amount="100000">1 Year — UGX 100,000</option>
+                            <option value="2_years" data-amount="180000">2 Years — UGX 180,000 (Save UGX 20,000)</option>
+                            <option value="3_years" data-amount="250000">3 Years — UGX 250,000 (Save UGX 50,000)</option>
+                            <option value="lifetime" data-amount="500000">5+ Years Premium — UGX 500,000 (Premium ⭐)</option>
+                        </select>
+                    </div>
 
-            <div class="dfp-pay-divider">Payment Method</div>
+                    <div class="fg-full">
+                        <div class="membership-fee-display" id="membershipFeeDisplay">Membership Fee: UGX 100,000</div>
+                        <input type="hidden" id="membershipAmount" name="membershipAmount" value="100000">
+                    </div>
 
-            <form id="paymentForm">
-                <div class="dfp-pay-chips">
-                    <button type="button" class="dfp-pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')">
-                        <i class="fab fa-cc-visa"></i> Card
-                        <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="dfp-pay-chip payment-option dfp-mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
-                        <img src="img/mtn.png" alt="MTN" class="dfp-chip-img" onerror="this.style.display='none'"> MTN
-                        <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
-                    </button>
-                    <button type="button" class="dfp-pay-chip payment-option dfp-airtel-chip" id="airtel-chip-btn" onclick="selectPayment('airtel')">
-                        <img src="img/airtel.png" alt="Airtel" class="dfp-chip-img" onerror="this.style.display='none'"> Airtel
-                        <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
-                    </button>
-                </div>
+                    <div class="invalid-phonenumber text-danger fg-full">Invalid Phone number.</div>
+                </form>
 
-                <div id="paymentDetails" class="pay-info hidden"></div>
+                <div class="dfp-pay-divider">Payment Method <span style="color:var(--primary-color)">*</span></div>
 
-                <button type="button" class="dfp-submit" onclick="payNow()" id="submitButton" disabled>Process Payment</button>
-            </form>
+                <form id="paymentForm">
+                    <div class="dfp-pay-chips">
+                        <button type="button" class="dfp-pay-chip payment-option" id="visa-chip-btn" onclick="selectPayment('visa')">
+                            <span style="font-weight:900;font-style:italic;font-size:0.58rem;letter-spacing:-0.5px">VISA</span> Card
+                            <input type="radio" name="paymentmode" value="visa" class="payment-radio-hidden">
+                        </button>
+                        <button type="button" class="dfp-pay-chip payment-option dfp-mtn-chip" id="mtn-chip-btn" onclick="selectPayment('mtn')">
+                            <img src="img/mtn.png" alt="MTN" class="dfp-chip-img" onerror="this.style.display='none'"> MTN
+                            <input type="radio" name="paymentmode" value="mtn" class="payment-radio-hidden">
+                        </button>
+                        <button type="button" class="dfp-pay-chip payment-option dfp-airtel-chip" id="airtel-chip-btn" onclick="selectPayment('airtel')">
+                            <img src="img/airtel.png" alt="Airtel" class="dfp-chip-img" onerror="this.style.display='none'"> Airtel
+                            <input type="radio" name="paymentmode" value="airtel" class="payment-radio-hidden">
+                        </button>
+                    </div>
+
+                    <div id="paymentDetails" class="pay-info hidden"></div>
+
+                    <button type="button" class="dfp-submit" onclick="payNow()" id="submitButton" disabled>&#128221; Process Payment</button>
+                </form>
+            </div>
         </div>
     </div>
 
@@ -1808,6 +1869,9 @@
                 period: membershipPackage.value,
                 amount: parseInt(membershipAmount.value, 10)
             };
+            // Update fee display badge
+            const feeDisplay = document.getElementById('membershipFeeDisplay');
+            if (feeDisplay) feeDisplay.textContent = 'Membership Fee: ' + formatUGX(_selectedPlan.amount);
         }
         document.addEventListener('DOMContentLoaded', function() {
             const membershipPackage = document.getElementById('membershipPackage');
