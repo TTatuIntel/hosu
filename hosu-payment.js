@@ -691,9 +691,28 @@
         pFd.append('purpose',       purpose);
 
         var pRes;
-        try { pRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: pFd })).json(); }
-        catch (e) { _showErr('Network error. Please try again.'); return; }
-        if (pRes.error) { _showErr(pRes.error); return; }
+        try {
+            var ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+            var tmo = ctrl ? setTimeout(function(){ ctrl.abort(); }, 35000) : null;
+            var fetchOpts = { method: 'POST', body: pFd };
+            if (ctrl) fetchOpts.signal = ctrl.signal;
+            var pRaw = await fetch('payment.php?action=init_pesapal', fetchOpts);
+            if (tmo) clearTimeout(tmo);
+            var pText = await pRaw.text();
+            try { pRes = JSON.parse(pText); }
+            catch (_) {
+                console.error('init_pesapal non-JSON (HTTP ' + pRaw.status + '):', pText.substring(0, 500));
+                _showErr('Server returned an unexpected response.',
+                    'HTTP ' + pRaw.status + '. This may be a temporary server issue. Please try again or contact <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>.');
+                return;
+            }
+        } catch (e) {
+            var errMsg = e && e.name === 'AbortError' ? 'Connection to PesaPal timed out.' : 'Network error connecting to payment server.';
+            console.error('init_pesapal fetch error:', e);
+            _showErr(errMsg, 'Please check your internet connection and try again. If problem persists, contact <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>.');
+            return;
+        }
+        if (pRes.error) { console.error('PesaPal init error:', pRes.error); _showErr(pRes.error); return; }
 
         if (pRes.redirect_url) {
             _msg('Opening secure payment page\u2026');

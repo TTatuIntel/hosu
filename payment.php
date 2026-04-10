@@ -465,8 +465,18 @@ switch ($action) {
                 }
                 echo json_encode(['success' => true, 'redirect_url' => $result['redirect_url'], 'tracking_id' => $trackingId]);
             } else {
-                error_log('PesaPal order failed: type=' . $type . ' amount=' . $ppAmount . ' response=' . json_encode($result));
-                $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initialize payment. Please try again.');
+                error_log('PesaPal order REJECTED: type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef . ' FULL_RESPONSE=' . json_encode($result));
+                // Try to extract a meaningful message from PesaPal response
+                $msg = $result['message'] ?? '';
+                if (empty($msg) && isset($result['error'])) {
+                    $msg = is_array($result['error']) ? ($result['error']['message'] ?? json_encode($result['error'])) : $result['error'];
+                }
+                if (empty($msg) && isset($result['status'])) {
+                    $msg = 'PesaPal returned status: ' . $result['status'];
+                }
+                if (empty($msg)) {
+                    $msg = 'PesaPal could not process the payment. Please try again.';
+                }
                 // Add context if it's a limit error
                 if (stripos($msg, 'limit') !== false) {
                     $msg = 'Transaction amount (UGX ' . number_format($ppAmount) . ') exceeds PesaPal account limit. Please contact HOSU at info@hosu.or.ug to resolve this, or try a smaller amount.';
