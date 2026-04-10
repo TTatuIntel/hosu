@@ -553,119 +553,31 @@
         /* Step 2 */
         _step(2);
 
-        /* MTN / Airtel — USSD push via PesaPal (direct to phone) */
-        if (method === 'mtn' || method === 'airtel') {
-            var isMtn        = method === 'mtn';
-            var channel      = isMtn ? 'UGMTNMOMODIR' : 'UGAIRTELMODIR';
-            var merchantCode = isMtn ? '721212' : '4373226';
-            var netName      = isMtn ? 'MTN' : 'Airtel';
-
-            _msg('Sending ' + typeLabel + ' prompt to your ' + netName + ' phone\u2026');
-
-            var mFd = new FormData();
-            mFd.append('phone',         phone);
-            mFd.append('amount',        opts.amount);
-            mFd.append('email',         opts.email);
-            mFd.append('name',          opts.name);
-            mFd.append('payment_id',    paymentId);
-            mFd.append('registrant_id', registrantId);
-            mFd.append('receipt_token', receiptToken);
-            mFd.append('channel',       channel);
-            mFd.append('type',          type);
-            mFd.append('purpose',       purpose);
-
-            var mRes;
-            try { mRes = await (await fetch('payment.php?action=pay_mobile', { method: 'POST', body: mFd })).json(); }
-            catch (e) { _showErr('Network error. Please try again.'); return; }
-
-            /* If direct USSD push fails (e.g. "Transaction amount exceeds limit"),
-               fall back to PesaPal hosted page instead of showing the error.
-               The hosted page supports all channels and has different limits. */
-            if (mRes.error) {
-                _msg('Switching to secure payment page\u2026');
-                var fbFd = new FormData();
-                fbFd.append('payment_id',    paymentId);
-                fbFd.append('registrant_id', registrantId);
-                fbFd.append('receipt_token', receiptToken);
-                fbFd.append('amount',        opts.amount);
-                fbFd.append('email',         opts.email);
-                fbFd.append('name',          opts.name);
-                fbFd.append('phone',         phone);
-                fbFd.append('type',          type);
-                fbFd.append('purpose',       purpose);
-                var fbRes;
-                try { fbRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: fbFd })).json(); }
-                catch (e2) { _showErr('Network error. Please try again.'); return; }
-                if (fbRes.redirect_url) {
-                    _msg('Opening secure payment page\u2026');
-                    _openIfr({
-                        redirectUrl: fbRes.redirect_url, phone: phone, amount: opts.amount,
-                        trackingId: fbRes.tracking_id, payId: paymentId, registrantId: registrantId,
-                        receiptToken: receiptToken, purpose: typeLabel + ': ' + purpose
-                    });
-                    return;
-                }
-                /* Both direct push and hosted page failed — show the original error */
-                _showErr(mRes.error);
-                return;
-            }
-
-            // If PesaPal returns a redirect_url, open the iframe for the user to complete payment
-            if (mRes.redirect_url) {
-                _msg('Redirecting to PesaPal\u2026');
-                _openIfr({
-                    redirectUrl: mRes.redirect_url,
-                    phone: phone,
-                    amount: opts.amount,
-                    trackingId: mRes.tracking_id,
-                    payId: paymentId,
-                    registrantId: registrantId,
-                    receiptToken: receiptToken,
-                    purpose: purpose
-                });
-                return;
-            }
-
-            // Otherwise, direct USSD push (API MoMo push)
-            _step(2);
-            _msg('\uD83D\uDCF1 Check your ' + netName + ' phone!');
-            _sub(
-                '<strong style="color:#0d4593">' + typeLabel + ': ' + purpose + '</strong><br>' +
-                'Approve <strong>UGX ' + Number(opts.amount).toLocaleString() + '</strong> on your phone.<br>' +
-                '<small style="color:#94a3b8">You will see <strong>HOSU ' + typeLabel + '</strong> &middot; Merchant code <strong>' + merchantCode + '</strong></small>'
-            );
-
-            _startPoll({
-                trackingId: mRes.tracking_id || '', payId: paymentId,
-                registrantId: registrantId, receiptToken: receiptToken,
-                maxPolls: 15, interval: 8000
-            });
-            return;
-        }
-
-        /* All other methods (visa, bank, banktobank) — PesaPal hosted page in iframe */
+        /* All methods — PesaPal hosted page in iframe.
+           Provides a consistent, reliable payment experience
+           for MTN, Airtel, Visa, and all other methods. */
         _msg('Connecting to PesaPal\u2026');
-        var vFd = new FormData();
-        vFd.append('payment_id',    paymentId);
-        vFd.append('registrant_id', registrantId);
-        vFd.append('receipt_token', receiptToken);
-        vFd.append('amount',        opts.amount);
-        vFd.append('email',         opts.email);
-        vFd.append('name',          opts.name);
-        vFd.append('phone',         phone);
-        vFd.append('type',          type);
-        vFd.append('purpose',       purpose);
+        var pFd = new FormData();
+        pFd.append('payment_id',    paymentId);
+        pFd.append('registrant_id', registrantId);
+        pFd.append('receipt_token', receiptToken);
+        pFd.append('amount',        opts.amount);
+        pFd.append('email',         opts.email);
+        pFd.append('name',          opts.name);
+        pFd.append('phone',         phone);
+        pFd.append('type',          type);
+        pFd.append('purpose',       purpose);
 
-        var vRes;
-        try { vRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: vFd })).json(); }
-        catch (e) { _showErr('Network error'); return; }
-        if (vRes.error) { _showErr(vRes.error); return; }
+        var pRes;
+        try { pRes = await (await fetch('payment.php?action=init_pesapal', { method: 'POST', body: pFd })).json(); }
+        catch (e) { _showErr('Network error. Please try again.'); return; }
+        if (pRes.error) { _showErr(pRes.error); return; }
 
-        if (vRes.redirect_url) {
+        if (pRes.redirect_url) {
             _msg('Opening secure payment page\u2026');
             _openIfr({
-                redirectUrl: vRes.redirect_url, phone: phone, amount: opts.amount,
-                trackingId: vRes.tracking_id, payId: paymentId, registrantId: registrantId,
+                redirectUrl: pRes.redirect_url, phone: phone, amount: opts.amount,
+                trackingId: pRes.tracking_id, payId: paymentId, registrantId: registrantId,
                 receiptToken: receiptToken, purpose: typeLabel + ': ' + purpose
             });
         } else { _showErr('Could not get payment link. Please try again.'); }
