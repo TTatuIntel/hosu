@@ -433,10 +433,13 @@ switch ($action) {
             // PesaPal limits description to 100 chars
             $ppDescription = mb_substr($ppDescription, 0, 100);
 
-            $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
+            // UGX has no decimal places — send as integer
+            $ppAmount = (int)round($amount);
+
+            $orderPayload = [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
-                'amount'          => $amount,
+                'amount'          => $ppAmount,
                 'description'     => $ppDescription,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
@@ -447,7 +450,12 @@ switch ($action) {
                     'first_name'    => $firstName,
                     'last_name'     => $lastName,
                 ],
-            ], $ppToken);
+            ];
+
+            // Log every PesaPal init attempt for debugging
+            error_log('PesaPal init_pesapal: type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef . ' payId=' . $payId . ' regId=' . $regId);
+
+            $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', $orderPayload, $ppToken);
 
             if (!empty($result['redirect_url'])) {
                 $trackingId = $result['order_tracking_id'] ?? '';
@@ -457,8 +465,12 @@ switch ($action) {
                 }
                 echo json_encode(['success' => true, 'redirect_url' => $result['redirect_url'], 'tracking_id' => $trackingId]);
             } else {
-                error_log('PesaPal order failed: ' . json_encode($result));
+                error_log('PesaPal order failed: type=' . $type . ' amount=' . $ppAmount . ' response=' . json_encode($result));
                 $msg = $result['message'] ?? ($result['error']['message'] ?? 'Failed to initialize payment. Please try again.');
+                // Add context if it's a limit error
+                if (stripos($msg, 'limit') !== false) {
+                    $msg = 'Transaction amount (UGX ' . number_format($ppAmount) . ') exceeds PesaPal account limit. Please contact HOSU at info@hosu.or.ug to resolve this, or try a smaller amount.';
+                }
                 http_response_code(500);
                 echo json_encode(['error' => $msg]);
             }
@@ -563,7 +575,7 @@ switch ($action) {
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', [
                 'id'              => $merchantRef,
                 'currency'        => 'UGX',
-                'amount'          => $amount,
+                'amount'          => (int)round($amount),
                 'description'     => $ppDescription,
                 'callback_url'    => $callbackUrl,
                 'notification_id' => $ipnId,
