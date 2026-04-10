@@ -539,12 +539,10 @@
         if (!preRes.success) { _showErr(preRes.error || 'Registration failed'); return; }
 
 
-        // Strict phone number validation (Uganda format: 2567XXXXXXXX)
+        // Normalize phone: strip non-digits, add Uganda country code if missing
         var phone = (opts.phone || '').replace(/\D/g, '');
-        if (!/^2567\d{8}$/.test(phone)) {
-            _showErr('Please enter a valid Ugandan phone number in the format 07XXXXXXXX or 2567XXXXXXXX.');
-            return;
-        }
+        if (phone.charAt(0) === '0' && phone.length >= 9) phone = '256' + phone.substring(1);
+        else if (phone.length >= 7 && phone.length <= 9) phone = '256' + phone;
 
         var paymentId    = preRes.payment_id    || 0;
         var registrantId = preRes.registrant_id || 0;
@@ -565,7 +563,7 @@
             _msg('Sending ' + typeLabel + ' prompt to your ' + netName + ' phone\u2026');
 
             var mFd = new FormData();
-            mFd.append('phone',         opts.phone);
+            mFd.append('phone',         phone);
             mFd.append('amount',        opts.amount);
             mFd.append('email',         opts.email);
             mFd.append('name',          opts.name);
@@ -592,7 +590,7 @@
                 fbFd.append('amount',        opts.amount);
                 fbFd.append('email',         opts.email);
                 fbFd.append('name',          opts.name);
-                fbFd.append('phone',         opts.phone);
+                fbFd.append('phone',         phone);
                 fbFd.append('type',          type);
                 fbFd.append('purpose',       purpose);
                 var fbRes;
@@ -601,7 +599,7 @@
                 if (fbRes.redirect_url) {
                     _msg('Opening secure payment page\u2026');
                     _openIfr({
-                        redirectUrl: fbRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                        redirectUrl: fbRes.redirect_url, phone: phone, amount: opts.amount,
                         trackingId: fbRes.tracking_id, payId: paymentId, registrantId: registrantId,
                         receiptToken: receiptToken, purpose: typeLabel + ': ' + purpose
                     });
@@ -617,7 +615,7 @@
                 _msg('Redirecting to PesaPal\u2026');
                 _openIfr({
                     redirectUrl: mRes.redirect_url,
-                    phone: opts.phone,
+                    phone: phone,
                     amount: opts.amount,
                     trackingId: mRes.tracking_id,
                     payId: paymentId,
@@ -654,7 +652,7 @@
         vFd.append('amount',        opts.amount);
         vFd.append('email',         opts.email);
         vFd.append('name',          opts.name);
-        vFd.append('phone',         opts.phone);
+        vFd.append('phone',         phone);
         vFd.append('type',          type);
         vFd.append('purpose',       purpose);
 
@@ -666,7 +664,7 @@
         if (vRes.redirect_url) {
             _msg('Opening secure payment page\u2026');
             _openIfr({
-                redirectUrl: vRes.redirect_url, phone: opts.phone, amount: opts.amount,
+                redirectUrl: vRes.redirect_url, phone: phone, amount: opts.amount,
                 trackingId: vRes.tracking_id, payId: paymentId, registrantId: registrantId,
                 receiptToken: receiptToken, purpose: typeLabel + ': ' + purpose
             });
