@@ -81,6 +81,14 @@
         if (typeof closeAllFloatPopups === 'function') closeAllFloatPopups();
         renderLoginPopup(popup);
         popup.classList.add('active');
+        // Enter key support for login
+        setTimeout(function () {
+            var idEl = document.getElementById('lfp-identity');
+            var pwEl = document.getElementById('lfp-pass');
+            if (idEl) idEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { var pw = document.getElementById('lfp-pass'); if (pw) pw.focus(); } });
+            if (pwEl) pwEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') doLogin(); });
+            if (idEl) idEl.focus();
+        }, 50);
         fetch('auth.php?action=check_session', { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
@@ -169,23 +177,40 @@
         popup.innerHTML =
             '<button class="lfp-close" onclick="this.closest(\'.login-float-popup\').classList.remove(\'active\')">&times;</button>'
             + '<h3>&#128273; Reset Password</h3>'
-            + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">Enter your admin email or phone number</p>'
+            + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">Enter your admin email or phone. Reset code will be sent to <strong>info@hosu.or.ug</strong></p>'
             + '<div id="rst-msg" style="display:none;font-size:0.75rem;border-radius:5px;padding:0.35rem 0.6rem;margin-bottom:0.5rem;"></div>'
             + '<div id="rst-step1">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Email</label>'
-            + '<input type="email" id="rst-email" placeholder="info@mcare.or.ug" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<input type="email" id="rst-email" placeholder="your admin email" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Or Phone Number</label>'
-            + '<input type=\"tel\" id=\"rst-phone\" placeholder=\"Phone number with country code\" style=\"width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;\">'
-            + '<button onclick="requestReset()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Send Reset Code</button>'
+            + '<input type="tel" id="rst-phone" placeholder="Phone number with country code" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
+            + '<button id="rst-send-btn" onclick="requestReset()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Send Reset Code</button>'
             + '</div>'
             + '<div id="rst-step2" style="display:none;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">6-Digit Code</label>'
-            + '<input type="text" id="rst-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;text-align:center;letter-spacing:0.3rem;font-weight:700;">'
+            + '<input type="text" id="rst-code" maxlength="6" pattern="[0-9]{6}" placeholder="000000" inputmode="numeric" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;text-align:center;letter-spacing:0.3rem;font-weight:700;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">New Password</label>'
-            + '<input type="password" id="rst-newpw" placeholder="Min 8 chars, uppercase+lowercase+number" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
-            + '<button onclick="submitReset()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Reset Password</button>'
+            + '<input type="password" id="rst-newpw" placeholder="Min 8 chars, uppercase+lowercase+number" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Confirm Password</label>'
+            + '<input type="password" id="rst-cfpw" placeholder="Re-enter new password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
+            + '<button id="rst-submit-btn" onclick="submitReset()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Reset Password</button>'
             + '</div>'
             + '<div style="text-align:center;margin-top:0.6rem;"><a href="#" onclick="backToLogin(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">&larr; Back to Login</a></div>';
+
+        // Enter key support
+        setTimeout(function () {
+            var emailEl = document.getElementById('rst-email');
+            var phoneEl = document.getElementById('rst-phone');
+            var codeEl = document.getElementById('rst-code');
+            var newpwEl = document.getElementById('rst-newpw');
+            var cfpwEl = document.getElementById('rst-cfpw');
+            if (emailEl) emailEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') requestReset(); });
+            if (phoneEl) phoneEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') requestReset(); });
+            if (codeEl) codeEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { var np = document.getElementById('rst-newpw'); if (np) np.focus(); } });
+            if (newpwEl) newpwEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') { var cf = document.getElementById('rst-cfpw'); if (cf) cf.focus(); } });
+            if (cfpwEl) cfpwEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submitReset(); });
+            if (emailEl) emailEl.focus();
+        }, 50);
     };
 
     window.backToLogin = function (e) {
@@ -195,53 +220,168 @@
         renderLoginPopup(popup);
     };
 
+    function _rstMsg(text, isError) {
+        var msg = document.getElementById('rst-msg');
+        if (!msg) return;
+        msg.style.display = 'block';
+        if (isError) {
+            msg.style.background = 'rgba(230,57,70,0.07)';
+            msg.style.color = 'var(--primary-color)';
+            msg.textContent = text;
+        } else {
+            msg.style.background = '#f0fdf4';
+            msg.style.color = '#166534';
+            msg.innerHTML = text;
+        }
+    }
+
+    function _rstBtn(id, loading) {
+        var btn = document.getElementById(id);
+        if (!btn) return;
+        btn.disabled = loading;
+        if (id === 'rst-send-btn') {
+            btn.textContent = loading ? 'Sending\u2026' : 'Send Reset Code';
+        } else {
+            btn.textContent = loading ? 'Resetting\u2026' : 'Reset Password';
+        }
+    }
+
     window.requestReset = function () {
         var email = document.getElementById('rst-email').value.trim();
         var phone = document.getElementById('rst-phone').value.trim();
-        var msg = document.getElementById('rst-msg');
-        if (!email && !phone) { msg.textContent = 'Enter email or phone'; msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; return; }
+        if (!email && !phone) { _rstMsg('Enter your email or phone number', true); return; }
+
+        _rstBtn('rst-send-btn', true);
         var fd = new FormData();
-        fd.append('email', email); fd.append('phone', phone);
+        fd.append('email', email);
+        fd.append('phone', phone);
         fetch('auth.php?action=request_reset', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                msg.style.display = 'block';
+                _rstBtn('rst-send-btn', false);
                 if (d.success) {
                     _resetToken = d.token || null;
-                    msg.style.background = '#f0fdf4'; msg.style.color = '#166534';
-                    msg.innerHTML = escHtml(d.message || 'Reset code sent.');
+                    _rstMsg('&#10003; ' + escHtml(d.message || 'Reset code sent to info@hosu.or.ug'), false);
                     document.getElementById('rst-step1').style.display = 'none';
                     document.getElementById('rst-step2').style.display = 'block';
+                    setTimeout(function () { var c = document.getElementById('rst-code'); if (c) c.focus(); }, 100);
                 } else {
-                    msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)';
-                    msg.textContent = d.error || 'Error';
+                    _rstMsg(d.error || 'Something went wrong. Try again.', true);
                 }
-            }).catch(function () { msg.textContent = 'Network error'; msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; });
+            }).catch(function () {
+                _rstBtn('rst-send-btn', false);
+                _rstMsg('Network error. Check your connection.', true);
+            });
     };
 
     window.submitReset = function () {
         var code = document.getElementById('rst-code').value.trim();
         var newpw = document.getElementById('rst-newpw').value;
-        var msg = document.getElementById('rst-msg');
-        if (!code || !newpw) { msg.textContent = 'Enter code and new password'; msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; return; }
-        if (!_resetToken) { msg.textContent = 'No reset token. Start over.'; msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; return; }
+        var cfpw = document.getElementById('rst-cfpw').value;
+        if (!code) { _rstMsg('Enter the 6-digit code from your email', true); return; }
+        if (!newpw) { _rstMsg('Enter a new password', true); return; }
+        if (newpw !== cfpw) { _rstMsg('Passwords do not match', true); return; }
+        if (newpw.length < 8 || !/[A-Z]/.test(newpw) || !/[a-z]/.test(newpw) || !/[0-9]/.test(newpw)) {
+            _rstMsg('Password must be 8+ chars with uppercase, lowercase, and a number', true); return;
+        }
+        if (!_resetToken) { _rstMsg('Reset session expired. Please start over.', true); return; }
+
+        _rstBtn('rst-submit-btn', true);
         var fd = new FormData();
-        fd.append('token', _resetToken); fd.append('code', code); fd.append('new_password', newpw);
+        fd.append('token', _resetToken);
+        fd.append('code', code);
+        fd.append('new_password', newpw);
         fetch('auth.php?action=reset_password', { method: 'POST', body: fd, credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (d) {
-                msg.style.display = 'block';
+                _rstBtn('rst-submit-btn', false);
                 if (d.success) {
-                    msg.style.background = '#f0fdf4'; msg.style.color = '#166534';
-                    msg.innerHTML = '&#10003; ' + escHtml(d.message || 'Password reset!');
+                    _rstMsg('&#10003; ' + escHtml(d.message || 'Password reset successfully!'), false);
                     _resetToken = null;
                     document.getElementById('rst-step2').style.display = 'none';
                     setTimeout(function () { backToLogin(); }, 2500);
                 } else {
-                    msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)';
-                    msg.textContent = d.error || 'Error';
+                    _rstMsg(d.error || 'Failed to reset password. Try again.', true);
                 }
-            }).catch(function () { msg.textContent = 'Network error'; msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; });
+            }).catch(function () {
+                _rstBtn('rst-submit-btn', false);
+                _rstMsg('Network error. Check your connection.', true);
+            });
+    };
+
+    /* ── Force Password Change (works on all pages) ── */
+    window.showForcePasswordChange = window.showForcePasswordChange || function () {
+        if (document.getElementById('force-pw-overlay')) return;
+        var overlay = document.createElement('div');
+        overlay.id = 'force-pw-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
+        overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:2rem;max-width:400px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,0.3);">'
+            + '<h3 style="margin:0 0 0.5rem;color:#e63946;">&#128274; Password Change Required</h3>'
+            + '<p style="font-size:0.85rem;color:#555;margin-bottom:1rem;">You are using the default password. Please change it now for security.</p>'
+            + '<div id="fpw-err" style="display:none;color:#e63946;font-size:0.8rem;margin-bottom:0.5rem;background:rgba(230,57,70,0.07);padding:0.4rem;border-radius:6px;"></div>'
+            + '<label style="font-size:0.78rem;font-weight:600;">Current Password</label>'
+            + '<input type="password" id="fpw-current" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;">'
+            + '<label style="font-size:0.78rem;font-weight:600;">New Password</label>'
+            + '<input type="password" id="fpw-new" placeholder="Min 8 chars, upper+lower+number" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;">'
+            + '<label style="font-size:0.78rem;font-weight:600;">Confirm New Password</label>'
+            + '<input type="password" id="fpw-confirm" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:1rem;">'
+            + '<button id="fpw-submit" onclick="submitForcePasswordChange()" style="width:100%;padding:0.55rem;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.88rem;">Change Password</button>'
+            + '<p style="font-size:0.7rem;color:#9ca3af;margin:0.5rem 0 0;text-align:center;">You will be reminded on each login until you change it.</p>'
+            + '</div>';
+        document.body.appendChild(overlay);
+
+        // Enter key support
+        setTimeout(function () {
+            var cur = document.getElementById('fpw-current');
+            var np = document.getElementById('fpw-new');
+            var cf = document.getElementById('fpw-confirm');
+            if (cur) cur.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && np) np.focus(); });
+            if (np) np.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && cf) cf.focus(); });
+            if (cf) cf.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submitForcePasswordChange(); });
+            if (cur) cur.focus();
+        }, 50);
+    };
+
+    window.submitForcePasswordChange = window.submitForcePasswordChange || function () {
+        var cur = document.getElementById('fpw-current').value;
+        var np = document.getElementById('fpw-new').value;
+        var cf = document.getElementById('fpw-confirm').value;
+        var err = document.getElementById('fpw-err');
+        var btn = document.getElementById('fpw-submit');
+        if (!cur || !np || !cf) { err.textContent = 'All fields are required.'; err.style.display = 'block'; return; }
+        if (np !== cf) { err.textContent = 'Passwords do not match.'; err.style.display = 'block'; return; }
+        if (np.length < 8 || !/[A-Z]/.test(np) || !/[a-z]/.test(np) || !/[0-9]/.test(np)) {
+            err.textContent = 'Password must be 8+ chars with uppercase, lowercase, and a number.'; err.style.display = 'block'; return;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Changing\u2026'; }
+        var fd = new FormData();
+        fd.append('action', 'change_password');
+        fd.append('current_password', cur);
+        fd.append('new_password', np);
+        if (window._hosuCsrfToken) fd.append('csrf_token', window._hosuCsrfToken);
+        fetch('auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.success) {
+                    window._hosuMustChangePassword = false;
+                    var ov = document.getElementById('force-pw-overlay');
+                    if (ov) ov.remove();
+                    // Show brief success feedback
+                    var toast = document.createElement('div');
+                    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#166534;color:#fff;padding:0.6rem 1.5rem;border-radius:8px;font-size:0.85rem;font-weight:600;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
+                    toast.textContent = '\u2713 Password changed successfully!';
+                    document.body.appendChild(toast);
+                    setTimeout(function () { toast.remove(); }, 3000);
+                } else {
+                    if (btn) { btn.disabled = false; btn.textContent = 'Change Password'; }
+                    err.textContent = d.error || 'Failed to change password.';
+                    err.style.display = 'block';
+                }
+            }).catch(function () {
+                if (btn) { btn.disabled = false; btn.textContent = 'Change Password'; }
+                err.textContent = 'Network error. Try again.';
+                err.style.display = 'block';
+            });
     };
 
     /* ── Close on outside click ──────────────────────────── */
@@ -263,6 +403,15 @@
                     _storeCsrf(d);
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
+                    // Prompt password change if still using default
+                    if (d.must_change_password) {
+                        window._hosuMustChangePassword = true;
+                        setTimeout(function () {
+                            if (typeof window.showForcePasswordChange === 'function') {
+                                window.showForcePasswordChange();
+                            }
+                        }, 500);
+                    }
                 }
             }).catch(function () {});
     });

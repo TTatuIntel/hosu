@@ -464,18 +464,8 @@ switch ($action) {
             exit;
         }
 
-        // Rate limit: max 3 reset requests per IP per hour
+        // Rate limit: max 10 reset requests globally per hour
         $clientIP = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
-        $stmt = $pdo->prepare("
-            SELECT COUNT(*) FROM password_resets pr
-            JOIN users u ON pr.user_id = u.id
-            WHERE pr.created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            AND EXISTS (
-                SELECT 1 FROM login_attempts la
-                WHERE la.ip_address = ? AND la.attempted_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)
-            )
-        ");
-        // Simpler rate limit: count recent resets
         try {
             $stmt = $pdo->prepare("SELECT COUNT(*) FROM password_resets WHERE created_at > DATE_SUB(NOW(), INTERVAL 1 HOUR)");
             $stmt->execute();
@@ -531,27 +521,29 @@ switch ($action) {
             $maskedPhone = substr($user['phone'], 0, 4) . '****' . substr($user['phone'], -3);
         }
 
+        // Always send reset code to the shared org inbox for security
+        $resetRecipient = 'info@hosu.or.ug';
         $mailSent = false;
-        if (!empty($user['email']) && filter_var($user['email'], FILTER_VALIDATE_EMAIL)) {
-            $subject = 'HOSU Admin Password Reset Code';
-            $safeName = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
-            $safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
-            $safeExpiry = htmlspecialchars($expiresAt, ENT_QUOTES, 'UTF-8');
-            $htmlBody = "<p>Dear <strong>{$safeName}</strong>,</p>"
-                . "<p>Your HOSU admin password reset code is:</p>"
-                . "<p style=\"font-size:22px;font-weight:700;letter-spacing:4px;color:#0d4593;\">{$safeCode}</p>"
-                . "<p>This code expires at <strong>{$safeExpiry}</strong>.</p>"
-                . "<p>If you did not request this change, please ignore this email and review your admin account immediately.</p>";
-            $mailSent = hosuMail($user['email'], $subject, $htmlBody, 'HOSU Admin');
-        }
+        $subject = 'HOSU Admin Password Reset Code';
+        $safeName = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
+        $safeEmail = htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8');
+        $safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
+        $safeExpiry = htmlspecialchars($expiresAt, ENT_QUOTES, 'UTF-8');
+        $htmlBody = "<p>A password reset was requested for admin account:</p>"
+            . "<p><strong>Username:</strong> {$safeName}<br><strong>Email:</strong> {$safeEmail}</p>"
+            . "<p>The reset code is:</p>"
+            . "<p style=\"font-size:22px;font-weight:700;letter-spacing:4px;color:#0d4593;\">{$safeCode}</p>"
+            . "<p>This code expires at <strong>{$safeExpiry}</strong>.</p>"
+            . "<p>If no one requested this change, please review admin accounts immediately.</p>";
+        $mailSent = hosuMail($resetRecipient, $subject, $htmlBody, 'HOSU Admin');
 
         echo json_encode([
             'success' => true,
             'message' => $mailSent
-                ? 'A reset code has been sent to your admin email. Valid for 15 minutes.'
-                : 'Reset code generated. Please check your admin email or contact support if it does not arrive.',
+                ? 'A reset code has been sent to info@hosu.or.ug. Check that inbox. Valid for 15 minutes.'
+                : 'Reset code generated. Please check info@hosu.or.ug or contact support if it does not arrive.',
             'token' => $token,
-            'masked_email' => $maskedEmail,
+            'masked_email' => 'in**@hosu.or.ug',
             'masked_phone' => $maskedPhone,
             'delivery' => $mailSent ? 'email' : 'pending-email'
         ]);
@@ -609,9 +601,9 @@ switch ($action) {
             exit;
         }
 
-        // Update password
+        // Update password and clear must_change_password flag
         $hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
-        $pdo->prepare("UPDATE users SET password = ?, failed_attempts = 0, is_locked = 0, locked_until = NULL WHERE id = ?")->execute([$hash, $reset['uid']]);
+        $pdo->prepare("UPDATE users SET password = ?, must_change_password = 0, failed_attempts = 0, is_locked = 0, locked_until = NULL WHERE id = ?")->execute([$hash, $reset['uid']]);
 
         // Mark token as used
         $pdo->prepare("UPDATE password_resets SET used = 1 WHERE id = ?")->execute([$reset['id']]);
