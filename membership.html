@@ -1711,11 +1711,13 @@
             const clickedPlan = event.target.closest('.plan-card');
             if (!clickedPlan) return;
             selectMembershipPlan(clickedPlan);
-            // Sync modal dropdown and amount
-            if (typeof membershipPackage !== 'undefined' && typeof updateMembershipAmount === 'function') {
-                membershipPackage.value = clickedPlan.dataset.period;
+            // Sync modal dropdown and amount, then open the form
+            const pkg = document.getElementById('membershipPackage');
+            if (pkg) {
+                pkg.value = clickedPlan.dataset.period;
                 updateMembershipAmount();
             }
+            openSubscriptionForm();
         });
         const professionRelations = {
             'medical-oncologist': ['oncologist'],
