@@ -712,7 +712,16 @@
             _showErr(errMsg, 'Please check your internet connection and try again. If problem persists, contact <a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>.');
             return;
         }
-        if (pRes.error) { console.error('PesaPal init error:', pRes.error); _showErr(pRes.error); return; }
+        if (pRes.error) {
+            console.error('PesaPal init error:', pRes.error, 'HTTP:', pRes.pesapal_code, 'amount:', pRes.amount);
+            var errDetail = '<span style="color:#64748b">PesaPal was unable to create the payment page.</span><br>' +
+                'Please try again, or contact ' +
+                '<a href="mailto:info@hosu.or.ug" style="color:#0d4593;font-weight:700;">info@hosu.or.ug</a>' +
+                ' or <a href="https://wa.me/256709752107" target="_blank" rel="noopener" style="color:#0d4593;font-weight:700;">' +
+                'WhatsApp +256&nbsp;709&nbsp;752107</a> for help.';
+            _showErr(pRes.error, errDetail);
+            return;
+        }
 
         if (pRes.redirect_url) {
             _msg('Opening secure payment page\u2026');

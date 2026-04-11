@@ -60,7 +60,8 @@ function pesapalRequest(string $method, string $endpoint, ?array $body, string $
 
     if ($err) throw new RuntimeException('PesaPal connection error: ' . $err);
     $data = json_decode($resp, true);
-    if (!is_array($data)) throw new RuntimeException("PesaPal returned invalid response (HTTP $httpCode)");
+    if (!is_array($data)) throw new RuntimeException("PesaPal returned invalid response (HTTP $httpCode): " . substr($resp, 0, 300));
+    $data['_http_code'] = $httpCode;
     return $data;
 }
 
@@ -453,9 +454,21 @@ switch ($action) {
             ];
 
             // Log every PesaPal init attempt for debugging
-            error_log('PesaPal init_pesapal: type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef . ' payId=' . $payId . ' regId=' . $regId);
+            error_log('PesaPal init_pesapal: ENV=' . PESAPAL_ENV . ' BASE=' . PESAPAL_BASE . ' type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef . ' payId=' . $payId . ' regId=' . $regId);
 
             $result = pesapalRequest('POST', '/api/Transactions/SubmitOrderRequest', $orderPayload, $ppToken);
+
+            // PesaPal v3 success: { "order_tracking_id":"...", "redirect_url":"...", "error":null, "status":"200" }
+            // PesaPal v3 error:   { "error":{"type":"...","code":"...","message":"..."}, "status":"500" }
+            // Also check: error can be a string, or status can indicate failure
+
+            $httpCode = $result['_http_code'] ?? 0;
+            $ppError  = $result['error'] ?? null;
+            $ppStatus = $result['status'] ?? '';
+
+            // Log raw response for every request (helps debug production issues)
+            error_log('PesaPal SubmitOrder: type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef
+                . ' HTTP=' . $httpCode . ' status=' . $ppStatus . ' RESPONSE=' . json_encode($result));
 
             if (!empty($result['redirect_url'])) {
                 $trackingId = $result['order_tracking_id'] ?? '';
@@ -465,24 +478,27 @@ switch ($action) {
                 }
                 echo json_encode(['success' => true, 'redirect_url' => $result['redirect_url'], 'tracking_id' => $trackingId]);
             } else {
-                error_log('PesaPal order REJECTED: type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef . ' FULL_RESPONSE=' . json_encode($result));
-                // Try to extract a meaningful message from PesaPal response
-                $msg = $result['message'] ?? '';
-                if (empty($msg) && isset($result['error'])) {
-                    $msg = is_array($result['error']) ? ($result['error']['message'] ?? json_encode($result['error'])) : $result['error'];
+                // Extract the actual PesaPal error message
+                $msg = '';
+                if (is_array($ppError)) {
+                    $msg = $ppError['message'] ?? ($ppError['error_description'] ?? '');
+                    if (empty($msg)) $msg = json_encode($ppError);
+                } elseif (is_string($ppError) && $ppError !== '') {
+                    $msg = $ppError;
                 }
-                if (empty($msg) && isset($result['status'])) {
-                    $msg = 'PesaPal returned status: ' . $result['status'];
-                }
-                if (empty($msg)) {
-                    $msg = 'PesaPal could not process the payment. Please try again.';
-                }
-                // Add context if it's a limit error
-                if (stripos($msg, 'limit') !== false) {
-                    $msg = 'Transaction amount (UGX ' . number_format($ppAmount) . ') exceeds PesaPal account limit. Please contact HOSU at info@hosu.or.ug to resolve this, or try a smaller amount.';
-                }
-                http_response_code(500);
-                echo json_encode(['error' => $msg]);
+                if (empty($msg)) $msg = $result['message'] ?? '';
+                if (empty($msg)) $msg = 'PesaPal could not process the payment (HTTP ' . $httpCode . ', status: ' . $ppStatus . ').';
+
+                // Log the rejection with full detail
+                error_log('PesaPal REJECTED: ' . $msg . ' | type=' . $type . ' amount=' . $ppAmount . ' ref=' . $merchantRef);
+
+                http_response_code(502);
+                echo json_encode([
+                    'error'        => $msg,
+                    'pesapal_code' => $httpCode,
+                    'amount'       => $ppAmount,
+                    'type'         => $type
+                ]);
             }
         } catch (\Throwable $e) {
             error_log('PesaPal init: ' . $e->getMessage());
@@ -891,6 +907,33 @@ switch ($action) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to query PesaPal: ' . $e->getMessage()]);
         }
+        break;
+
+    // ──────────────────────────────────────────────────────────────────
+    // Diagnostic: check PesaPal config (admin only)
+    // ──────────────────────────────────────────────────────────────────
+    case 'pesapal_status':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401);
+            echo json_encode(['error' => 'Admin login required']);
+            break;
+        }
+        $info = [
+            'env'        => PESAPAL_ENV,
+            'base_url'   => PESAPAL_BASE,
+            'key_set'    => !empty(PESAPAL_CONSUMER_KEY),
+            'secret_set' => !empty(PESAPAL_CONSUMER_SECRET),
+            'key_prefix' => PESAPAL_CONSUMER_KEY ? substr(PESAPAL_CONSUMER_KEY, 0, 8) . '...' : '(empty)',
+        ];
+        try {
+            $token = pesapalGetToken();
+            $info['token_ok'] = true;
+            $info['token_prefix'] = substr($token, 0, 12) . '...';
+        } catch (\Throwable $e) {
+            $info['token_ok'] = false;
+            $info['token_error'] = $e->getMessage();
+        }
+        echo json_encode($info);
         break;
 
     default:
