@@ -69,7 +69,7 @@
                 + '<input type="password" id="lfp-pass" placeholder="Enter password" autocomplete="current-password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid var(--gray-300,#d1d5db);border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
                 + '<button id="lfp-submit" onclick="doLogin()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Sign In</button>'
                 + '<div id="lfp-lockout" style="display:none;font-size:0.73rem;color:#92400e;background:#fef3c7;border-radius:6px;padding:0.4rem 0.6rem;margin-top:0.45rem;text-align:center;"></div>'
-                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>';
+                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="event.stopPropagation();showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>';
         }
     }
 
@@ -206,7 +206,7 @@
             + '<input type="password" id="rst-cfpw" placeholder="Re-enter new password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
             + '<button id="rst-submit-btn" onclick="submitReset()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Reset Password</button>'
             + '</div>'
-            + '<div style="text-align:center;margin-top:0.6rem;"><a href="#" onclick="backToLogin(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">&larr; Back to Login</a></div>';
+            + '<div style="text-align:center;margin-top:0.6rem;"><a href="#" onclick="event.stopPropagation();backToLogin(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">&larr; Back to Login</a></div>';
 
         // Enter key support
         setTimeout(function () {
@@ -540,10 +540,13 @@
     /* ── Close on outside click ──────────────────────────── */
     document.addEventListener('click', function (e) {
         var popup = document.getElementById('loginPopup');
-        if (popup && popup.classList.contains('active') && !e.target.closest('.login-trigger-wrap')) {
-            popup.classList.remove('active');
-            _inResetMode = false;
-        }
+        if (!popup || !popup.classList.contains('active')) return;
+        // Check if click is inside the popup or its trigger wrapper
+        // Note: when innerHTML is replaced (e.g. switching to reset form), e.target may be
+        // detached from the DOM, so .closest() fails. Use popup.contains() as fallback.
+        if (e.target.closest('.login-trigger-wrap') || popup.contains(e.target)) return;
+        popup.classList.remove('active');
+        _inResetMode = false;
     });
 
     /* ── Auto-check session on load ──────────────────────── */
