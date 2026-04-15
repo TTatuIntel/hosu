@@ -130,22 +130,13 @@
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
                     // Seed admin detected: must create personal account
-                    // IMPORTANT: seed admin must ONLY see "Create Account" — never "Change Password"
                     if (d.must_create_account) {
                         window._hosuMustCreateAccount = true;
-                        window._hosuMustChangePassword = false; // never trigger pwd change for seed admin
                         setTimeout(function () {
                             if (typeof window.showCreateAdminAccount === 'function') {
                                 window.showCreateAdminAccount();
                             }
                         }, 300);
-                    }
-                    // Prompt password change if required (non-seed accounts only)
-                    else if (d.must_change_password && !d.must_create_account) {
-                        window._hosuMustChangePassword = true;
-                        if (typeof window.showForcePasswordChange === 'function') {
-                            window.showForcePasswordChange();
-                        }
                     }
                 } else {
                     errEl.textContent = d.error || 'Invalid credentials.'; errEl.style.display = 'block';
@@ -326,90 +317,6 @@
             });
     };
 
-    /* ── Force Password Change (works on all pages) ── */
-    /* NOTE: This must NEVER be shown for the seed admin (username='admin').
-       The seed admin should only see the "Create Admin Account" form. */
-    window.showForcePasswordChange = window.showForcePasswordChange || function () {
-        // Guard: never prompt password change for the seed admin account
-        if (window._hosuUser && window._hosuUser.username === 'admin') {
-            if (typeof window.showCreateAdminAccount === 'function') {
-                window.showCreateAdminAccount();
-            }
-            return;
-        }
-        if (document.getElementById('force-pw-overlay')) return;
-        var overlay = document.createElement('div');
-        overlay.id = 'force-pw-overlay';
-        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';
-        overlay.innerHTML = '<div style="background:#fff;border-radius:12px;padding:2rem;max-width:400px;width:90%;box-shadow:0 4px 24px rgba(0,0,0,0.3);">'
-            + '<h3 style="margin:0 0 0.5rem;color:#e63946;">&#128274; Password Change Required</h3>'
-            + '<p style="font-size:0.85rem;color:#555;margin-bottom:1rem;">You are using the default password. Please change it now for security.</p>'
-            + '<div id="fpw-err" style="display:none;color:#e63946;font-size:0.8rem;margin-bottom:0.5rem;background:rgba(230,57,70,0.07);padding:0.4rem;border-radius:6px;"></div>'
-            + '<label style="font-size:0.78rem;font-weight:600;">Current Password</label>'
-            + '<input type="password" id="fpw-current" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;">'
-            + '<label style="font-size:0.78rem;font-weight:600;">New Password</label>'
-            + '<input type="password" id="fpw-new" placeholder="Min 8 chars, upper+lower+number" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;">'
-            + '<label style="font-size:0.78rem;font-weight:600;">Confirm New Password</label>'
-            + '<input type="password" id="fpw-confirm" style="width:100%;padding:0.45rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:1rem;">'
-            + '<button id="fpw-submit" onclick="submitForcePasswordChange()" style="width:100%;padding:0.55rem;background:#e63946;color:#fff;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-size:0.88rem;">Change Password</button>'
-            + '<p style="font-size:0.7rem;color:#9ca3af;margin:0.5rem 0 0;text-align:center;">You will be reminded on each login until you change it.</p>'
-            + '</div>';
-        document.body.appendChild(overlay);
-
-        // Enter key support
-        setTimeout(function () {
-            var cur = document.getElementById('fpw-current');
-            var np = document.getElementById('fpw-new');
-            var cf = document.getElementById('fpw-confirm');
-            if (cur) cur.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && np) np.focus(); });
-            if (np) np.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && cf) cf.focus(); });
-            if (cf) cf.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submitForcePasswordChange(); });
-            if (cur) cur.focus();
-        }, 50);
-    };
-
-    window.submitForcePasswordChange = window.submitForcePasswordChange || function () {
-        var cur = document.getElementById('fpw-current').value;
-        var np = document.getElementById('fpw-new').value;
-        var cf = document.getElementById('fpw-confirm').value;
-        var err = document.getElementById('fpw-err');
-        var btn = document.getElementById('fpw-submit');
-        if (!cur || !np || !cf) { err.textContent = 'All fields are required.'; err.style.display = 'block'; return; }
-        if (np !== cf) { err.textContent = 'Passwords do not match.'; err.style.display = 'block'; return; }
-        if (np.length < 8 || !/[A-Z]/.test(np) || !/[a-z]/.test(np) || !/[0-9]/.test(np)) {
-            err.textContent = 'Password must be 8+ chars with uppercase, lowercase, and a number.'; err.style.display = 'block'; return;
-        }
-        if (btn) { btn.disabled = true; btn.textContent = 'Changing\u2026'; }
-        var fd = new FormData();
-        fd.append('action', 'change_password');
-        fd.append('current_password', cur);
-        fd.append('new_password', np);
-        if (window._hosuCsrfToken) fd.append('csrf_token', window._hosuCsrfToken);
-        fetch('auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
-            .then(function (r) { return r.json(); })
-            .then(function (d) {
-                if (d.success) {
-                    window._hosuMustChangePassword = false;
-                    var ov = document.getElementById('force-pw-overlay');
-                    if (ov) ov.remove();
-                    // Show brief success feedback
-                    var toast = document.createElement('div');
-                    toast.style.cssText = 'position:fixed;top:20px;left:50%;transform:translateX(-50%);background:#166534;color:#fff;padding:0.6rem 1.5rem;border-radius:8px;font-size:0.85rem;font-weight:600;z-index:10000;box-shadow:0 4px 12px rgba(0,0,0,0.2);';
-                    toast.textContent = '\u2713 Password changed successfully!';
-                    document.body.appendChild(toast);
-                    setTimeout(function () { toast.remove(); }, 3000);
-                } else {
-                    if (btn) { btn.disabled = false; btn.textContent = 'Change Password'; }
-                    err.textContent = d.error || 'Failed to change password.';
-                    err.style.display = 'block';
-                }
-            }).catch(function () {
-                if (btn) { btn.disabled = false; btn.textContent = 'Change Password'; }
-                err.textContent = 'Network error. Try again.';
-                err.style.display = 'block';
-            });
-    };
-
     /* ── Create Admin Account (seed/default admin gateway) ── */
     window.showCreateAdminAccount = function () {
         if (document.getElementById('create-admin-overlay')) return;
@@ -570,19 +477,12 @@
                     _storeCsrf(d);
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
-                    // Prompt account creation or password change on page load
+                    // Prompt account creation on page load
                     if (d.must_create_account) {
                         window._hosuMustCreateAccount = true;
                         setTimeout(function () {
                             if (typeof window.showCreateAdminAccount === 'function') {
                                 window.showCreateAdminAccount();
-                            }
-                        }, 500);
-                    } else if (d.must_change_password) {
-                        window._hosuMustChangePassword = true;
-                        setTimeout(function () {
-                            if (typeof window.showForcePasswordChange === 'function') {
-                                window.showForcePasswordChange();
                             }
                         }, 500);
                     }

@@ -398,7 +398,6 @@ switch ($action) {
             'csrf_token' => $_SESSION['csrf_token'],
             'redirect' => $user['role'] === 'admin' ? 'admin.html' : 'index.html',
             'idle_timeout' => SESSION_IDLE_TIMEOUT,
-            'must_change_password' => (bool)($user['must_change_password'] ?? false),
             // Seed account detection: if this is the default "admin" gateway account,
             // the user must create their own personal admin account before proceeding.
             'must_create_account' => ($user['username'] === 'admin' && !empty($user['must_change_password']))
@@ -434,7 +433,6 @@ switch ($action) {
                 ],
                 'csrf_token' => generateCsrfToken(),
                 'idle_timeout' => SESSION_IDLE_TIMEOUT,
-                'must_change_password' => $mustChange,
                 'must_create_account' => $isSeed
             ]);
         } else {
@@ -446,18 +444,11 @@ switch ($action) {
         // Lightweight keep-alive — only refreshes last_activity
         if (!empty($_SESSION['user_id'])) {
             $_SESSION['last_activity'] = time();
-            $mustChange = false;
-            try {
-                $stmt = $pdo->prepare("SELECT must_change_password FROM users WHERE id = ?");
-                $stmt->execute([$_SESSION['user_id']]);
-                $mustChange = (bool)(int)($stmt->fetchColumn() ?: 0);
-            } catch (\Exception $e) {}
             echo json_encode([
                 'success'  => true,
                 'alive'    => true,
                 'username' => $_SESSION['username'] ?? 'Admin',
-                'role'     => $_SESSION['user_role'] ?? 'member',
-                'must_change_password' => $mustChange
+                'role'     => $_SESSION['user_role'] ?? 'member'
             ]);
         } else {
             http_response_code(401);
