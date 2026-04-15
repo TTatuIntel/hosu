@@ -137,13 +137,13 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .modal-section-divider{margin-top:1rem;padding-top:.75rem;border-top:1px solid var(--border);}
 .login-history-box{margin-top:.6rem;max-height:200px;overflow-y:auto;}
 
-.ff{display:flex;flex-direction:column;gap:.22rem;}
-.ff label{font-size:.69rem;font-weight:600;color:var(--text);}
+.ff{display:flex;flex-direction:column;gap:.15rem;}
+.ff label{font-size:.78rem;font-weight:600;color:var(--text);}
 .ff label span{color:var(--primary);}
-.ff input,.ff select,.ff textarea{width:100%;padding:.46rem .72rem;border:1.5px solid var(--border);border-radius:7px;font-size:.82rem;font-family:inherit;color:var(--text);background:var(--white);transition:border-color .2s;}
+.ff input,.ff select,.ff textarea{width:100%;padding:.38rem .6rem;border:1.5px solid var(--border);border-radius:6px;font-size:.82rem;font-family:inherit;color:var(--text);background:var(--white);transition:border-color .2s;box-sizing:border-box;}
 .ff input:focus,.ff select:focus,.ff textarea:focus{outline:none;border-color:var(--secondary);box-shadow:0 0 0 3px rgba(13,69,147,.07);}
-.ff textarea{resize:vertical;min-height:72px;}
-.ff small{font-size:.67rem;color:var(--text-light);}
+.ff textarea{resize:vertical;min-height:48px;}
+.ff small{font-size:.68rem;color:var(--text-light);}
 .ff input[type="checkbox"]{width:auto;margin-right:.4rem;}
 /* Upload */
 .upload-zone{border:2px dashed var(--border);border-radius:8px;padding:.65rem .9rem;text-align:center;cursor:pointer;transition:all .2s;background:var(--bg);position:relative;}
@@ -172,20 +172,20 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .modal-backdrop.open{display:flex;}
 .modal-box{background:var(--white);border-radius:14px;width:100%;max-width:560px;max-height:calc(100vh - 2rem);overflow-y:auto;box-shadow:0 16px 48px rgba(0,0,0,.18);animation:popIn .28s cubic-bezier(.22,1,.36,1);}
 @keyframes popIn{from{opacity:0;transform:translateY(12px) scale(.97)}to{opacity:1;transform:none}}
-.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:.7rem 1rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--white);z-index:1;}
-.modal-hd h3{font-size:.9rem;font-weight:700;color:var(--text);}
+.modal-hd{display:flex;align-items:center;justify-content:space-between;padding:.45rem .8rem;border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--white);z-index:1;}
+.modal-hd h3{font-size:.82rem;font-weight:700;color:var(--text);}
 .modal-close{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.05);border:none;border-radius:50%;font-size:.9rem;cursor:pointer;color:var(--text-light);}
 .modal-close:hover{background:var(--primary);color:#fff;}
-.modal-body{padding:1rem;}
+.modal-body{padding:.6rem .8rem;}
 /* Add-event form sections */
-.aef-sec{padding-bottom:.75rem;margin-bottom:.75rem;border-bottom:1px solid var(--border);}
+.aef-sec{padding-bottom:.4rem;margin-bottom:.4rem;border-bottom:1px solid var(--border);}
 .aef-sec:last-of-type{border-bottom:none;padding-bottom:0;margin-bottom:0;}
-.aef-lbl{font-size:.65rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-light);margin-bottom:.45rem;display:flex;align-items:center;gap:.35rem;}
-.aef-grid{display:grid;grid-template-columns:1fr 1fr 1fr;gap:.42rem .6rem;}
-.aef-grid .c2{grid-column:span 2;}
+.aef-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-light);margin-bottom:.25rem;display:flex;align-items:center;gap:.25rem;}
+.aef-grid{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .5rem;}
+.aef-grid .c2{grid-column:1/-1;}
 .aef-grid .c3{grid-column:1/-1;}
-.aef-upload-row{display:grid;grid-template-columns:1fr 200px;gap:.5rem;align-items:start;}
-@media(max-width:640px){.aef-grid{grid-template-columns:1fr 1fr;}.aef-upload-row{grid-template-columns:1fr;}}
+.aef-upload-row{display:grid;grid-template-columns:1fr 180px;gap:.35rem;align-items:start;}
+@media(max-width:640px){.aef-grid{grid-template-columns:1fr;}.aef-upload-row{grid-template-columns:1fr;}}
 /* Proof image */
 .proof-img{width:100%;border-radius:8px;border:1px solid var(--border);margin-bottom:.75rem;max-height:300px;object-fit:contain;}
 /* Invoice preview */
@@ -213,21 +213,21 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .filter-toolbar{display:flex;gap:.5rem;align-items:center;flex-wrap:wrap;}
 .select-sm-pad{padding:.38rem .6rem;}
 .btn-nodecor{text-decoration:none;}
-.modal-box-md{max-width:660px;}
+.modal-box-md{max-width:620px;}
 .modal-box-lg{max-width:780px;}
-.upload-zone-compact{padding:.55rem .8rem;}
-.upload-inner{display:flex;align-items:center;gap:.55rem;}
-.upload-icon{font-size:1.3rem;}
-.upload-text{font-size:.74rem;text-align:left;}
-.upload-hint{color:var(--text-light);font-size:.68rem;}
-.img-pre-mt{margin-top:.4rem;}
+.upload-zone-compact{padding:.35rem .5rem;}
+.upload-inner{display:flex;align-items:center;gap:.35rem;}
+.upload-icon{font-size:1rem;}
+.upload-text{font-size:.68rem;text-align:left;}
+.upload-hint{color:var(--text-light);font-size:.62rem;}
+.img-pre-mt{margin-top:.25rem;}
 .ev-date-opt{font-weight:400;}
-.tog-lbl-sm{font-size:.82rem;}
-.tog-lbl-xs{font-size:.78rem;}
+.tog-lbl-sm{font-size:.76rem;}
+.tog-lbl-xs{font-size:.72rem;}
 #ev-fee-section{display:none;}
-.pricing-row{display:flex;align-items:center;gap:.85rem;margin-bottom:.55rem;}
-.fee-hint{margin-top:.3rem;}
-.modal-footer-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.5rem;padding-top:.5rem;}
+.pricing-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
+.fee-hint{margin-top:.15rem;font-size:.68rem;}
+.modal-footer-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.35rem;padding-top:.35rem;}
 .btn-row{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;}
 .reg-stats-row{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem;}
 /* Reg-modal stat cards */
@@ -892,11 +892,11 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="aef-sec">
                 <div class="aef-lbl">📋 Event Details</div>
                 <div class="aef-grid">
-                    <div class="ff c3"><label>Event Title <span>*</span></label><input type="text" id="ev-title" placeholder="e.g. Annual Oncology Conference 2026" oninput="autoSlug()"></div>
-                    <div class="ff c2"><label>Event ID / Slug <span>*</span></label><input type="text" id="ev-slug" placeholder="auto-generated" readonly><small>Auto-filled from title</small></div>
+                    <div class="ff"><label>Event Title <span>*</span></label><input type="text" id="ev-title" placeholder="e.g. Annual Oncology Conference 2026" oninput="autoSlug()"></div>
                     <div class="ff"><label>Type <span>*</span></label>
                         <select id="ev-type"><option value="">Select…</option><option value="conference">Conference</option><option value="workshop">Workshop</option><option value="webinar">Webinar</option></select>
                     </div>
+                    <div class="ff"><label>Event ID / Slug <span>*</span></label><input type="text" id="ev-slug" placeholder="auto-generated" readonly><small>Auto-filled from title</small></div>
                     <div class="ff"><label>Image Alt Text <span>*</span></label><input type="text" id="ev-alt" placeholder="Brief image description"></div>
                 </div>
             </div>
@@ -907,9 +907,9 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="aef-grid">
                     <div class="ff"><label>Start Date <span>*</span></label><input type="text" id="ev-date-start" placeholder="Select start date" readonly oninput="buildDate()"></div>
                     <div class="ff"><label>End Date <small class="ev-date-opt">(optional)</small></label><input type="text" id="ev-date-end" placeholder="Select end date" readonly oninput="buildDate()"></div>
+                    <div class="ff"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="📍 e.g. Serena Hotel, Kampala"></div>
                     <div class="ff"><label>Formatted Date</label><input type="text" id="ev-date" placeholder="Auto-filled" readonly><small>Generated from pickers</small></div>
-                    <div class="ff c3"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="📍 e.g. Serena Hotel, Kampala"></div>
-                    <div class="ff c3"><label>Description <span>*</span></label><textarea id="ev-desc" rows="3" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
+                    <div class="ff c2"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
                 </div>
             </div>
 
@@ -922,7 +922,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div id="ev-fee-section">
                     <div class="aef-grid">
                         <div class="ff"><label>Registration Fee (UGX) <span>*</span></label><input type="number" id="ev-fee" min="0" step="1000" placeholder="e.g. 50000"></div>
-                        <div class="ff"><label>&nbsp;</label><small class="fee-hint">This amount will be shown to attendees during registration. Payment methods will appear automatically.</small></div>
+                        <div class="ff"><label>&nbsp;</label><small class="fee-hint">Shown to attendees. Payment methods appear automatically.</small></div>
                     </div>
                 </div>
             </div>

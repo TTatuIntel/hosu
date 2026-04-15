@@ -397,27 +397,41 @@
         var overlay = document.createElement('div');
         overlay.id = 'create-admin-overlay';
         overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
-        overlay.innerHTML = '<div style="background:#fff;border-radius:14px;padding:2rem;max-width:440px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto;">'
-            + '<div style="text-align:center;margin-bottom:1rem;">'
-            + '<div style="font-size:2rem;margin-bottom:0.3rem;">🔐</div>'
-            + '<h3 style="margin:0 0 0.3rem;color:#0d4593;font-size:1.1rem;">Create Your Admin Account</h3>'
-            + '<p style="font-size:0.8rem;color:#555;margin:0;">You logged in with the default credentials. Please create your own personal admin account to continue.</p>'
+        overlay.innerHTML = '<div style="background:#fff;border-radius:12px;max-width:520px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);overflow:hidden;">'
+            // Header bar
+            + '<div style="background:linear-gradient(135deg,#0d4593,#1a6dd4);padding:0.8rem 1.2rem;display:flex;align-items:center;justify-content:space-between;">'
+            + '<div style="display:flex;align-items:center;gap:0.5rem;">'
+            + '<span style="font-size:1.2rem;">🔐</span>'
+            + '<div><div style="color:#fff;font-weight:700;font-size:0.92rem;">Create Your Admin Account</div>'
+            + '<div style="color:rgba(255,255,255,0.7);font-size:0.68rem;">Set up your personal credentials to continue</div></div>'
             + '</div>'
-            + '<div id="caa-err" style="display:none;color:#e63946;font-size:0.8rem;margin-bottom:0.6rem;background:rgba(230,57,70,0.07);padding:0.45rem 0.6rem;border-radius:6px;"></div>'
-            + '<div id="caa-success" style="display:none;color:#166534;font-size:0.8rem;margin-bottom:0.6rem;background:#f0fdf4;padding:0.45rem 0.6rem;border-radius:6px;"></div>'
-            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Full Name <span style="color:#e63946;">*</span></label>'
-            + '<input type="text" id="caa-name" placeholder="e.g. Dr. Jane Onyango" autocomplete="name" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
-            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Email Address <span style="color:#e63946;">*</span></label>'
-            + '<input type="email" id="caa-email" placeholder="your.email@gmail.com" autocomplete="email" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
-            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Phone Number</label>'
-            + '<input type="tel" id="caa-phone" placeholder="+256 7XX XXX XXX" autocomplete="tel" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
-            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Create Password <span style="color:#e63946;">*</span></label>'
-            + '<input type="password" id="caa-pass" placeholder="Min 8 chars, upper+lower+number" autocomplete="new-password" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
-            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Confirm Password <span style="color:#e63946;">*</span></label>'
-            + '<input type="password" id="caa-pass2" placeholder="Re-enter your password" autocomplete="new-password" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.8rem;font-family:inherit;">'
-            + '<button id="caa-submit" onclick="submitCreateAdminAccount()" style="width:100%;padding:0.6rem;background:#0d4593;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">Create My Account</button>'
-            + '<p style="font-size:0.7rem;color:#9ca3af;margin:0.6rem 0 0;text-align:center;">After creating your account, you will log in with your email and password. The default admin credentials can still be used to create new admin accounts.</p>'
-            + '</div>';
+            + '<button onclick="closeCreateAdminOverlay()" style="background:rgba(255,255,255,0.15);border:none;color:#fff;width:26px;height:26px;border-radius:50%;cursor:pointer;font-size:1rem;display:flex;align-items:center;justify-content:center;" title="Close (you\'ll be signed out)">&times;</button>'
+            + '</div>'
+            // Body
+            + '<div style="padding:1rem 1.2rem 1.2rem;">'
+            + '<div id="caa-err" style="display:none;color:#e63946;font-size:0.75rem;margin-bottom:0.5rem;background:rgba(230,57,70,0.07);padding:0.35rem 0.5rem;border-radius:5px;"></div>'
+            + '<div id="caa-success" style="display:none;color:#166534;font-size:0.75rem;margin-bottom:0.5rem;background:#f0fdf4;padding:0.35rem 0.5rem;border-radius:5px;"></div>'
+            // Row 1: Name + Email
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.4rem;">'
+            + '<div><label style="font-size:0.7rem;font-weight:600;display:block;margin-bottom:0.1rem;">Full Name <span style="color:#e63946;">*</span></label>'
+            + '<input type="text" id="caa-name" placeholder="Dr. Jane Onyango" autocomplete="name" style="width:100%;padding:0.38rem 0.5rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.8rem;font-family:inherit;box-sizing:border-box;"></div>'
+            + '<div><label style="font-size:0.7rem;font-weight:600;display:block;margin-bottom:0.1rem;">Email <span style="color:#e63946;">*</span></label>'
+            + '<input type="email" id="caa-email" placeholder="you@gmail.com" autocomplete="email" style="width:100%;padding:0.38rem 0.5rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.8rem;font-family:inherit;box-sizing:border-box;"></div>'
+            + '</div>'
+            // Row 2: Phone (full width)
+            + '<div style="margin-bottom:0.4rem;"><label style="font-size:0.7rem;font-weight:600;display:block;margin-bottom:0.1rem;">Phone Number</label>'
+            + '<input type="tel" id="caa-phone" placeholder="+256 7XX XXX XXX" autocomplete="tel" style="width:100%;padding:0.38rem 0.5rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.8rem;font-family:inherit;box-sizing:border-box;"></div>'
+            // Row 3: Password + Confirm
+            + '<div style="display:grid;grid-template-columns:1fr 1fr;gap:0.5rem;margin-bottom:0.6rem;">'
+            + '<div><label style="font-size:0.7rem;font-weight:600;display:block;margin-bottom:0.1rem;">Password <span style="color:#e63946;">*</span></label>'
+            + '<input type="password" id="caa-pass" placeholder="8+ chars, Aa1" autocomplete="new-password" style="width:100%;padding:0.38rem 0.5rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.8rem;font-family:inherit;box-sizing:border-box;"></div>'
+            + '<div><label style="font-size:0.7rem;font-weight:600;display:block;margin-bottom:0.1rem;">Confirm <span style="color:#e63946;">*</span></label>'
+            + '<input type="password" id="caa-pass2" placeholder="Re-enter password" autocomplete="new-password" style="width:100%;padding:0.38rem 0.5rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.8rem;font-family:inherit;box-sizing:border-box;"></div>'
+            + '</div>'
+            // Submit
+            + '<button id="caa-submit" onclick="submitCreateAdminAccount()" style="width:100%;padding:0.5rem;background:#0d4593;color:#fff;border:none;border-radius:7px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.85rem;">Create My Account</button>'
+            + '<p style="font-size:0.65rem;color:#9ca3af;margin:0.4rem 0 0;text-align:center;">You\'ll log in with your email next time. Default credentials remain available for onboarding new admins.</p>'
+            + '</div></div>';
         document.body.appendChild(overlay);
 
         // Enter key navigation
@@ -434,6 +448,13 @@
             if (pass2El) pass2El.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submitCreateAdminAccount(); });
             if (nameEl) nameEl.focus();
         }, 100);
+    };
+
+    window.closeCreateAdminOverlay = function () {
+        var ov = document.getElementById('create-admin-overlay');
+        if (ov) ov.remove();
+        // Sign out since they didn't create an account — no admin access without personal credentials
+        doLogout();
     };
 
     window.submitCreateAdminAccount = function () {
