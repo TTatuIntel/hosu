@@ -184,6 +184,7 @@
     window.showResetForm = function (e) {
         if (e) e.preventDefault();
         _inResetMode = true;
+        _popupClickTs = Date.now();
         var popup = document.getElementById('loginPopup');
         popup.innerHTML =
             '<button class=\"lfp-close\" onclick=\"closeLoginPopup()\">&times;</button>'
@@ -228,6 +229,7 @@
         if (e) e.preventDefault();
         _resetToken = null;
         _inResetMode = false;
+        _popupClickTs = Date.now();
         var popup = document.getElementById('loginPopup');
         renderLoginPopup(popup);
     };
@@ -538,12 +540,13 @@
     };
 
     /* ── Close on outside click ──────────────────────────── */
+    var _popupClickTs = 0; // timestamp of last in-popup action that mutates innerHTML
     document.addEventListener('click', function (e) {
         var popup = document.getElementById('loginPopup');
         if (!popup || !popup.classList.contains('active')) return;
-        // Check if click is inside the popup or its trigger wrapper
-        // Note: when innerHTML is replaced (e.g. switching to reset form), e.target may be
-        // detached from the DOM, so .closest() fails. Use popup.contains() as fallback.
+        // Skip if a popup action just mutated innerHTML (element now detached, .closest fails)
+        if (Date.now() - _popupClickTs < 300) return;
+        // Skip if click is inside the trigger wrapper or the popup itself
         if (e.target.closest('.login-trigger-wrap') || popup.contains(e.target)) return;
         popup.classList.remove('active');
         _inResetMode = false;
