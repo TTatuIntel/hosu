@@ -512,12 +512,12 @@ switch ($action) {
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         }
 
-        // Always respond with success to prevent user enumeration
+        // User not found — inform clearly so they can correct their input
         if (!$user) {
-            usleep(random_int(200000, 500000)); // timing-safe
+            usleep(random_int(200000, 500000)); // timing padding
             echo json_encode([
-                'success' => true,
-                'message' => 'If an account matches, a reset code has been generated.'
+                'success' => false,
+                'error' => 'No account found with that email or username. Please check and try again.'
             ]);
             exit;
         }

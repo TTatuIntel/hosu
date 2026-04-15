@@ -7,6 +7,7 @@
     'use strict';
 
     var _loginState = null;
+    var _inResetMode = false;
 
     /* Escape HTML to prevent XSS when injecting user data via innerHTML */
     function escHtml(str) {
@@ -76,7 +77,7 @@
         e.preventDefault();
         var popup = document.getElementById('loginPopup');
         var isActive = popup.classList.contains('active');
-        if (isActive) { popup.classList.remove('active'); return; }
+        if (isActive) { popup.classList.remove('active'); _inResetMode = false; return; }
         if (typeof closeDonatePopups === 'function') closeDonatePopups();
         if (typeof closeAllFloatPopups === 'function') closeAllFloatPopups();
         renderLoginPopup(popup);
@@ -95,13 +96,15 @@
                 _loginState = d.logged_in ? { loggedIn: true, user: d.user } : { loggedIn: false };
                 _syncGlobalState();
                 _storeCsrf(d);
-                renderLoginPopup(popup);
+                // Don't overwrite the reset form if user already navigated to it
+                if (!_inResetMode) renderLoginPopup(popup);
             }).catch(function () {});
     };
 
     window.closeLoginPopup = function () {
         var popup = document.getElementById('loginPopup');
         if (popup) popup.classList.remove('active');
+        _inResetMode = false;
     };
 
     window.doLogin = function () {
@@ -180,9 +183,10 @@
 
     window.showResetForm = function (e) {
         if (e) e.preventDefault();
+        _inResetMode = true;
         var popup = document.getElementById('loginPopup');
         popup.innerHTML =
-            '<button class="lfp-close" onclick="this.closest(\'.login-float-popup\').classList.remove(\'active\')">&times;</button>'
+            '<button class=\"lfp-close\" onclick=\"closeLoginPopup()\">&times;</button>'
             + '<h3>&#128273; Reset Password</h3>'
             + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">A reset link will be sent to <strong>your email address</strong></p>'
             + '<div id="rst-msg" style="display:none;font-size:0.75rem;border-radius:5px;padding:0.35rem 0.6rem;margin-bottom:0.5rem;"></div>'
@@ -223,6 +227,7 @@
     window.backToLogin = function (e) {
         if (e) e.preventDefault();
         _resetToken = null;
+        _inResetMode = false;
         var popup = document.getElementById('loginPopup');
         renderLoginPopup(popup);
     };
@@ -266,13 +271,15 @@
             .then(function (r) { return r.json(); })
             .then(function (d) {
                 _rstBtn('rst-send-btn', false);
-                if (d.success) {
-                    _resetToken = d.token || null;
+                if (d.success && d.token) {
+                    _resetToken = d.token;
                     var msg = d.message || 'Reset link sent to your email.';
                     _rstMsg('&#10003; ' + escHtml(msg) + '<br><span style="font-size:0.68rem;color:#6b7280;">Check your inbox and spam folder. You can also enter the code manually below.</span>', false);
                     document.getElementById('rst-step1').style.display = 'none';
                     document.getElementById('rst-step2').style.display = 'block';
                     setTimeout(function () { var c = document.getElementById('rst-code'); if (c) c.focus(); }, 100);
+                } else if (d.success && !d.token) {
+                    _rstMsg('No account found with that email or username. Please check and try again.', true);
                 } else {
                     _rstMsg(d.error || 'Something went wrong. Try again.', true);
                 }
@@ -535,6 +542,7 @@
         var popup = document.getElementById('loginPopup');
         if (popup && popup.classList.contains('active') && !e.target.closest('.login-trigger-wrap')) {
             popup.classList.remove('active');
+            _inResetMode = false;
         }
     });
 
