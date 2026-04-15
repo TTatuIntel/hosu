@@ -68,9 +68,9 @@ function hosuMail(string $to, string $subject, string $htmlBody, string $fromNam
         // Timeout
         $mail->Timeout = 30;
 
-        // Recipients
-        $mail->setFrom($smtpFrom, $smtpFromName);
-        $mail->addReplyTo($smtpReplyTo, $smtpFromName);
+        // Recipients — send FROM the authenticated SMTP account to avoid SPF/DKIM failures
+        $mail->setFrom($smtpUser, $smtpFromName);
+        $mail->addReplyTo($smtpReplyTo ?: $smtpFrom, $smtpFromName);
         $mail->addAddress($to);
 
         // Content

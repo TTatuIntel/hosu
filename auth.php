@@ -502,12 +502,12 @@ switch ($action) {
         $user = null;
         if ($email !== '') {
             // Try email first, then as username
-            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE (email = ? OR username = ?) AND role = 'admin' LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE (email = ? OR username = ?) LIMIT 1");
             $stmt->execute([$email, $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         }
         if (!$user && $phone !== '') {
-            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE phone = ? AND role = 'admin' LIMIT 1");
+            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE phone = ? LIMIT 1");
             $stmt->execute([$phone]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         }
@@ -518,6 +518,15 @@ switch ($action) {
             echo json_encode([
                 'success' => true,
                 'message' => 'If an account matches, a reset code has been generated.'
+            ]);
+            exit;
+        }
+
+        // User found but no email on file — can't send reset
+        if (empty($user['email'])) {
+            echo json_encode([
+                'success' => false,
+                'error' => 'No email address on file for this account. Please contact support at info@hosu.or.ug.'
             ]);
             exit;
         }
@@ -595,16 +604,21 @@ switch ($action) {
             . "<p style=\"font-size:0.8rem;color:#9ca3af;\">This is an audit notification. No action needed.</p>";
         hosuMail('info@hosu.or.ug', $adminSubject, $adminBody, 'HOSU System');
 
-        echo json_encode([
-            'success' => true,
-            'message' => $mailSent
-                ? 'A password reset link has been sent to ' . $maskedEmail . '. Check your inbox (and spam folder). Valid for 15 minutes.'
-                : 'We could not send the reset email. Please contact support at info@hosu.or.ug.',
-            'token' => $token,
-            'masked_email' => $maskedEmail,
-            'masked_phone' => $maskedPhone,
-            'delivery' => $mailSent ? 'email' : 'failed'
-        ]);
+        if ($mailSent) {
+            echo json_encode([
+                'success' => true,
+                'message' => 'A password reset link has been sent to ' . $maskedEmail . '. Check your inbox (and spam folder). Valid for 15 minutes.',
+                'token' => $token,
+                'masked_email' => $maskedEmail,
+                'delivery' => 'email'
+            ]);
+        } else {
+            // Email failed — do NOT expose the token; user cannot proceed
+            echo json_encode([
+                'success' => false,
+                'error' => 'We could not send the reset email right now. Please try again later or contact support at info@hosu.or.ug.'
+            ]);
+        }
         break;
 
     // ── Password Reset: Verify token is still valid (for reset-password.html page) ──
