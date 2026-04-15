@@ -141,7 +141,13 @@
                 } else {
                     errEl.textContent = d.error || 'Invalid credentials.'; errEl.style.display = 'block';
                     btn.textContent = 'Sign In'; btn.disabled = false;
-                    if (d.locked && lockEl) {
+                    if (d.seed_cooldown && lockEl) {
+                        var mins = Math.ceil((d.retry_after || 7800) / 60);
+                        lockEl.innerHTML = '&#9200; Default admin credentials are temporarily inactive. A new admin was recently created.<br>Try again in <strong>' + mins + '</strong> minute(s), or log in with your own admin email.';
+                        lockEl.style.display = 'block';
+                        btn.disabled = true; btn.textContent = 'Unavailable';
+                        btn.style.background = '#94a3b8';
+                    } else if (d.locked && lockEl) {
                         var mins = Math.ceil((d.retry_after || 900) / 60);
                         lockEl.innerHTML = '&#128274; Account locked. Try again in <strong>' + mins + '</strong> minute(s).';
                         lockEl.style.display = 'block';

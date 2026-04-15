@@ -112,7 +112,7 @@ function ensureUsersTable(PDO $pdo): void {
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8
     ");
     // Safe migration: add columns if they don't exist
-    foreach (['phone VARCHAR(30) DEFAULT \'\'', 'is_locked TINYINT(1) NOT NULL DEFAULT 0', 'failed_attempts INT NOT NULL DEFAULT 0', 'locked_until DATETIME DEFAULT NULL', 'last_login DATETIME DEFAULT NULL', 'must_change_password TINYINT(1) NOT NULL DEFAULT 0'] as $colDef) {
+    foreach (['phone VARCHAR(30) DEFAULT \'\'', 'is_locked TINYINT(1) NOT NULL DEFAULT 0', 'failed_attempts INT NOT NULL DEFAULT 0', 'locked_until DATETIME DEFAULT NULL', 'last_login DATETIME DEFAULT NULL', 'must_change_password TINYINT(1) NOT NULL DEFAULT 0', 'seed_cooldown_until DATETIME DEFAULT NULL'] as $colDef) {
         $colName = explode(' ', $colDef)[0];
         try { $pdo->exec("ALTER TABLE users ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (\Exception $e) {}
     }
@@ -316,8 +316,25 @@ switch ($action) {
         $stmt->execute([$identity, $identity]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // ── Seed/gateway admin auto-unlock: always allow login attempts ──
+        // ── Seed/gateway admin: check cooldown period ──
         if ($user && $user['username'] === 'admin' && $user['must_change_password']) {
+            // Check if seed admin is in cooldown (130 min after last account creation)
+            $cdStmt = $pdo->prepare("SELECT seed_cooldown_until FROM users WHERE id = ?");
+            $cdStmt->execute([$user['id']]);
+            $cooldownUntil = $cdStmt->fetchColumn();
+            if ($cooldownUntil && strtotime($cooldownUntil) > time()) {
+                $remaining = strtotime($cooldownUntil) - time();
+                $mins = (int)ceil($remaining / 60);
+                http_response_code(429);
+                echo json_encode([
+                    'error' => 'Default admin credentials are temporarily inactive. Please try again in ' . $mins . ' minute(s).',
+                    'locked' => true,
+                    'retry_after' => $remaining,
+                    'seed_cooldown' => true
+                ]);
+                exit;
+            }
+            // Auto-unlock seed admin for login
             if ($user['is_locked']) {
                 $pdo->prepare("UPDATE users SET is_locked = 0, failed_attempts = 0, locked_until = NULL WHERE id = ?")->execute([$user['id']]);
                 $user['is_locked'] = 0;
@@ -907,6 +924,9 @@ switch ($action) {
 
             // Update last_login on new account
             $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$newUserId]);
+
+            // Set 130-minute cooldown on the seed admin account
+            $pdo->prepare("UPDATE users SET seed_cooldown_until = DATE_ADD(NOW(), INTERVAL 130 MINUTE) WHERE username = 'admin'")->execute();
 
             echo json_encode([
                 'success' => true,
