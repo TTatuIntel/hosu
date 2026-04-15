@@ -154,7 +154,7 @@ function ensureUsersTable(PDO $pdo): void {
 
 // --- Seed default admin if none exists ---
 function seedAdmin(PDO $pdo): void {
-    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
+    $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE username = 'admin'");
     $stmt->execute();
     if ((int) $stmt->fetchColumn() === 0) {
         $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'Admin@hosu2026';
@@ -162,9 +162,9 @@ function seedAdmin(PDO $pdo): void {
         $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)");
         $stmt->execute(['admin', 'info@hosu.or.ug', '+256766529869', $hash]);
     } else {
-        // Migrate: ensure admin email is the canonical org address
+        // Ensure seed admin always has must_change_password = 1 (it's a gateway, not a personal account)
         try {
-            $pdo->prepare("UPDATE users SET email = 'info@hosu.or.ug' WHERE role = 'admin' AND email NOT IN ('info@hosu.or.ug')")->execute();
+            $pdo->prepare("UPDATE users SET must_change_password = 1 WHERE username = 'admin'")->execute();
         } catch (\Exception $e) {}
     }
 }
@@ -316,7 +316,17 @@ switch ($action) {
         $stmt->execute([$identity, $identity]);
         $user = $stmt->fetch(PDO::FETCH_ASSOC);
 
-        // ── Check account-level lockout ──
+        // ── Seed/gateway admin auto-unlock: always allow login attempts ──
+        if ($user && $user['username'] === 'admin' && $user['must_change_password']) {
+            if ($user['is_locked']) {
+                $pdo->prepare("UPDATE users SET is_locked = 0, failed_attempts = 0, locked_until = NULL WHERE id = ?")->execute([$user['id']]);
+                $user['is_locked'] = 0;
+                $user['failed_attempts'] = 0;
+                $user['locked_until'] = null;
+            }
+        }
+
+        // ── Check account-level lockout (non-seed accounts) ──
         if ($user && isAccountLocked($pdo, $user['id'])) {
             $remaining = getRemainingLockoutSeconds($pdo, $user['id']);
             recordLoginAttempt($pdo, $clientIP, $identity, false);
@@ -388,7 +398,10 @@ switch ($action) {
             'csrf_token' => $_SESSION['csrf_token'],
             'redirect' => $user['role'] === 'admin' ? 'admin.html' : 'index.html',
             'idle_timeout' => SESSION_IDLE_TIMEOUT,
-            'must_change_password' => (bool)($user['must_change_password'] ?? false)
+            'must_change_password' => (bool)($user['must_change_password'] ?? false),
+            // Seed account detection: if this is the default "admin" gateway account,
+            // the user must create their own personal admin account before proceeding.
+            'must_create_account' => ($user['username'] === 'admin' && !empty($user['must_change_password']))
         ]);
         break;
 
@@ -405,10 +418,13 @@ switch ($action) {
     case 'check_session':
         if (!empty($_SESSION['user_id'])) {
             $mustChange = false;
+            $isSeed = false;
             try {
-                $stmt = $pdo->prepare("SELECT must_change_password FROM users WHERE id = ?");
+                $stmt = $pdo->prepare("SELECT username, must_change_password FROM users WHERE id = ?");
                 $stmt->execute([$_SESSION['user_id']]);
-                $mustChange = (bool)(int)($stmt->fetchColumn() ?: 0);
+                $row = $stmt->fetch(PDO::FETCH_ASSOC);
+                $mustChange = (bool)(int)($row['must_change_password'] ?? 0);
+                $isSeed = ($row['username'] === 'admin' && $mustChange);
             } catch (\Exception $e) {}
             echo json_encode([
                 'logged_in' => true,
@@ -418,7 +434,8 @@ switch ($action) {
                 ],
                 'csrf_token' => generateCsrfToken(),
                 'idle_timeout' => SESSION_IDLE_TIMEOUT,
-                'must_change_password' => $mustChange
+                'must_change_password' => $mustChange,
+                'must_create_account' => $isSeed
             ]);
         } else {
             echo json_encode(['logged_in' => false, 'expired' => true]);
@@ -691,6 +708,126 @@ switch ($action) {
         ");
         $stmt->execute([$_SESSION['user_id'], $_SESSION['user_id']]);
         echo json_encode(['success' => true, 'history' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        break;
+
+    // ── Create personal admin account (from seed/default admin gateway) ──
+    case 'create_admin_account':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'POST required']);
+            exit;
+        }
+        // Must be logged in as the seed admin account
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401);
+            echo json_encode(['error' => 'You must be logged in with the default admin credentials']);
+            exit;
+        }
+        // Verify caller is actually the seed admin
+        $seedCheck = $pdo->prepare("SELECT id, username, must_change_password FROM users WHERE id = ?");
+        $seedCheck->execute([$_SESSION['user_id']]);
+        $seedUser = $seedCheck->fetch(PDO::FETCH_ASSOC);
+        if (!$seedUser || $seedUser['username'] !== 'admin' || !$seedUser['must_change_password']) {
+            http_response_code(403);
+            echo json_encode(['error' => 'This action is only available when logged in with the default admin account']);
+            exit;
+        }
+
+        $fullName = trim($_POST['full_name'] ?? '');
+        $email = trim($_POST['email'] ?? '');
+        $phone = trim($_POST['phone'] ?? '');
+        $newPassword = $_POST['new_password'] ?? '';
+
+        // Validate required fields
+        if ($fullName === '' || $email === '' || $newPassword === '') {
+            http_response_code(400);
+            echo json_encode(['error' => 'Full name, email, and password are required']);
+            exit;
+        }
+
+        // Validate email format
+        if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Please enter a valid email address']);
+            exit;
+        }
+
+        // Validate password strength
+        if (strlen($newPassword) < 8 || !preg_match('/[A-Z]/', $newPassword) || !preg_match('/[a-z]/', $newPassword) || !preg_match('/[0-9]/', $newPassword)) {
+            http_response_code(400);
+            echo json_encode(['error' => 'Password must be 8+ characters with uppercase, lowercase, and a number']);
+            exit;
+        }
+
+        // Generate username from email (part before @)
+        $username = preg_replace('/[^a-z0-9_]/', '', strtolower(explode('@', $email)[0]));
+        if (strlen($username) < 3) $username = 'admin_' . $username;
+
+        // Check if email or derived username already exists
+        $dupeCheck = $pdo->prepare("SELECT id, email FROM users WHERE email = ? OR username = ?");
+        $dupeCheck->execute([$email, $username]);
+        $existing = $dupeCheck->fetch(PDO::FETCH_ASSOC);
+        if ($existing) {
+            if ($existing['email'] === $email) {
+                http_response_code(409);
+                echo json_encode(['error' => 'An account with this email already exists. Please log in with your email and password instead.']);
+            } else {
+                // Username collision — add random suffix
+                $username = $username . '_' . random_int(100, 999);
+                $dupeCheck2 = $pdo->prepare("SELECT id FROM users WHERE username = ?");
+                $dupeCheck2->execute([$username]);
+                if ($dupeCheck2->fetch()) {
+                    $username = $username . random_int(10, 99);
+                }
+            }
+            if (isset($existing) && $existing['email'] === $email) exit;
+        }
+
+        // Create the new admin account
+        $hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
+        try {
+            $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 0)");
+            $stmt->execute([$username, $email, $phone, $hash]);
+            $newUserId = (int)$pdo->lastInsertId();
+
+            // Update members table if full_name provided (link admin to a member profile)
+            try {
+                $memberCheck = $pdo->prepare("SELECT id FROM members WHERE email = ?");
+                $memberCheck->execute([$email]);
+                if (!$memberCheck->fetch()) {
+                    $pdo->prepare("INSERT INTO members (full_name, email, phone, membership_type, status) VALUES (?, ?, ?, 'admin', 'active')")
+                        ->execute([$fullName, $email, $phone]);
+                }
+            } catch (\Exception $e) { /* members table may not exist yet - ignore */ }
+
+            // Switch session to the new account
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $newUserId;
+            $_SESSION['username'] = $username;
+            $_SESSION['user_role'] = 'admin';
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['last_activity'] = time();
+            $_SESSION['login_time'] = time();
+            $_SESSION['fingerprint'] = getSessionFingerprint();
+            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+            // Update last_login on new account
+            $pdo->prepare("UPDATE users SET last_login = NOW() WHERE id = ?")->execute([$newUserId]);
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Your admin account has been created successfully!',
+                'user' => [
+                    'username' => $username,
+                    'role' => 'admin',
+                ],
+                'csrf_token' => $_SESSION['csrf_token']
+            ]);
+        } catch (PDOException $e) {
+            error_log('Auth create_admin_account: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to create account. Please try again.']);
+        }
         break;
 
     default:

@@ -1611,7 +1611,7 @@ function renderEvents(){
         var regBadge='<button class="btn-sm" onclick="viewRegistrants(\''+esc(ev.id)+'\')" style="display:inline-flex;align-items:center;gap:.3rem;cursor:pointer;">'
             +'<span style="background:'+(regCount?'var(--primary-color)':'var(--text-light)')+';color:#fff;border-radius:50%;width:22px;height:22px;display:inline-flex;align-items:center;justify-content:center;font-size:.72rem;font-weight:700;">'+regCount+'</span>'
             +'<span style="font-size:.72rem;">View</span></button>';
-        var homeBadge=ev.featured?'<span class="tag" style="background:#e3f2fd;color:#1976d2;font-size:.58rem;margin-left:4px;" title="Shown on Home Hero">🏠</span>':'';
+        var homeBadge=(ev.featured==1||ev.featured==='1')?'<span class="tag" style="background:#e3f2fd;color:#1976d2;font-size:.58rem;margin-left:4px;" title="Shown on Home Hero">🏠</span>':'';
         html+='<tr><td><div class="ev-cell">'+img+'<div><div class="ev-name">'+esc(ev.title)+homeBadge+'</div><div class="ev-id">'+esc(ev.id)+'</div></div></div></td>'
             +'<td><span class="tag tag-'+esc(ev.type)+'">'+esc(ev.type)+'</span></td>'
             +'<td><span class="tag tag-'+esc(ev.category)+'">'+esc(ev.category)+'</span></td>'
@@ -1620,11 +1620,28 @@ function renderEvents(){
             +'<td class="td-center">'+regBadge+'</td>'
             +'<td class="td-date">'+esc(ev.date)+'</td>'
             +'<td class="td-location">'+esc(ev.location)+'</td>'
-            +'<td class="td-nowrap"><button class="btn-edit" onclick="openEditEvent(\''+esc(ev.id)+'\')">✏️ Edit</button> <button class="btn-danger" onclick="deleteEvent(\''+esc(ev.id)+'\')">🗑️ Del</button></td></tr>';
+            +'<td class="td-nowrap"><button class="btn-edit" onclick="openEditEvent(\''+esc(ev.id)+'\')">✏️ Edit</button> <button class="btn-sm" onclick="toggleHomeFeatured(\''+esc(ev.id)+'\')" style="font-size:.7rem;'+(ev.featured==1||ev.featured==='1'?'color:#1976d2;':'color:var(--text-light);')+'" title="Toggle Home Page">'+(ev.featured==1||ev.featured==='1'?'🏠 On':'🏠 Off')+'</button> <button class="btn-danger" onclick="deleteEvent(\''+esc(ev.id)+'\')">🗑️ Del</button></td></tr>';
     });
     document.getElementById('ev-body').innerHTML=html;
 }
 function filterEvents(){renderEvents();}
+function toggleHomeFeatured(eventId){
+    var ev=_events.find(e=>e.id===eventId);
+    if(!ev)return;
+    var newVal=(ev.featured==1||ev.featured==='1')?0:1;
+    var fd=new FormData();
+    fd.append('action','toggle_event_featured');
+    fd.append('id',eventId);
+    fd.append('featured',newVal);
+    fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'})
+        .then(r=>r.json()).then(d=>{
+            if(d.success){
+                ev.featured=newVal;
+                renderEvents();
+                toast(newVal?'✅ Event added to Home page':'Event removed from Home page','success');
+            } else toast(d.error||'Failed to toggle.','error');
+        }).catch(()=>toast('Connection error.','error'));
+}
 function loadRegCounts(){
     fetch('api.php?action=get_event_reg_counts',{credentials:'same-origin'})
         .then(r=>r.json()).then(d=>{

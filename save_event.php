@@ -95,6 +95,13 @@ try {
     $isFree = !empty($_POST['is_free']) ? 1 : 0;
     $eventFee = $isFree ? 0 : max(0, (float)($_POST['event_fee'] ?? 0));
 
+    // Check for duplicate event ID
+    $checkStmt = $pdo->prepare("SELECT COUNT(*) FROM events WHERE id = ?");
+    $checkStmt->execute([$_POST['id']]);
+    if ($checkStmt->fetchColumn() > 0) {
+        throw new Exception('An event with this ID already exists. Please change the title to generate a unique ID.');
+    }
+
     $stmt = $pdo->prepare("INSERT INTO events (id, type, status, image, imageAlt, countdown, date, date_start, date_end, title, description, location, featured, category, is_free, event_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
     
     $success = $stmt->execute([
@@ -110,7 +117,7 @@ try {
         $_POST['title'],
         $_POST['description'],
         $_POST['location'],
-        isset($_POST['featured']) ? 1 : 0,
+        (!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0,
         $category,
         $isFree,
         $eventFee

@@ -2173,11 +2173,62 @@ HTML;
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
+    // ── Toggle Event Featured (Show on Home) ────────────────────────
+    case 'toggle_event_featured':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = $_POST['id'] ?? '';
+            $featured = (!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0;
+            if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
+            $stmt = $pdo->prepare("UPDATE events SET featured = ? WHERE id = ?");
+            $stmt->execute([$featured, $id]);
+            if ($stmt->rowCount() === 0) { echo json_encode(['success' => false, 'error' => 'Event not found']); break; }
+            echo json_encode(['success' => true, 'featured' => $featured]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
     // ── Home Featured Content ─────────────────────────────────────────
     case 'get_home_featured':
         try {
-            // Get featured events (using existing featured flag)
-            $evStmt = $pdo->query("SELECT id, title, description, date, date_start, date_end, location, image, type, countdown FROM events WHERE featured = 1 ORDER BY date_start ASC LIMIT 3");
+            // Auto-expire past events before fetching featured content
+            $pdo->exec("
+                UPDATE events
+                SET status   = 'past',
+                    category = 'past'
+                WHERE status != 'past'
+                  AND (
+                      (date_end   IS NOT NULL AND date_end   < CURDATE())
+                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE())
+                  )
+            ");
+
+            // Auto-unfeatured events that ended more than 2 days ago
+            $pdo->exec("
+                UPDATE events
+                SET featured = 0
+                WHERE featured = 1
+                  AND status = 'past'
+                  AND (
+                      (date_end   IS NOT NULL AND date_end   < CURDATE() - INTERVAL 2 DAY)
+                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE() - INTERVAL 2 DAY)
+                  )
+            ");
+
+            // Get featured events: show non-past + events that ended within last 2 days (grace period)
+            $evStmt = $pdo->query("
+                SELECT id, title, description, date, date_start, date_end, location, image, type, countdown
+                FROM events
+                WHERE featured = 1
+                  AND (
+                      status != 'past'
+                   OR (date_end   IS NOT NULL AND date_end   >= CURDATE() - INTERVAL 2 DAY)
+                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start >= CURDATE() - INTERVAL 2 DAY)
+                  )
+                ORDER BY date_start ASC
+                LIMIT 3
+            ");
             $events = $evStmt->fetchAll(PDO::FETCH_ASSOC);
             foreach ($events as &$ev) {
                 $ev['image'] = str_replace('\\', '/', $ev['image']);

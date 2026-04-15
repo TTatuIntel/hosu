@@ -126,13 +126,20 @@
                     renderLoginPopup(popup);
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
-                    // Prompt password change if required
-                    if (d.must_change_password) {
+                    // Seed admin detected: must create personal account
+                    if (d.must_create_account) {
+                        window._hosuMustCreateAccount = true;
+                        setTimeout(function () {
+                            if (typeof window.showCreateAdminAccount === 'function') {
+                                window.showCreateAdminAccount();
+                            }
+                        }, 300);
+                    }
+                    // Prompt password change if required (non-seed accounts)
+                    else if (d.must_change_password) {
                         window._hosuMustChangePassword = true;
                         if (typeof window.showForcePasswordChange === 'function') {
                             window.showForcePasswordChange();
-                        } else {
-                            alert('You must change your default password before continuing.');
                         }
                     }
                 } else {
@@ -384,6 +391,123 @@
             });
     };
 
+    /* ── Create Admin Account (seed/default admin gateway) ── */
+    window.showCreateAdminAccount = function () {
+        if (document.getElementById('create-admin-overlay')) return;
+        var overlay = document.createElement('div');
+        overlay.id = 'create-admin-overlay';
+        overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.75);z-index:9999;display:flex;align-items:center;justify-content:center;padding:1rem;';
+        overlay.innerHTML = '<div style="background:#fff;border-radius:14px;padding:2rem;max-width:440px;width:100%;box-shadow:0 8px 32px rgba(0,0,0,0.3);max-height:90vh;overflow-y:auto;">'
+            + '<div style="text-align:center;margin-bottom:1rem;">'
+            + '<div style="font-size:2rem;margin-bottom:0.3rem;">🔐</div>'
+            + '<h3 style="margin:0 0 0.3rem;color:#0d4593;font-size:1.1rem;">Create Your Admin Account</h3>'
+            + '<p style="font-size:0.8rem;color:#555;margin:0;">You logged in with the default credentials. Please create your own personal admin account to continue.</p>'
+            + '</div>'
+            + '<div id="caa-err" style="display:none;color:#e63946;font-size:0.8rem;margin-bottom:0.6rem;background:rgba(230,57,70,0.07);padding:0.45rem 0.6rem;border-radius:6px;"></div>'
+            + '<div id="caa-success" style="display:none;color:#166534;font-size:0.8rem;margin-bottom:0.6rem;background:#f0fdf4;padding:0.45rem 0.6rem;border-radius:6px;"></div>'
+            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Full Name <span style="color:#e63946;">*</span></label>'
+            + '<input type="text" id="caa-name" placeholder="e.g. Dr. Jane Onyango" autocomplete="name" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
+            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Email Address <span style="color:#e63946;">*</span></label>'
+            + '<input type="email" id="caa-email" placeholder="your.email@gmail.com" autocomplete="email" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
+            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Phone Number</label>'
+            + '<input type="tel" id="caa-phone" placeholder="+256 7XX XXX XXX" autocomplete="tel" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
+            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Create Password <span style="color:#e63946;">*</span></label>'
+            + '<input type="password" id="caa-pass" placeholder="Min 8 chars, upper+lower+number" autocomplete="new-password" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.5rem;font-family:inherit;">'
+            + '<label style="font-size:0.78rem;font-weight:600;display:block;margin-bottom:0.15rem;">Confirm Password <span style="color:#e63946;">*</span></label>'
+            + '<input type="password" id="caa-pass2" placeholder="Re-enter your password" autocomplete="new-password" style="width:100%;padding:0.45rem 0.6rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.85rem;margin-bottom:0.8rem;font-family:inherit;">'
+            + '<button id="caa-submit" onclick="submitCreateAdminAccount()" style="width:100%;padding:0.6rem;background:#0d4593;color:#fff;border:none;border-radius:8px;font-weight:700;cursor:pointer;font-family:inherit;font-size:0.9rem;">Create My Account</button>'
+            + '<p style="font-size:0.7rem;color:#9ca3af;margin:0.6rem 0 0;text-align:center;">After creating your account, you will log in with your email and password. The default admin credentials can still be used to create new admin accounts.</p>'
+            + '</div>';
+        document.body.appendChild(overlay);
+
+        // Enter key navigation
+        setTimeout(function () {
+            var nameEl = document.getElementById('caa-name');
+            var emailEl = document.getElementById('caa-email');
+            var phoneEl = document.getElementById('caa-phone');
+            var passEl = document.getElementById('caa-pass');
+            var pass2El = document.getElementById('caa-pass2');
+            if (nameEl) nameEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && emailEl) emailEl.focus(); });
+            if (emailEl) emailEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && phoneEl) phoneEl.focus(); });
+            if (phoneEl) phoneEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && passEl) passEl.focus(); });
+            if (passEl) passEl.addEventListener('keydown', function (ev) { if (ev.key === 'Enter' && pass2El) pass2El.focus(); });
+            if (pass2El) pass2El.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') submitCreateAdminAccount(); });
+            if (nameEl) nameEl.focus();
+        }, 100);
+    };
+
+    window.submitCreateAdminAccount = function () {
+        var name = document.getElementById('caa-name').value.trim();
+        var email = document.getElementById('caa-email').value.trim();
+        var phone = document.getElementById('caa-phone').value.trim();
+        var pass = document.getElementById('caa-pass').value;
+        var pass2 = document.getElementById('caa-pass2').value;
+        var err = document.getElementById('caa-err');
+        var suc = document.getElementById('caa-success');
+        var btn = document.getElementById('caa-submit');
+        err.style.display = 'none';
+        suc.style.display = 'none';
+
+        if (!name) { err.textContent = 'Please enter your full name.'; err.style.display = 'block'; return; }
+        if (!email) { err.textContent = 'Please enter your email address.'; err.style.display = 'block'; return; }
+        if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) { err.textContent = 'Please enter a valid email address.'; err.style.display = 'block'; return; }
+        if (!pass) { err.textContent = 'Please create a password.'; err.style.display = 'block'; return; }
+        if (pass !== pass2) { err.textContent = 'Passwords do not match.'; err.style.display = 'block'; return; }
+        if (pass.length < 8 || !/[A-Z]/.test(pass) || !/[a-z]/.test(pass) || !/[0-9]/.test(pass)) {
+            err.textContent = 'Password must be 8+ characters with at least one uppercase, lowercase, and number.';
+            err.style.display = 'block'; return;
+        }
+
+        btn.disabled = true; btn.textContent = 'Creating Account\u2026';
+
+        var fd = new FormData();
+        fd.append('action', 'create_admin_account');
+        fd.append('full_name', name);
+        fd.append('email', email);
+        fd.append('phone', phone);
+        fd.append('new_password', pass);
+        if (window._hosuCsrfToken) fd.append('csrf_token', window._hosuCsrfToken);
+
+        fetch('auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.success) {
+                    window._hosuMustCreateAccount = false;
+                    window._hosuMustChangePassword = false;
+                    _storeCsrf(d);
+                    _loginState = { loggedIn: true, user: d.user };
+                    _syncGlobalState();
+
+                    // Update login trigger text
+                    var trigger = document.querySelector('.login-trigger');
+                    if (trigger) trigger.textContent = d.user.username;
+
+                    suc.innerHTML = '\u2713 Account created! Welcome, <strong>' + escHtml(name.split(' ')[0]) + '</strong>. You can now log in with your email: <strong>' + escHtml(email) + '</strong>';
+                    suc.style.display = 'block';
+                    err.style.display = 'none';
+                    btn.textContent = '\u2713 Account Created';
+                    btn.style.background = '#166534';
+
+                    // Remove overlay after brief delay
+                    setTimeout(function () {
+                        var ov = document.getElementById('create-admin-overlay');
+                        if (ov) ov.remove();
+                        // Render updated login popup
+                        var popup = document.getElementById('loginPopup');
+                        if (popup) renderLoginPopup(popup);
+                    }, 3000);
+                } else {
+                    btn.disabled = false; btn.textContent = 'Create My Account';
+                    err.textContent = d.error || 'Failed to create account.';
+                    err.style.display = 'block';
+                }
+            }).catch(function () {
+                btn.disabled = false; btn.textContent = 'Create My Account';
+                err.textContent = 'Network error. Please try again.';
+                err.style.display = 'block';
+            });
+    };
+
     /* ── Close on outside click ──────────────────────────── */
     document.addEventListener('click', function (e) {
         var popup = document.getElementById('loginPopup');
@@ -403,8 +527,15 @@
                     _storeCsrf(d);
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
-                    // Prompt password change if still using default
-                    if (d.must_change_password) {
+                    // Prompt account creation or password change on page load
+                    if (d.must_create_account) {
+                        window._hosuMustCreateAccount = true;
+                        setTimeout(function () {
+                            if (typeof window.showCreateAdminAccount === 'function') {
+                                window.showCreateAdminAccount();
+                            }
+                        }, 500);
+                    } else if (d.must_change_password) {
                         window._hosuMustChangePassword = true;
                         setTimeout(function () {
                             if (typeof window.showForcePasswordChange === 'function') {
