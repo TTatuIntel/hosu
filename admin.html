@@ -164,8 +164,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .tog input:checked+.tog-slider::before{transform:translateX(17px);}
 .tog-lbl{font-size:.82rem;font-weight:500;}
 /* Progress */
-.prog-wrap{height:3px;background:var(--border);border-radius:2px;margin-bottom:1rem;}
-.prog-wrap-sm{margin-bottom:.65rem;}
+.prog-wrap{height:3px;background:var(--border);border-radius:2px;margin-bottom:.65rem;}
+.prog-wrap-sm{margin-bottom:.4rem;}
 .prog-fill{height:100%;background:var(--secondary);width:0;border-radius:2px;transition:width .3s;}
 /* Modal */
 .modal-backdrop{display:none;position:fixed;inset:0;background:rgba(18,41,74,.35);z-index:8000;align-items:center;justify-content:center;padding:1rem;}
@@ -176,12 +176,12 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .modal-hd h3{font-size:.82rem;font-weight:700;color:var(--text);}
 .modal-close{width:26px;height:26px;display:flex;align-items:center;justify-content:center;background:rgba(0,0,0,.05);border:none;border-radius:50%;font-size:.9rem;cursor:pointer;color:var(--text-light);}
 .modal-close:hover{background:var(--primary);color:#fff;}
-.modal-body{padding:.6rem .8rem;}
+.modal-body{padding:.5rem .8rem;}
 /* Add-event form sections */
-.aef-sec{padding-bottom:.4rem;margin-bottom:.4rem;border-bottom:1px solid var(--border);}
+.aef-sec{padding-bottom:.3rem;margin-bottom:.3rem;border-bottom:1px solid var(--border);}
 .aef-sec:last-of-type{border-bottom:none;padding-bottom:0;margin-bottom:0;}
-.aef-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-light);margin-bottom:.25rem;display:flex;align-items:center;gap:.25rem;}
-.aef-grid{display:grid;grid-template-columns:1fr 1fr;gap:.3rem .5rem;}
+.aef-lbl{font-size:.7rem;font-weight:700;text-transform:uppercase;letter-spacing:.7px;color:var(--text-light);margin-bottom:.2rem;display:flex;align-items:center;gap:.25rem;}
+.aef-grid{display:grid;grid-template-columns:1fr 1fr;gap:.25rem .5rem;}
 .aef-grid .c2{grid-column:1/-1;}
 .aef-grid .c3{grid-column:1/-1;}
 .aef-upload-row{display:grid;grid-template-columns:1fr 180px;gap:.35rem;align-items:start;}
@@ -227,6 +227,10 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 #ev-fee-section{display:none;}
 .pricing-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
 .fee-hint{margin-top:.15rem;font-size:.68rem;}
+.featured-hint{display:block;margin-top:.15rem;}
+.desc-field{margin-top:.3rem;}
+.fee-field{margin-top:.2rem;}
+.aef-sec-last{border-bottom:none;padding-bottom:0;margin-bottom:0;}
 .modal-footer-bar{display:flex;align-items:center;justify-content:space-between;flex-wrap:wrap;gap:.35rem;padding-top:.35rem;}
 .btn-row{display:flex;gap:.45rem;align-items:center;flex-wrap:wrap;}
 .reg-stats-row{display:flex;gap:.8rem;flex-wrap:wrap;margin-bottom:.8rem;}
@@ -909,27 +913,35 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="ff"><label>End Date <small class="ev-date-opt">(optional)</small></label><input type="text" id="ev-date-end" placeholder="Select end date" readonly oninput="buildDate()"></div>
                     <div class="ff"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="📍 e.g. Serena Hotel, Kampala"></div>
                     <div class="ff"><label>Formatted Date</label><input type="text" id="ev-date" placeholder="Auto-filled" readonly><small>Generated from pickers</small></div>
-                    <div class="ff c2"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
                 </div>
+                <div class="ff desc-field"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
             </div>
 
-            <!-- 4 — Pricing -->
-            <div class="aef-sec">
-                <div class="aef-lbl">💰 Pricing</div>
-                <div class="pricing-row">
-                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-is-free" checked onchange="toggleFee()"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">🆓 Free Event</span></div>
-                </div>
-                <div id="ev-fee-section">
-                    <div class="aef-grid">
-                        <div class="ff"><label>Registration Fee (UGX) <span>*</span></label><input type="number" id="ev-fee" min="0" step="1000" placeholder="e.g. 50000"></div>
-                        <div class="ff"><label>&nbsp;</label><small class="fee-hint">Shown to attendees. Payment methods appear automatically.</small></div>
+            <!-- 4 — Pricing & Visibility -->
+            <div class="aef-sec aef-sec-last">
+                <div class="aef-grid">
+                    <div>
+                        <div class="aef-lbl">💰 Pricing</div>
+                        <div class="pricing-row">
+                            <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-is-free" checked onchange="toggleFee()"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">🆓 Free Event</span></div>
+                        </div>
+                        <div id="ev-fee-section">
+                            <div class="ff fee-field"><label>Registration Fee (UGX) <span>*</span></label><input type="number" id="ev-fee" min="0" step="1000" placeholder="e.g. 50000"><small class="fee-hint">Shown to attendees. Payment methods appear automatically.</small></div>
+                        </div>
+                    </div>
+                    <div>
+                        <div class="aef-lbl">🏠 Home Page</div>
+                        <div class="pricing-row">
+                            <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-featured" onchange="updateFeaturedLabel()"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm" id="ev-featured-label">🏠 Show on Home</span></div>
+                        </div>
+                        <small id="ev-featured-hint" class="fee-hint featured-hint">Event will appear in hero slider on the home page when enabled.</small>
                     </div>
                 </div>
             </div>
 
-            <!-- 5 — Footer: show on home toggle + actions -->
+            <!-- 5 — Footer actions -->
             <div class="modal-footer-bar">
-                <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-featured"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-xs">🏠 Show on Home</span></div>
+                <div></div>
                 <div class="btn-row">
                     <button class="btn-primary" id="ev-save-btn" onclick="saveEvent()">💾 Save Event</button>
                     <button class="btn-sm" onclick="closeModal('event-modal')">✕ Cancel</button>
@@ -1758,6 +1770,16 @@ function toggleFee(){
     updateProg();
 }
 
+function updateFeaturedLabel(){
+    var isOn=document.getElementById('ev-featured').checked;
+    var lbl=document.getElementById('ev-featured-label');
+    var hint=document.getElementById('ev-featured-hint');
+    if(lbl) lbl.textContent=isOn?'🏠 Shown on Home':'🏠 Show on Home';
+    if(lbl) lbl.style.color=isOn?'#1976d2':'';
+    if(lbl) lbl.style.fontWeight=isOn?'700':'500';
+    if(hint) hint.textContent=isOn?'This event is visible in the hero slider on the home page.':'Event will appear in hero slider on the home page when enabled.';
+}
+
 function autoSlug(){
     if(_editingEvId)return; // Don't change slug during edits
     var slug=document.getElementById('ev-title').value.toLowerCase().trim().replace(/[^a-z0-9\s-]/g,'').replace(/\s+/g,'-').replace(/-+/g,'-').substring(0,80);
@@ -1841,7 +1863,7 @@ function openEditEvent(id){
     resetEvForm();
     _editingEvId=id;
     document.getElementById('ev-form-title').textContent='✏️ Edit Event';
-    document.getElementById('ev-save-btn').textContent='?? Save Changes';
+    document.getElementById('ev-save-btn').textContent='💾 Save Changes';
     document.getElementById('ev-edit-id').value=id;
     document.getElementById('ev-slug').value=id;
     document.getElementById('ev-slug').readOnly=true;
@@ -1857,6 +1879,7 @@ function openEditEvent(id){
     // Featured flag - handle string "0"/"1" or boolean
     var isFeatured = ev.featured === true || ev.featured === 1 || ev.featured === '1';
     document.getElementById('ev-featured').checked=isFeatured;
+    updateFeaturedLabel();
     // Image — show URL for edit, admin can replace
     if(ev.image){document.getElementById('ev-img-url').value=ev.image;_hasEvImg=false;}
     // Pricing - handle string "0"/"1" or boolean
@@ -1882,6 +1905,7 @@ function resetEvForm(){
         if(el)(el.tagName==='SELECT'?el.selectedIndex=0:el.value='');
     });
     document.getElementById('ev-featured').checked=false;
+    updateFeaturedLabel();
     document.getElementById('ev-is-free').checked=true;
     document.getElementById('ev-fee-section').style.display='none';
     document.getElementById('ev-cat').value='';
@@ -1948,17 +1972,27 @@ function saveEvent(){
     if(isEdit){
         fd.append('action','update_event');
         fd.append('id',_editingEvId);
+        var isFeaturedNow=document.getElementById('ev-featured').checked;
         fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'})
             .then(r=>r.json()).then(d=>{
-                if(d.success){toast('✅ Event updated!','success');closeModal('event-modal');resetEvForm();loadEvents();}
+                if(d.success){
+                    var msg='✅ Event updated!';
+                    if(isFeaturedNow) msg+=' 🏠 Shown on Home.';
+                    toast(msg,'success');closeModal('event-modal');resetEvForm();loadEvents();
+                }
                 else toast(d.error||'Failed.','error');
             }).catch(()=>toast('Connection error.','error'))
             .finally(()=>{btn.disabled=false;btn.textContent='💾 Save Changes';});
     } else {
         fd.append('id',slug);
+        var isFeaturedNew=document.getElementById('ev-featured').checked;
         fetch('save_event.php',{method:'POST',body:fd,credentials:'same-origin'})
             .then(r=>r.json()).then(d=>{
-                if(d.success){toast('✅ Event saved!','success');closeModal('event-modal');resetEvForm();loadEvents();}
+                if(d.success){
+                    var msg='✅ Event saved!';
+                    if(isFeaturedNew) msg+=' 🏠 Shown on Home.';
+                    toast(msg,'success');closeModal('event-modal');resetEvForm();loadEvents();
+                }
                 else toast(d.error||'Failed to save.','error');
             }).catch(()=>toast('Connection error.','error'))
             .finally(()=>{btn.disabled=false;btn.textContent='💾 Save Event';});
@@ -2459,7 +2493,7 @@ function openEditPub(id){
     if(!p){toast('Publication not found.','error');return;}
     document.getElementById('pub-edit-id').value=p.id;
     document.getElementById('pub-form-title').textContent='✏️ Edit Publication';
-    document.getElementById('pub-save-btn').textContent='?? Save Changes';
+    document.getElementById('pub-save-btn').textContent='💾 Save Changes';
     document.getElementById('pub-type').value=p.pub_type||'Journal';
     document.getElementById('pub-title').value=p.title||'';
     document.getElementById('pub-authors').value=p.authors||'';
@@ -2529,7 +2563,7 @@ function openEditGrant(id){
     if(!g){toast('Grant not found.','error');return;}
     document.getElementById('grant-edit-id').value=g.id;
     document.getElementById('grant-form-title').textContent='✏️ Edit Grant';
-    document.getElementById('grant-save-btn').textContent='?? Save Changes';
+    document.getElementById('grant-save-btn').textContent='💾 Save Changes';
     document.getElementById('grant-title').value=g.title||'';
     document.getElementById('grant-amount').value=g.amount||'';
     document.getElementById('grant-currency').value=g.currency||'UGX';
