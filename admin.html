@@ -1225,7 +1225,14 @@ function showDashboard(user){
     fetch('auth.php?action=check_session',{credentials:'same-origin'})
         .then(r=>r.json()).then(d=>{
             if(d.csrf_token) window._hosuCsrfToken=d.csrf_token;
-            if(d.must_change_password){
+            // Seed admin must create a personal account — never show password change
+            if(d.must_create_account){
+                window._hosuMustCreateAccount = true;
+                if(typeof window.showCreateAdminAccount === 'function'){
+                    window.showCreateAdminAccount();
+                }
+            }
+            else if(d.must_change_password){
                 window._hosuMustChangePassword = true;
                 showForcePasswordChange();
             }
@@ -1234,6 +1241,13 @@ function showDashboard(user){
 
 /* -- Force Password Change Modal -- */
 window.showForcePasswordChange = function(){
+    // Guard: never show for seed admin — they must create their own account
+    if(user && user.username === 'admin'){
+        if(typeof window.showCreateAdminAccount === 'function'){
+            window.showCreateAdminAccount();
+        }
+        return;
+    }
     var overlay = document.createElement('div');
     overlay.id = 'force-pw-overlay';
     overlay.style.cssText = 'position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;align-items:center;justify-content:center;';

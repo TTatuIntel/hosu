@@ -522,6 +522,15 @@ switch ($action) {
             exit;
         }
 
+        // ── Block password reset for the seed/default admin account ──
+        if ($user['username'] === 'admin') {
+            echo json_encode([
+                'success' => false,
+                'error' => 'The default admin password cannot be reset. Please log in with the admin credentials and create your own personal admin account, or contact the developer.'
+            ]);
+            exit;
+        }
+
         // User found but no email on file — can't send reset
         if (empty($user['email'])) {
             echo json_encode([
@@ -699,6 +708,13 @@ switch ($action) {
             exit;
         }
 
+        // ── Block password reset for the seed/default admin account ──
+        if ($reset['username'] === 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'The default admin password cannot be reset through this form. Contact the developer.']);
+            exit;
+        }
+
         // Update password and clear must_change_password flag
         $hash = password_hash($newPassword, PASSWORD_BCRYPT, ['cost' => 12]);
         $pdo->prepare("UPDATE users SET password = ?, must_change_password = 0, failed_attempts = 0, is_locked = 0, locked_until = NULL WHERE id = ?")->execute([$hash, $reset['uid']]);
@@ -727,6 +743,18 @@ switch ($action) {
             echo json_encode(['error' => 'POST required']);
             exit;
         }
+
+        // ── Block password change for the seed/default admin account ──
+        // Only the developer can change this password directly in the database.
+        $seedGuard = $pdo->prepare("SELECT username FROM users WHERE id = ?");
+        $seedGuard->execute([$_SESSION['user_id']]);
+        $seedGuardRow = $seedGuard->fetch(PDO::FETCH_ASSOC);
+        if ($seedGuardRow && $seedGuardRow['username'] === 'admin') {
+            http_response_code(403);
+            echo json_encode(['error' => 'The default admin password cannot be changed here. Please create your own admin account instead, or contact the developer to change it directly in the database.']);
+            exit;
+        }
+
         $current = $_POST['current_password'] ?? '';
         $newPass = $_POST['new_password'] ?? '';
         $csrf = $_POST['csrf_token'] ?? '';

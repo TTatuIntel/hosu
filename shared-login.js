@@ -130,16 +130,18 @@
                     var trigger = document.querySelector('.login-trigger');
                     if (trigger) trigger.textContent = d.user.username;
                     // Seed admin detected: must create personal account
+                    // IMPORTANT: seed admin must ONLY see "Create Account" — never "Change Password"
                     if (d.must_create_account) {
                         window._hosuMustCreateAccount = true;
+                        window._hosuMustChangePassword = false; // never trigger pwd change for seed admin
                         setTimeout(function () {
                             if (typeof window.showCreateAdminAccount === 'function') {
                                 window.showCreateAdminAccount();
                             }
                         }, 300);
                     }
-                    // Prompt password change if required (non-seed accounts)
-                    else if (d.must_change_password) {
+                    // Prompt password change if required (non-seed accounts only)
+                    else if (d.must_change_password && !d.must_create_account) {
                         window._hosuMustChangePassword = true;
                         if (typeof window.showForcePasswordChange === 'function') {
                             window.showForcePasswordChange();
@@ -325,7 +327,16 @@
     };
 
     /* ── Force Password Change (works on all pages) ── */
+    /* NOTE: This must NEVER be shown for the seed admin (username='admin').
+       The seed admin should only see the "Create Admin Account" form. */
     window.showForcePasswordChange = window.showForcePasswordChange || function () {
+        // Guard: never prompt password change for the seed admin account
+        if (window._hosuUser && window._hosuUser.username === 'admin') {
+            if (typeof window.showCreateAdminAccount === 'function') {
+                window.showCreateAdminAccount();
+            }
+            return;
+        }
         if (document.getElementById('force-pw-overlay')) return;
         var overlay = document.createElement('div');
         overlay.id = 'force-pw-overlay';
