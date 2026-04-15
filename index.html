@@ -246,7 +246,7 @@ section {
 
 .hero-container {
     display: flex;
-    flex-direction: row;
+    flex-direction: row-reverse;
     max-width: var(--section-max-width);
     width: var(--section-width);
     margin: 0 auto;
@@ -791,6 +791,45 @@ section {
     background: var(--primary-dark);
     transform: translateY(-2px);
     box-shadow: var(--shadow-md);
+}
+
+.hero-slide .featured-cta .btn-outline {
+    background: rgba(255,255,255,0.9);
+    color: var(--secondary-color);
+    border: 1.5px solid var(--secondary-color);
+    -webkit-backdrop-filter: blur(4px);
+    backdrop-filter: blur(4px);
+}
+
+.hero-slide .featured-cta .btn-outline:hover {
+    background: var(--secondary-color);
+    color: #fff;
+}
+
+.hero-slide .featured-cta .btn-register {
+    background: #28a745;
+}
+
+.hero-slide .featured-cta .btn-register:hover {
+    background: #218838;
+}
+
+.hero-slide .featured-fee-pill {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    background: rgba(40,167,69,0.12);
+    color: #218838;
+    font-size: 0.72rem;
+    font-weight: 700;
+    padding: 0.3rem 0.6rem;
+    border-radius: 16px;
+    border: 1px solid rgba(40,167,69,0.2);
+}
+
+.hero-slide .featured-fee-pill.free {
+    background: rgba(40,167,69,0.12);
+    color: #218838;
 }
 
 .hero-slide .featured-amount {
@@ -4615,6 +4654,28 @@ document.addEventListener('DOMContentLoaded', function() {
         var typeLabel = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : 'Event';
         var countdownBadge = ev.countdown ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
 
+        // Determine free/paid status
+        var isFree = ev.is_free === undefined ? true : !!parseInt(ev.is_free);
+        var fee = parseFloat(ev.event_fee) || 0;
+        var isPast = ev.status === 'past';
+
+        // Fee pill
+        var feePill = '';
+        if (!isPast) {
+            feePill = (isFree || fee <= 0)
+                ? '<span class="featured-fee-pill free">🎉 FREE</span>'
+                : '<span class="featured-fee-pill">💰 UGX ' + fee.toLocaleString() + '</span>';
+        }
+
+        // CTA buttons: Register (goes to events.html with reg=1 to auto-open registration) + Read More (auto-open popup)
+        var ctaButtons = '';
+        if (!isPast) {
+            ctaButtons = '<a href="events.html#evt-' + escHtml(ev.id) + '&reg=1" class="btn btn-register">📝 Register Now</a>' +
+                         '<a href="events.html#evt-' + escHtml(ev.id) + '" class="btn btn-outline">📖 Read More</a>';
+        } else {
+            ctaButtons = '<a href="events.html#evt-' + escHtml(ev.id) + '" class="btn btn-outline">📖 Read More</a>';
+        }
+
         return '<div class="hero-slide featured-hero-slide" data-type="event">' +
             '<span class="featured-label featured-label--event"><span class="featured-label-icon">📅</span> Featured Event</span>' +
             '<h1>' + escHtml(ev.title) + '</h1>' +
@@ -4622,10 +4683,11 @@ document.addEventListener('DOMContentLoaded', function() {
                 (dateDisplay ? '<span class="featured-meta-item">🗓 ' + escHtml(dateDisplay) + '</span>' : '') +
                 (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
                 '<span class="featured-meta-item">🎪 ' + escHtml(typeLabel) + '</span>' +
+                feePill +
             '</div>' +
             '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
             '<div class="featured-cta">' +
-                '<a href="events.html#' + escHtml(ev.id) + '" class="btn btn-primary">View Event Details</a>' +
+                ctaButtons +
                 countdownBadge +
             '</div>' +
         '</div>';

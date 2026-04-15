@@ -2218,7 +2218,7 @@ HTML;
 
             // Get featured events: show non-past + events that ended within last 2 days (grace period)
             $evStmt = $pdo->query("
-                SELECT id, title, description, date, date_start, date_end, location, image, type, countdown
+                SELECT id, title, description, date, date_start, date_end, location, image, type, countdown, is_free, event_fee, status
                 FROM events
                 WHERE featured = 1
                   AND (

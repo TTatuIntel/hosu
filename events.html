@@ -1882,6 +1882,40 @@ footer {
             });
     });
 
+    // Deep-link from home page: #evt-{id} opens popup, #evt-{id}&reg=1 opens registration
+    function handleHashNavigation() {
+        var hash = window.location.hash;
+        if (!hash || !hash.startsWith('#evt-')) return;
+
+        var raw = hash.substring(5); // strip '#evt-'
+        var openReg = false;
+        if (raw.indexOf('&reg=1') !== -1) {
+            openReg = true;
+            raw = raw.replace('&reg=1', '');
+        }
+        var eventId = raw;
+        if (!eventId) return;
+
+        var ev = findEventById(eventId);
+        if (!ev) return;
+
+        // Navigate calendar to event
+        navigateCalendarToEvent(ev);
+
+        // Small delay so DOM is ready after initPage renders
+        setTimeout(function() {
+            if (openReg && ev.status !== 'past') {
+                openRegModal(eventId);
+            } else {
+                openEventDetail(eventId);
+            }
+            // Clean hash without triggering navigation
+            if (history.replaceState) {
+                history.replaceState(null, '', window.location.pathname + window.location.search);
+            }
+        }, 300);
+    }
+
     function initPage() {
         buildEventDatesMap();
 
@@ -1908,6 +1942,10 @@ footer {
         buildHeroSlides();
         updateCountdown();
         countdownInterval = setInterval(updateCountdown, 1000);
+
+        // Handle hash-based deep linking from home page featured slides
+        // Format: #evt-{eventId} = open popup, #evt-{eventId}&reg=1 = open registration
+        handleHashNavigation();
 
         // Filter events
         document.getElementById('filter-category').addEventListener('change', function() {
