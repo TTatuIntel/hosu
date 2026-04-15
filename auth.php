@@ -75,7 +75,7 @@ function validateFingerprint(): bool {
 // Run expiry + fingerprint check on every request
 if (!checkSessionExpiry() || !validateFingerprint()) {
     $action = $_POST['action'] ?? $_GET['action'] ?? '';
-    if ($action !== 'login' && $action !== 'setup' && $action !== 'request_reset' && $action !== 'reset_password') {
+    if ($action !== 'login' && $action !== 'setup' && $action !== 'request_reset' && $action !== 'reset_password' && $action !== 'verify_reset_token') {
         http_response_code(401);
         echo json_encode(['error' => 'Session expired', 'expired' => true]);
         exit;
@@ -544,32 +544,93 @@ switch ($action) {
             $maskedPhone = substr($user['phone'], 0, 4) . '****' . substr($user['phone'], -3);
         }
 
-        // Always send reset code to the shared org inbox for security
-        $resetRecipient = 'info@hosu.or.ug';
+        // Send reset email to the USER's own email address
+        $resetRecipient = $user['email'];
         $mailSent = false;
-        $subject = 'HOSU Admin Password Reset Code';
+
+        // Build reset link URL
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host = $_SERVER['HTTP_HOST'] ?? 'hosu.or.ug';
+        $basePath = rtrim(dirname($_SERVER['SCRIPT_NAME']), '/\\');
+        $resetUrl = $protocol . '://' . $host . $basePath . '/reset-password.html?token=' . urlencode($token);
+
+        $subject = 'HOSU Password Reset';
         $safeName = htmlspecialchars($user['username'], ENT_QUOTES, 'UTF-8');
-        $safeEmail = htmlspecialchars($user['email'], ENT_QUOTES, 'UTF-8');
         $safeCode = htmlspecialchars($code, ENT_QUOTES, 'UTF-8');
         $safeExpiry = htmlspecialchars($expiresAt, ENT_QUOTES, 'UTF-8');
-        $htmlBody = "<p>A password reset was requested for admin account:</p>"
-            . "<p><strong>Username:</strong> {$safeName}<br><strong>Email:</strong> {$safeEmail}</p>"
-            . "<p>The reset code is:</p>"
-            . "<p style=\"font-size:22px;font-weight:700;letter-spacing:4px;color:#0d4593;\">{$safeCode}</p>"
-            . "<p>This code expires at <strong>{$safeExpiry}</strong>.</p>"
-            . "<p>If no one requested this change, please review admin accounts immediately.</p>";
-        $mailSent = hosuMail($resetRecipient, $subject, $htmlBody, 'HOSU Admin');
+        $safeResetUrl = htmlspecialchars($resetUrl, ENT_QUOTES, 'UTF-8');
+        $htmlBody = "
+            <div style=\"max-width:500px;margin:0 auto;font-family:Arial,Helvetica,sans-serif;color:#333;\">
+                <div style=\"background:linear-gradient(135deg,#0d4593,#1a6dd4);padding:1.2rem;text-align:center;border-radius:10px 10px 0 0;\">
+                    <h2 style=\"color:#fff;margin:0;font-size:1.2rem;\">&#128274; Password Reset</h2>
+                    <p style=\"color:rgba(255,255,255,0.8);margin:0.3rem 0 0;font-size:0.85rem;\">Hematology &amp; Oncology Society of Uganda</p>
+                </div>
+                <div style=\"padding:1.5rem;background:#fff;border:1px solid #e5e7eb;border-top:none;\">
+                    <p>Hello <strong>{$safeName}</strong>,</p>
+                    <p>We received a password reset request for your HOSU account. Use either option below to reset your password:</p>
+
+                    <div style=\"text-align:center;margin:1.5rem 0;\">
+                        <a href=\"{$safeResetUrl}\" style=\"display:inline-block;padding:0.75rem 2rem;background:#e63946;color:#fff;font-weight:700;font-size:1rem;border-radius:8px;text-decoration:none;\">Reset My Password</a>
+                    </div>
+
+                    <p style=\"text-align:center;color:#6b7280;font-size:0.85rem;\">Or enter this code manually:</p>
+                    <div style=\"text-align:center;margin:1rem 0;\">
+                        <span style=\"display:inline-block;font-size:28px;font-weight:800;letter-spacing:8px;color:#0d4593;background:#f0f4ff;padding:0.6rem 1.5rem;border-radius:8px;border:2px dashed #0d4593;\">{$safeCode}</span>
+                    </div>
+
+                    <p style=\"font-size:0.82rem;color:#6b7280;text-align:center;\">This link and code expire at <strong>{$safeExpiry}</strong> (15 minutes).</p>
+                    <hr style=\"border:none;border-top:1px solid #e5e7eb;margin:1.2rem 0;\">
+                    <p style=\"font-size:0.78rem;color:#9ca3af;\">If you did not request this reset, please ignore this email. Your password will remain unchanged.</p>
+                </div>
+                <div style=\"background:#f9fafb;padding:0.8rem;text-align:center;border-radius:0 0 10px 10px;border:1px solid #e5e7eb;border-top:none;\">
+                    <p style=\"font-size:0.7rem;color:#9ca3af;margin:0;\">&copy; " . date('Y') . " HOSU &mdash; hosu.or.ug</p>
+                </div>
+            </div>";
+        $mailSent = hosuMail($resetRecipient, $subject, $htmlBody, 'HOSU');
+
+        // Also notify admin inbox for audit
+        $adminSubject = 'HOSU: Password Reset Requested';
+        $adminBody = "<p>A password reset was requested for account: <strong>{$safeName}</strong> ({$user['email']})</p>"
+            . "<p>Reset sent to user's email at " . date('Y-m-d H:i:s') . ".</p>"
+            . "<p style=\"font-size:0.8rem;color:#9ca3af;\">This is an audit notification. No action needed.</p>";
+        hosuMail('info@hosu.or.ug', $adminSubject, $adminBody, 'HOSU System');
 
         echo json_encode([
             'success' => true,
             'message' => $mailSent
-                ? 'A reset code has been sent to info@hosu.or.ug. Check that inbox. Valid for 15 minutes.'
-                : 'Reset code generated. Please check info@hosu.or.ug or contact support if it does not arrive.',
+                ? 'A password reset link has been sent to ' . $maskedEmail . '. Check your inbox (and spam folder). Valid for 15 minutes.'
+                : 'We could not send the reset email. Please contact support at info@hosu.or.ug.',
             'token' => $token,
-            'masked_email' => 'in**@hosu.or.ug',
+            'masked_email' => $maskedEmail,
             'masked_phone' => $maskedPhone,
-            'delivery' => $mailSent ? 'email' : 'pending-email'
+            'delivery' => $mailSent ? 'email' : 'failed'
         ]);
+        break;
+
+    // ── Password Reset: Verify token is still valid (for reset-password.html page) ──
+    case 'verify_reset_token':
+        if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+            http_response_code(405);
+            echo json_encode(['error' => 'POST required']);
+            exit;
+        }
+        $token = trim($_POST['token'] ?? '');
+        if ($token === '') {
+            echo json_encode(['valid' => false]);
+            exit;
+        }
+        try {
+            $stmt = $pdo->prepare("
+                SELECT id FROM password_resets
+                WHERE token = ? AND used = 0 AND expires_at > NOW()
+                LIMIT 1
+            ");
+            $stmt->execute([$token]);
+            $exists = $stmt->fetch(PDO::FETCH_ASSOC);
+            echo json_encode(['valid' => !!$exists]);
+        } catch (\Exception $e) {
+            echo json_encode(['valid' => false]);
+        }
         break;
 
     // ── Password Reset: Verify code and set new password ──

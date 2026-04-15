@@ -184,14 +184,14 @@
         popup.innerHTML =
             '<button class="lfp-close" onclick="this.closest(\'.login-float-popup\').classList.remove(\'active\')">&times;</button>'
             + '<h3>&#128273; Reset Password</h3>'
-            + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">A 6-digit code will be sent to <strong>info@hosu.or.ug</strong></p>'
+            + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">A reset link will be sent to <strong>your email address</strong></p>'
             + '<div id="rst-msg" style="display:none;font-size:0.75rem;border-radius:5px;padding:0.35rem 0.6rem;margin-bottom:0.5rem;"></div>'
             + '<div id="rst-step1">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Username or Email</label>'
-            + '<input type="text" id="rst-email" placeholder="admin or info@hosu.or.ug" autocomplete="username" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<input type="text" id="rst-email" placeholder="your registered email" autocomplete="username" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Or Phone Number</label>'
             + '<input type="tel" id="rst-phone" placeholder="Phone number with country code" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
-            + '<button id="rst-send-btn" onclick="requestReset()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Send Reset Code</button>'
+            + '<button id="rst-send-btn" onclick="requestReset()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Send Reset Link</button>'
             + '</div>'
             + '<div id="rst-step2" style="display:none;">'
             + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">6-Digit Code</label>'
@@ -247,7 +247,7 @@
         if (!btn) return;
         btn.disabled = loading;
         if (id === 'rst-send-btn') {
-            btn.textContent = loading ? 'Sending\u2026' : 'Send Reset Code';
+            btn.textContent = loading ? 'Sending\u2026' : 'Send Reset Link';
         } else {
             btn.textContent = loading ? 'Resetting\u2026' : 'Reset Password';
         }
@@ -268,7 +268,8 @@
                 _rstBtn('rst-send-btn', false);
                 if (d.success) {
                     _resetToken = d.token || null;
-                    _rstMsg('&#10003; ' + escHtml(d.message || 'Reset code sent to info@hosu.or.ug'), false);
+                    var msg = d.message || 'Reset link sent to your email.';
+                    _rstMsg('&#10003; ' + escHtml(msg) + '<br><span style="font-size:0.68rem;color:#6b7280;">Check your inbox and spam folder. You can also enter the code manually below.</span>', false);
                     document.getElementById('rst-step1').style.display = 'none';
                     document.getElementById('rst-step2').style.display = 'block';
                     setTimeout(function () { var c = document.getElementById('rst-code'); if (c) c.focus(); }, 100);
