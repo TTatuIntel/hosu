@@ -160,7 +160,12 @@ function seedAdmin(PDO $pdo): void {
         $adminSeedPassword = getenv('ADMIN_SEED_PASSWORD') ?: 'Admin@hosu2026';
         $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
         $stmt = $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)");
-        $stmt->execute(['admin', 'info@mcare.or.ug', '+256766529869', $hash]);
+        $stmt->execute(['admin', 'info@hosu.or.ug', '+256766529869', $hash]);
+    } else {
+        // Migrate: ensure admin email is the canonical org address
+        try {
+            $pdo->prepare("UPDATE users SET email = 'info@hosu.or.ug' WHERE role = 'admin' AND email NOT IN ('info@hosu.or.ug')")->execute();
+        } catch (\Exception $e) {}
     }
 }
 
@@ -476,11 +481,12 @@ switch ($action) {
             }
         } catch (\Exception $e) {}
 
-        // Find user by email or phone
+        // Find user by email, phone, or username
         $user = null;
         if ($email !== '') {
-            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE email = ? AND role = 'admin' LIMIT 1");
-            $stmt->execute([$email]);
+            // Try email first, then as username
+            $stmt = $pdo->prepare("SELECT id, username, email, phone, role FROM users WHERE (email = ? OR username = ?) AND role = 'admin' LIMIT 1");
+            $stmt->execute([$email, $email]);
             $user = $stmt->fetch(PDO::FETCH_ASSOC);
         }
         if (!$user && $phone !== '') {
