@@ -2234,13 +2234,19 @@ HTML;
                 $ev['image'] = str_replace('\\', '/', $ev['image']);
             }
             
-            // Get publications shown on home
-            $pubStmt = $pdo->query("SELECT id, title, authors, pub_type, pub_date, link, link_label FROM publications WHERE show_on_home = 1 ORDER BY sort_order ASC, created_at DESC LIMIT 3");
-            $publications = $pubStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Get publications shown on home (graceful if table missing)
+            $publications = [];
+            try {
+                $pubStmt = $pdo->query("SELECT id, title, authors, pub_type, pub_date, link, link_label FROM publications WHERE show_on_home = 1 ORDER BY sort_order ASC, created_at DESC LIMIT 3");
+                $publications = $pubStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $_e) { /* table may not exist yet */ }
             
-            // Get grants shown on home
-            $grantStmt = $pdo->query("SELECT id, title, amount, currency, deadline, status, description FROM grants_opportunities WHERE show_on_home = 1 AND status != 'closed' ORDER BY sort_order ASC, created_at DESC LIMIT 3");
-            $grants = $grantStmt->fetchAll(PDO::FETCH_ASSOC);
+            // Get grants shown on home (graceful if table missing)
+            $grants = [];
+            try {
+                $grantStmt = $pdo->query("SELECT id, title, amount, currency, deadline, status, description FROM grants_opportunities WHERE show_on_home = 1 AND status != 'closed' ORDER BY sort_order ASC, created_at DESC LIMIT 3");
+                $grants = $grantStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $_e) { /* table may not exist yet */ }
             
             echo json_encode([
                 'success' => true,

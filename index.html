@@ -3460,6 +3460,14 @@ var HeroSlideshow = (function() {
         heroDots = Array.from(document.querySelectorAll('.hero-dot'));
         heroIndex = 0;
 
+        // Sync visual state: show slide 0
+        heroSlides.forEach(function(s) { s.classList.remove('active'); });
+        heroBgs.forEach(function(b) { b.classList.remove('active'); });
+        heroDots.forEach(function(d) { d.classList.remove('active'); });
+        if (heroSlides[0]) heroSlides[0].classList.add('active');
+        if (heroBgs[0]) heroBgs[0].classList.add('active');
+        if (heroDots[0]) heroDots[0].classList.add('active');
+
         ensureHeroBackgroundLoaded(heroBgs[0]);
 
         // Warm remaining backgrounds after first paint instead of blocking initial load
@@ -4514,15 +4522,14 @@ document.addEventListener('DOMContentLoaded', function() {
 (function() {
     function loadFeaturedHeroSlides() {
         fetch('api.php?action=get_home_featured', { credentials: 'same-origin' })
-            .then(function(r) { return r.json(); })
+            .then(function(r) {
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                return r.json();
+            })
             .then(function(data) {
                 if (!data.success || !data.featured) return;
 
-                var heroContent = document.querySelector('.hero-content');
-                var indicators = document.querySelector('.hero-indicators');
                 var bgContainer = document.querySelector('.hero-image-container');
-                if (!heroContent || !indicators) return;
-
                 var slidesAdded = 0;
 
                 // Add featured events as hero slides with their own images
@@ -4530,8 +4537,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     data.featured.events.forEach(function(ev) {
                         var slideHtml = createEventSlide(ev);
                         var imageUrl = ev.image || null;
-                        // Events use their own image, or a default event-themed background
-                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, imageUrl, 'event-bg');
+                        addFeaturedSlide(bgContainer, slideHtml, imageUrl, 'event-bg');
                         slidesAdded++;
                     });
                 }
@@ -4540,8 +4546,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.featured.publications && data.featured.publications.length > 0) {
                     data.featured.publications.forEach(function(pub) {
                         var slideHtml = createPublicationSlide(pub);
-                        // Publications use a default research-themed background
-                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, null, 'publication-bg');
+                        addFeaturedSlide(bgContainer, slideHtml, null, 'publication-bg');
                         slidesAdded++;
                     });
                 }
@@ -4550,8 +4555,7 @@ document.addEventListener('DOMContentLoaded', function() {
                 if (data.featured.grants && data.featured.grants.length > 0) {
                     data.featured.grants.forEach(function(grant) {
                         var slideHtml = createGrantSlide(grant);
-                        // Grants use a default funding-themed background
-                        insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, null, 'grant-bg');
+                        addFeaturedSlide(bgContainer, slideHtml, null, 'grant-bg');
                         slidesAdded++;
                     });
                 }
@@ -4566,13 +4570,16 @@ document.addEventListener('DOMContentLoaded', function() {
             });
     }
 
-    function insertHeroSlide(heroContent, indicators, bgContainer, slideHtml, imageUrl, bgClass) {
-        // Create slide element
+    function addFeaturedSlide(bgContainer, slideHtml, imageUrl, bgClass) {
+        var heroContent = document.querySelector('.hero-content');
+        var indicators = document.querySelector('.hero-indicators');
+        if (!heroContent || !indicators) return;
+
+        // Insert slide before indicators
         var temp = document.createElement('div');
-        temp.innerHTML = slideHtml;
+        temp.innerHTML = slideHtml.trim();
         var newSlide = temp.firstElementChild;
-        
-        // Insert before indicators
+        if (!newSlide) return;
         heroContent.insertBefore(newSlide, indicators);
 
         // Add new dot indicator
@@ -4582,19 +4589,15 @@ document.addEventListener('DOMContentLoaded', function() {
         newDot.setAttribute('data-index', dotCount);
         indicators.appendChild(newDot);
 
-        // Add background image if container exists
+        // Add background image
         if (bgContainer) {
             var newBg = document.createElement('div');
             newBg.className = 'hero-background';
             if (imageUrl) {
-                // Use the actual event/content image (quote URL for paths with spaces)
-                newBg.style.backgroundImage = "url('" + imageUrl + "')";
-                newBg.style.backgroundSize = 'cover';
-                newBg.style.backgroundPosition = 'center';
+                newBg.setAttribute('data-bg', imageUrl);
             } else if (bgClass) {
                 newBg.classList.add(bgClass);
             } else {
-                // Default gradient background for content without images
                 newBg.classList.add('dynamic-bg');
             }
             bgContainer.appendChild(newBg);
@@ -4609,14 +4612,16 @@ document.addEventListener('DOMContentLoaded', function() {
     function createEventSlide(ev) {
         var dateDisplay = ev.date || '';
         var locationDisplay = ev.location || '';
+        var typeLabel = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : 'Event';
         var countdownBadge = ev.countdown ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
 
         return '<div class="hero-slide featured-hero-slide" data-type="event">' +
-            '<span class="featured-label"><span class="featured-label-icon">📅</span> Featured Event</span>' +
+            '<span class="featured-label featured-label--event"><span class="featured-label-icon">📅</span> Featured Event</span>' +
             '<h1>' + escHtml(ev.title) + '</h1>' +
             '<div class="featured-meta">' +
                 (dateDisplay ? '<span class="featured-meta-item">🗓 ' + escHtml(dateDisplay) + '</span>' : '') +
                 (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
+                '<span class="featured-meta-item">🎪 ' + escHtml(typeLabel) + '</span>' +
             '</div>' +
             '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
             '<div class="featured-cta">' +
