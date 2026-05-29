@@ -504,6 +504,22 @@ case 'create_post':
                 try { $pdo->exec("ALTER TABLE events ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (Exception $_e) {}
             }
 
+            // Ensure event_images table exists (safe migration)
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    event_id VARCHAR(100) NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    image_alt VARCHAR(255) DEFAULT '',
+                    caption VARCHAR(255) DEFAULT '',
+                    sort_order INT NOT NULL DEFAULT 0,
+                    is_primary TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_event_id (event_id),
+                    INDEX idx_sort (sort_order)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            } catch (Exception $_e) {}
+
             // ── Auto-expire: move past events to status='past', category='past' ──
             $pdo->exec("
                 UPDATE events
@@ -518,6 +534,17 @@ case 'create_post':
 
             $stmt = $pdo->query("SELECT * FROM events ORDER BY created_at DESC");
             $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Bulk-load all gallery images for these events
+            $galleryByEvent = [];
+            try {
+                $imgRows = $pdo->query("SELECT id, event_id, image_path, image_alt, caption, sort_order, is_primary FROM event_images ORDER BY event_id, sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
+                foreach ($imgRows as $ir) {
+                    $ir['image_path'] = str_replace('\\', '/', $ir['image_path']);
+                    $galleryByEvent[$ir['event_id']][] = $ir;
+                }
+            } catch (Exception $_e) {}
+
             $eventsData = [
                 'featured' => [], 'current' => [], 'upcoming' => [],
                 'conferences' => [], 'workshops' => [], 'webinars' => [], 'past' => []
@@ -531,6 +558,17 @@ case 'create_post':
                 $ev['event_fee'] = (float)($ev['event_fee'] ?? 0);
                 // Normalize image path for browser use
                 $ev['image'] = str_replace('\\', '/', $ev['image']);
+
+                // Attach gallery: array of {id, image_path, image_alt, caption, sort_order, is_primary}
+                $ev['images'] = $galleryByEvent[$ev['id']] ?? [];
+                // Build a simple URL list for convenience (primary first, then rest)
+                $urlList = [];
+                if (!empty($ev['images'])) {
+                    foreach ($ev['images'] as $img) $urlList[] = $img['image_path'];
+                } elseif (!empty($ev['image'])) {
+                    $urlList[] = $ev['image'];
+                }
+                $ev['image_urls'] = $urlList;
 
                 // ── Auto-compute countdown from date_start / date_end ──
                 if (!empty($ev['date_start'])) {
@@ -586,6 +624,15 @@ case 'create_post':
             if ($row && !empty($row['image']) && strpos($row['image'], 'uploads/') === 0 && file_exists($row['image'])) {
                 @unlink($row['image']);
             }
+            // Cascade: remove all gallery images for this event
+            try {
+                $g = $pdo->prepare("SELECT image_path FROM event_images WHERE event_id = ?");
+                $g->execute([$id]);
+                foreach ($g->fetchAll(PDO::FETCH_COLUMN) as $p) {
+                    if (!empty($p) && strpos($p, 'uploads/') === 0 && file_exists($p)) @unlink($p);
+                }
+                $pdo->prepare("DELETE FROM event_images WHERE event_id = ?")->execute([$id]);
+            } catch (Exception $_e) {}
             $stmt = $pdo->prepare("DELETE FROM events WHERE id = ?");
             $stmt->execute([$id]);
             auditLog($pdo, 'delete_event', 'event', $id);
@@ -1547,23 +1594,108 @@ HTML;
                 }
             }
 
-            // Handle optional new image upload
-            $imagePath = null;
+            // Ensure event_images table exists (safe migration)
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    event_id VARCHAR(100) NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    image_alt VARCHAR(255) DEFAULT '',
+                    caption VARCHAR(255) DEFAULT '',
+                    sort_order INT NOT NULL DEFAULT 0,
+                    is_primary TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_event_id (event_id),
+                    INDEX idx_sort (sort_order)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            } catch (Exception $_e) {}
+
+            // Handle optional new image uploads (multi via imageFiles[], legacy single via imageFile)
+            $newUploads = [];
+            $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
+            $dir = 'uploads/events/';
+            if (!is_dir($dir)) mkdir($dir, 0755, true);
+
+            // Multi
+            if (!empty($_FILES['imageFiles']) && is_array($_FILES['imageFiles']['name'])) {
+                $cnt = count($_FILES['imageFiles']['name']);
+                for ($i = 0; $i < $cnt; $i++) {
+                    if ($_FILES['imageFiles']['error'][$i] !== UPLOAD_ERR_OK) continue;
+                    if ($_FILES['imageFiles']['size'][$i] > 5000000) continue;
+                    $fi = finfo_open(FILEINFO_MIME_TYPE);
+                    $ft = finfo_file($fi, $_FILES['imageFiles']['tmp_name'][$i]);
+                    finfo_close($fi);
+                    if (!in_array($ft, $allowed)) continue;
+                    $fname = uniqid() . '_' . basename($_FILES['imageFiles']['name'][$i]);
+                    if (move_uploaded_file($_FILES['imageFiles']['tmp_name'][$i], $dir . $fname)) {
+                        $newUploads[] = $dir . $fname;
+                    }
+                }
+            }
+
+            // Legacy single
             if (isset($_FILES['imageFile']) && $_FILES['imageFile']['error'] === UPLOAD_ERR_OK) {
-                $allowed = ['image/jpeg','image/png','image/gif','image/webp'];
                 $fi = finfo_open(FILEINFO_MIME_TYPE);
                 $ft = finfo_file($fi, $_FILES['imageFile']['tmp_name']);
                 finfo_close($fi);
                 if (in_array($ft, $allowed) && $_FILES['imageFile']['size'] <= 5000000) {
-                    $dir = 'uploads/events/';
-                    if (!is_dir($dir)) mkdir($dir, 0755, true);
                     $fname = uniqid() . '_' . basename($_FILES['imageFile']['name']);
                     if (move_uploaded_file($_FILES['imageFile']['tmp_name'], $dir . $fname)) {
-                        $imagePath = $dir . $fname;
+                        $newUploads[] = $dir . $fname;
                     }
                 }
+            }
+
+            // Handle deletion of existing extra images (delete_image_ids[])
+            if (!empty($_POST['delete_image_ids']) && is_array($_POST['delete_image_ids'])) {
+                $delStmt = $pdo->prepare("SELECT id, image_path FROM event_images WHERE id = ? AND event_id = ?");
+                $delExec = $pdo->prepare("DELETE FROM event_images WHERE id = ? AND event_id = ?");
+                foreach ($_POST['delete_image_ids'] as $imgId) {
+                    $imgId = (int)$imgId;
+                    if ($imgId <= 0) continue;
+                    $delStmt->execute([$imgId, $id]);
+                    $row = $delStmt->fetch(PDO::FETCH_ASSOC);
+                    if ($row) {
+                        if (!empty($row['image_path']) && strpos($row['image_path'], 'uploads/') === 0 && file_exists($row['image_path'])) {
+                            @unlink($row['image_path']);
+                        }
+                        $delExec->execute([$imgId, $id]);
+                    }
+                }
+            }
+
+            // Decide primary image for events.image column
+            $imagePath = null;
+            if (!empty($newUploads)) {
+                $imagePath = $newUploads[0]; // first new upload becomes primary
             } elseif (!empty($_POST['image'])) {
                 $imagePath = filter_var($_POST['image'], FILTER_SANITIZE_URL);
+            }
+
+            // Insert all new uploads into event_images
+            if (!empty($newUploads)) {
+                try {
+                    // Determine next sort_order
+                    $maxStmt = $pdo->prepare("SELECT COALESCE(MAX(sort_order), -1) FROM event_images WHERE event_id = ?");
+                    $maxStmt->execute([$id]);
+                    $nextOrder = (int)$maxStmt->fetchColumn() + 1;
+
+                    // If no current gallery exists, mark first as primary
+                    $hasAnyStmt = $pdo->prepare("SELECT COUNT(*) FROM event_images WHERE event_id = ?");
+                    $hasAnyStmt->execute([$id]);
+                    $hasAny = (int)$hasAnyStmt->fetchColumn() > 0;
+
+                    $ins = $pdo->prepare("INSERT INTO event_images (event_id, image_path, image_alt, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)");
+                    foreach ($newUploads as $i => $path) {
+                        $isPrim = (!$hasAny && $i === 0) ? 1 : 0;
+                        $ins->execute([$id, $path, $_POST['imageAlt'] ?? '', $nextOrder + $i, $isPrim]);
+                    }
+
+                    // If a new file replaces primary (admin uploaded new while no kept primary), clear old primary flags so the latest takes effect
+                    if (!$hasAny) {
+                        // first upload is already primary
+                    }
+                } catch (Exception $_e) { /* gallery is best-effort */ }
             }
 
             $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?";
@@ -1579,6 +1711,90 @@ HTML;
             if ($imagePath !== null) { $fields .= ", image=?"; $vals[] = $imagePath; }
             $vals[] = $id;
             $pdo->prepare("UPDATE events SET $fields WHERE id=?")->execute($vals);
+
+            // Ensure events.image reflects the current primary gallery image (if any)
+            try {
+                $primStmt = $pdo->prepare("SELECT image_path FROM event_images WHERE event_id = ? AND is_primary = 1 LIMIT 1");
+                $primStmt->execute([$id]);
+                $primPath = $primStmt->fetchColumn();
+                if ($primPath) {
+                    $pdo->prepare("UPDATE events SET image = ? WHERE id = ?")->execute([$primPath, $id]);
+                } else {
+                    // No primary flagged — fall back to first gallery image
+                    $firstStmt = $pdo->prepare("SELECT image_path FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1");
+                    $firstStmt->execute([$id]);
+                    $firstPath = $firstStmt->fetchColumn();
+                    if ($firstPath) {
+                        $pdo->prepare("UPDATE event_images SET is_primary = 1 WHERE event_id = ? AND image_path = ? LIMIT 1")->execute([$id, $firstPath]);
+                        $pdo->prepare("UPDATE events SET image = ? WHERE id = ?")->execute([$firstPath, $id]);
+                    }
+                }
+            } catch (Exception $_e) {}
+
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
+    // ── List images attached to a single event (admin) ──
+    case 'list_event_images':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $eventId = trim($_GET['event_id'] ?? $_POST['event_id'] ?? '');
+            if (!$eventId) { http_response_code(400); echo json_encode(['error' => 'event_id required']); break; }
+            try {
+                $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
+                    id INT AUTO_INCREMENT PRIMARY KEY,
+                    event_id VARCHAR(100) NOT NULL,
+                    image_path VARCHAR(500) NOT NULL,
+                    image_alt VARCHAR(255) DEFAULT '',
+                    caption VARCHAR(255) DEFAULT '',
+                    sort_order INT NOT NULL DEFAULT 0,
+                    is_primary TINYINT(1) NOT NULL DEFAULT 0,
+                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                    INDEX idx_event_id (event_id),
+                    INDEX idx_sort (sort_order)
+                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+            } catch (Exception $_e) {}
+            $st = $pdo->prepare("SELECT id, image_path, image_alt, caption, sort_order, is_primary FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC");
+            $st->execute([$eventId]);
+            $rows = $st->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$r) { $r['image_path'] = str_replace('\\', '/', $r['image_path']); }
+            echo json_encode(['success' => true, 'images' => $rows]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
+    // ── Delete a single gallery image (admin) ──
+    case 'delete_event_image':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $imgId   = (int)($_POST['image_id'] ?? 0);
+            $eventId = trim($_POST['event_id'] ?? '');
+            if ($imgId <= 0 || !$eventId) { http_response_code(400); echo json_encode(['error' => 'image_id and event_id required']); break; }
+            $st = $pdo->prepare("SELECT image_path, is_primary FROM event_images WHERE id = ? AND event_id = ?");
+            $st->execute([$imgId, $eventId]);
+            $row = $st->fetch(PDO::FETCH_ASSOC);
+            if (!$row) { http_response_code(404); echo json_encode(['error' => 'Image not found']); break; }
+            if (!empty($row['image_path']) && strpos($row['image_path'], 'uploads/') === 0 && file_exists($row['image_path'])) {
+                @unlink($row['image_path']);
+            }
+            $pdo->prepare("DELETE FROM event_images WHERE id = ? AND event_id = ?")->execute([$imgId, $eventId]);
+
+            // If we removed the primary, promote next image and sync events.image
+            if (!empty($row['is_primary'])) {
+                $next = $pdo->prepare("SELECT id, image_path FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1");
+                $next->execute([$eventId]);
+                $n = $next->fetch(PDO::FETCH_ASSOC);
+                if ($n) {
+                    $pdo->prepare("UPDATE event_images SET is_primary = 1 WHERE id = ?")->execute([$n['id']]);
+                    $pdo->prepare("UPDATE events SET image = ? WHERE id = ?")->execute([$n['image_path'], $eventId]);
+                } else {
+                    // No images left — leave events.image as-is (legacy fallback)
+                }
+            }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
@@ -2230,10 +2446,36 @@ HTML;
                 LIMIT 3
             ");
             $events = $evStmt->fetchAll(PDO::FETCH_ASSOC);
+
+            // Attach gallery images (one slide per image will be rendered on home)
+            $galleryByEvent = [];
+            try {
+                if (!empty($events)) {
+                    $ids = array_column($events, 'id');
+                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
+                    $gstmt = $pdo->prepare("SELECT event_id, image_path, image_alt, caption, sort_order, is_primary
+                                             FROM event_images
+                                             WHERE event_id IN ($placeholders)
+                                             ORDER BY event_id, sort_order ASC, id ASC");
+                    $gstmt->execute($ids);
+                    foreach ($gstmt->fetchAll(PDO::FETCH_ASSOC) as $ir) {
+                        $ir['image_path'] = str_replace('\\', '/', $ir['image_path']);
+                        $galleryByEvent[$ir['event_id']][] = $ir;
+                    }
+                }
+            } catch (Exception $_e) {}
+
             foreach ($events as &$ev) {
                 $ev['image'] = str_replace('\\', '/', $ev['image']);
+                $gallery = $galleryByEvent[$ev['id']] ?? [];
+                $urls = [];
+                foreach ($gallery as $g) $urls[] = $g['image_path'];
+                if (empty($urls) && !empty($ev['image'])) $urls[] = $ev['image'];
+                $ev['images'] = $gallery;
+                $ev['image_urls'] = $urls;
             }
-            
+            unset($ev);
+
             // Get publications shown on home (graceful if table missing)
             $publications = [];
             try {

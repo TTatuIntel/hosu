@@ -872,24 +872,34 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <input type="hidden" id="ev-edit-id">
             <div class="prog-wrap prog-wrap-sm"><div class="prog-fill" id="eprog"></div></div>
 
-            <!-- 1 — Image -->
+            <!-- 1 — Image(s) -->
             <div class="aef-sec">
-                <div class="aef-lbl">📷 Event Image</div>
+                <div class="aef-lbl">📷 Event Images <small style="font-weight:400;color:var(--text-light);">(upload multiple promotional designs · max 5 MB each)</small></div>
                 <div class="aef-upload-row">
                     <div class="upload-zone upload-zone-compact" id="ev-upload">
-                        <input type="file" id="ev-img-file" accept="image/jpeg,image/png,image/webp,image/gif">
+                        <input type="file" id="ev-img-file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
                         <div class="upload-inner">
                             <span class="upload-icon">📷</span>
-                            <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop<br><span class="upload-hint">JPG, PNG, WebP · max 5 MB</span></p>
+                            <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop<br><span class="upload-hint">JPG, PNG, WebP · multiple files OK</span></p>
                         </div>
                     </div>
                     <div class="ff">
                         <label>Or image URL</label>
                         <input type="url" id="ev-img-url" placeholder="https://…/image.jpg">
-                        <small>Leave blank if uploading a file</small>
+                        <small>Used only if no files are uploaded</small>
                     </div>
                 </div>
-                <div class="img-pre img-pre-mt" id="ev-img-pre"><img id="ev-img-thumb" src="" alt=""><span class="img-pre-rm" onclick="clearEvImg()">❌ Remove</span></div>
+                <!-- Existing gallery (shown in edit mode) -->
+                <div id="ev-existing-gallery" style="display:none;margin-top:.75rem;">
+                    <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">📚 Existing images <small style="font-weight:400;">(click ❌ to remove)</small></div>
+                    <div id="ev-existing-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;"></div>
+                </div>
+                <!-- New uploads preview -->
+                <div id="ev-img-pre" style="display:none;margin-top:.75rem;">
+                    <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">🆕 New uploads</div>
+                    <div id="ev-new-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(110px,1fr));gap:.5rem;"></div>
+                    <button type="button" class="btn-sm" style="margin-top:.4rem;" onclick="clearEvImg()">❌ Clear all new</button>
+                </div>
             </div>
 
             <!-- 2 — Core Details -->
@@ -1751,7 +1761,8 @@ function buildDate(){
 function updateProg(){
     var ids=['ev-title','ev-slug','ev-type','ev-alt','ev-date','ev-loc','ev-desc'];
     var filled=ids.filter(i=>document.getElementById(i).value.trim()).length;
-    if(_hasEvImg||document.getElementById('ev-img-url').value.trim())filled++;
+    var existingRemain=_evExistingImgs.filter(function(it){return _evDeleteIds.indexOf(it.id)===-1;}).length;
+    if(_evNewFiles.length||existingRemain||document.getElementById('ev-img-url').value.trim())filled++;
     if(!document.getElementById('ev-is-free').checked&&document.getElementById('ev-fee').value)filled++;
     var total=ids.length+1+(document.getElementById('ev-is-free').checked?0:1);
     document.getElementById('eprog').style.width=Math.round(filled/total*100)+'%';
@@ -1759,23 +1770,110 @@ function updateProg(){
 
 function opts(arr,selected){return arr.map(v=>'<option value="'+v+'"'+(v===selected?' selected':'')+'>'+v+'</option>').join('');}
 
+/* ── Multi-image state for the event modal ── */
+var _evNewFiles=[];          // File[] queued for upload
+var _evExistingImgs=[];      // {id, image_path, image_alt, is_primary, sort_order} from server
+var _evDeleteIds=[];         // ids to delete on save
+
+function renderEvNewGrid(){
+    var grid=document.getElementById('ev-new-grid');
+    var wrap=document.getElementById('ev-img-pre');
+    if(!grid){return;}
+    if(!_evNewFiles.length){wrap.style.display='none';grid.innerHTML='';_hasEvImg=false;updateProg();return;}
+    wrap.style.display='block';
+    grid.innerHTML='';
+    _evNewFiles.forEach(function(f,idx){
+        var cell=document.createElement('div');
+        cell.style.cssText='position:relative;border:1px solid var(--border,#e2e2e2);border-radius:6px;overflow:hidden;background:#fafafa;';
+        var img=document.createElement('img');
+        img.style.cssText='width:100%;height:90px;object-fit:cover;display:block;';
+        img.alt=f.name;
+        var r=new FileReader();r.onload=function(e){img.src=e.target.result;};r.readAsDataURL(f);
+        var rm=document.createElement('button');
+        rm.type='button';
+        rm.innerHTML='✕';
+        rm.title='Remove this upload';
+        rm.style.cssText='position:absolute;top:2px;right:2px;background:rgba(0,0,0,.65);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;line-height:1;';
+        rm.onclick=function(){_evNewFiles.splice(idx,1);renderEvNewGrid();};
+        var label=document.createElement('div');
+        label.style.cssText='font-size:.62rem;padding:3px 4px;color:#555;background:#fff;border-top:1px solid #eee;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;';
+        label.textContent=f.name;
+        cell.appendChild(img);cell.appendChild(rm);cell.appendChild(label);
+        grid.appendChild(cell);
+    });
+    _hasEvImg=true;
+    updateProg();
+}
+
+function renderEvExistingGrid(){
+    var wrap=document.getElementById('ev-existing-gallery');
+    var grid=document.getElementById('ev-existing-grid');
+    if(!grid){return;}
+    var visible=_evExistingImgs.filter(function(it){return _evDeleteIds.indexOf(it.id)===-1;});
+    if(!visible.length){wrap.style.display='none';grid.innerHTML='';return;}
+    wrap.style.display='block';
+    grid.innerHTML='';
+    visible.forEach(function(it){
+        var cell=document.createElement('div');
+        cell.style.cssText='position:relative;border:1px solid var(--border,#e2e2e2);border-radius:6px;overflow:hidden;background:#fafafa;';
+        var img=document.createElement('img');
+        img.src=it.image_path;img.alt=it.image_alt||'';
+        img.style.cssText='width:100%;height:90px;object-fit:cover;display:block;';
+        img.onerror=function(){this.style.display='none';};
+        var rm=document.createElement('button');
+        rm.type='button';
+        rm.innerHTML='✕';
+        rm.title='Mark for deletion (applied on save)';
+        rm.style.cssText='position:absolute;top:2px;right:2px;background:rgba(200,0,0,.85);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;line-height:1;';
+        rm.onclick=function(){
+            if(!confirm('Remove this image when you save?'))return;
+            _evDeleteIds.push(it.id);
+            renderEvExistingGrid();
+            updateProg();
+        };
+        if(parseInt(it.is_primary)===1){
+            var badge=document.createElement('span');
+            badge.textContent='Primary';
+            badge.style.cssText='position:absolute;bottom:2px;left:2px;background:#1976d2;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;';
+            cell.appendChild(badge);
+        }
+        cell.appendChild(img);cell.appendChild(rm);
+        grid.appendChild(cell);
+    });
+}
+
+function addEvFilesFromList(fileList){
+    if(!fileList||!fileList.length)return;
+    var added=0, rejected=0;
+    Array.prototype.forEach.call(fileList,function(f){
+        if(!f.type.startsWith('image/')){rejected++;return;}
+        if(f.size>5*1024*1024){rejected++;return;}
+        _evNewFiles.push(f);added++;
+    });
+    if(rejected) toast(rejected+' file(s) skipped (not an image or > 5 MB).','error');
+    if(added){document.getElementById('ev-img-url').value='';renderEvNewGrid();}
+}
+
 document.getElementById('ev-img-file').addEventListener('change',function(){
-    var f=this.files[0];if(!f)return;
-    if(f.size>5*1024*1024){toast('Max 5 MB.','error');this.value='';return;}
-    var r=new FileReader();r.onload=e=>{document.getElementById('ev-img-thumb').src=e.target.result;document.getElementById('ev-img-pre').style.display='block';document.getElementById('ev-img-url').value='';_hasEvImg=true;updateProg();};r.readAsDataURL(f);
+    addEvFilesFromList(this.files);
+    // Reset the input so the same file can be re-selected later
+    this.value='';
 });
 document.getElementById('ev-upload').addEventListener('dragover',function(e){e.preventDefault();this.classList.add('drag');});
 document.getElementById('ev-upload').addEventListener('dragleave',function(){this.classList.remove('drag');});
 document.getElementById('ev-upload').addEventListener('drop',function(e){
     e.preventDefault();this.classList.remove('drag');
-    var f=e.dataTransfer.files[0];
-    if(f&&f.type.startsWith('image/')){var dt=new DataTransfer();dt.items.add(f);document.getElementById('ev-img-file').files=dt.files;document.getElementById('ev-img-file').dispatchEvent(new Event('change'));}
+    addEvFilesFromList(e.dataTransfer.files);
 });
 document.querySelectorAll('#event-modal input,#event-modal select,#event-modal textarea').forEach(el=>{
     el.addEventListener('input',updateProg);el.addEventListener('change',updateProg);
 });
 
-function clearEvImg(){document.getElementById('ev-img-file').value='';document.getElementById('ev-img-thumb').src='';document.getElementById('ev-img-pre').style.display='none';_hasEvImg=false;updateProg();}
+function clearEvImg(){
+    _evNewFiles=[];
+    document.getElementById('ev-img-file').value='';
+    renderEvNewGrid();
+}
 
 var _fpEvStart=null, _fpEvEnd=null;
 function initEvDatePickers(){
@@ -1831,8 +1929,33 @@ function openEditEvent(id){
     var isFeatured = ev.featured === true || ev.featured === 1 || ev.featured === '1';
     document.getElementById('ev-featured').checked=isFeatured;
     updateFeaturedLabel();
-    // Image — show URL for edit, admin can replace
-    if(ev.image){document.getElementById('ev-img-url').value=ev.image;_hasEvImg=false;}
+    // Image gallery: prefer ev.images (loaded from get_events), otherwise fetch live
+    document.getElementById('ev-img-url').value='';
+    if(ev.images && ev.images.length){
+        _evExistingImgs=ev.images.slice();
+        renderEvExistingGrid();
+    } else {
+        // fallback: hit list_event_images to fetch them fresh
+        fetch('api.php?action=list_event_images&event_id='+encodeURIComponent(id),{credentials:'same-origin'})
+            .then(r=>r.json()).then(d=>{
+                if(d.success && d.images){
+                    _evExistingImgs=d.images;
+                    renderEvExistingGrid();
+                    updateProg();
+                } else if(ev.image){
+                    // Legacy event with no gallery row — show the primary image so admin sees it
+                    _evExistingImgs=[{id:0,image_path:ev.image,image_alt:ev.imageAlt||'',is_primary:1,sort_order:0}];
+                    renderEvExistingGrid();
+                    updateProg();
+                }
+            }).catch(()=>{
+                if(ev.image){
+                    _evExistingImgs=[{id:0,image_path:ev.image,image_alt:ev.imageAlt||'',is_primary:1,sort_order:0}];
+                    renderEvExistingGrid();
+                    updateProg();
+                }
+            });
+    }
     // Pricing - handle string "0"/"1" or boolean
     var isFree = ev.is_free === undefined || ev.is_free === true || ev.is_free === 1 || ev.is_free === '1';
     document.getElementById('ev-is-free').checked=isFree;
@@ -1862,6 +1985,9 @@ function resetEvForm(){
     document.getElementById('ev-cat').value='';
     document.getElementById('ev-status').value='';
     document.getElementById('ev-countdown').value='';
+    _evExistingImgs=[];
+    _evDeleteIds=[];
+    renderEvExistingGrid();
     clearEvImg();
     document.getElementById('eprog').style.width='0';
     document.getElementById('ev-edit-id').value='';
@@ -1880,7 +2006,8 @@ function saveEvent(){
     var dateEnd=document.getElementById('ev-date-end').value;
     var isFree=document.getElementById('ev-is-free').checked;
     var fee=isFree?0:parseFloat(document.getElementById('ev-fee').value)||0;
-    var hasImg=_hasEvImg||document.getElementById('ev-img-url').value.trim();
+    var existingRemain=_evExistingImgs.filter(function(it){return _evDeleteIds.indexOf(it.id)===-1;}).length;
+    var hasImg=_evNewFiles.length||existingRemain||document.getElementById('ev-img-url').value.trim();
     var isEdit=!!_editingEvId;
 
     if(!title||!slug||!type||!alt||!date||!loc||!desc){toast('Please fill in all required fields.','error');return;}
@@ -1916,9 +2043,18 @@ function saveEvent(){
     fd.append('is_free',isFree?'1':'0');
     fd.append('event_fee',fee);
     fd.append('featured',document.getElementById('ev-featured').checked?'1':'0');
-    var imgFile=document.getElementById('ev-img-file').files[0];
-    if(imgFile)fd.append('imageFile',imgFile);
-    else if(document.getElementById('ev-img-url').value.trim())fd.append('image',document.getElementById('ev-img-url').value.trim());
+    // Append all queued new uploads under imageFiles[]
+    _evNewFiles.forEach(function(f){ fd.append('imageFiles[]', f); });
+    // Append delete IDs for existing images marked for removal (edit mode only)
+    if(isEdit){
+        _evDeleteIds.forEach(function(idDel){
+            if(parseInt(idDel)>0) fd.append('delete_image_ids[]', idDel);
+        });
+    }
+    // If no new files queued but URL provided, send as legacy single image
+    if(!_evNewFiles.length && document.getElementById('ev-img-url').value.trim()){
+        fd.append('image',document.getElementById('ev-img-url').value.trim());
+    }
 
     if(isEdit){
         fd.append('action','update_event');

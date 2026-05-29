@@ -27,20 +27,57 @@ try {
     if (!is_dir($uploadDir)) {
         mkdir($uploadDir, 0755, true);
     }
-    
-    $imagePath = '';
-    
-    if (isset($_FILES['imageFile']) && $_FILES['imageFile']['error'] === UPLOAD_ERR_OK) {
-        $uploaded = secureUpload($_FILES['imageFile'], 'uploads/events/', false, 2000000);
-        if ($uploaded) {
-            $imagePath = $uploaded;
-        } else {
-            throw new Exception('Failed to upload image. Only JPG, PNG, GIF, WEBP allowed (max 2MB).');
+
+    // Ensure event_images table exists (safe migration)
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
+            id INT AUTO_INCREMENT PRIMARY KEY,
+            event_id VARCHAR(100) NOT NULL,
+            image_path VARCHAR(500) NOT NULL,
+            image_alt VARCHAR(255) DEFAULT '',
+            caption VARCHAR(255) DEFAULT '',
+            sort_order INT NOT NULL DEFAULT 0,
+            is_primary TINYINT(1) NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_event_id (event_id),
+            INDEX idx_sort (sort_order)
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    } catch (Exception $_e) { /* ignore */ }
+
+    // Collect uploaded images — supports both new multi (imageFiles[]) and legacy single (imageFile)
+    $uploadedPaths = [];
+
+    // New multi-file input: imageFiles[]
+    if (!empty($_FILES['imageFiles']) && is_array($_FILES['imageFiles']['name'])) {
+        $count = count($_FILES['imageFiles']['name']);
+        for ($i = 0; $i < $count; $i++) {
+            if ($_FILES['imageFiles']['error'][$i] !== UPLOAD_ERR_OK) continue;
+            $single = [
+                'name'     => $_FILES['imageFiles']['name'][$i],
+                'type'     => $_FILES['imageFiles']['type'][$i],
+                'tmp_name' => $_FILES['imageFiles']['tmp_name'][$i],
+                'error'    => $_FILES['imageFiles']['error'][$i],
+                'size'     => $_FILES['imageFiles']['size'][$i],
+            ];
+            $up = secureUpload($single, 'uploads/events/', false, 5000000);
+            if ($up) $uploadedPaths[] = $up;
         }
+    }
+
+    // Legacy single-file input: imageFile
+    if (isset($_FILES['imageFile']) && $_FILES['imageFile']['error'] === UPLOAD_ERR_OK) {
+        $up = secureUpload($_FILES['imageFile'], 'uploads/events/', false, 5000000);
+        if ($up) $uploadedPaths[] = $up;
+    }
+
+    $imagePath = '';
+    if (!empty($uploadedPaths)) {
+        // Primary image = first uploaded file
+        $imagePath = $uploadedPaths[0];
     } elseif (!empty($_POST['image'])) {
         $imagePath = filter_var($_POST['image'], FILTER_SANITIZE_URL);
     } else {
-        throw new Exception('Either upload an image or provide an image URL');
+        throw new Exception('Either upload at least one image or provide an image URL');
     }
 
     // Validate required fields
@@ -103,7 +140,7 @@ try {
     }
 
     $stmt = $pdo->prepare("INSERT INTO events (id, type, status, image, imageAlt, countdown, date, date_start, date_end, title, description, location, featured, category, is_free, event_fee) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
-    
+
     $success = $stmt->execute([
         $_POST['id'],
         $_POST['type'],
@@ -122,24 +159,46 @@ try {
         $isFree,
         $eventFee
     ]);
-    
+
     if (!$success) {
         throw new Exception('Failed to save to database');
     }
-    
+
+    // Persist gallery rows: every uploaded file goes into event_images (including the primary)
+    if (!empty($uploadedPaths)) {
+        try {
+            $insImg = $pdo->prepare("INSERT INTO event_images (event_id, image_path, image_alt, sort_order, is_primary) VALUES (?, ?, ?, ?, ?)");
+            foreach ($uploadedPaths as $idx => $path) {
+                $insImg->execute([
+                    $_POST['id'],
+                    $path,
+                    $_POST['imageAlt'],
+                    $idx,
+                    $idx === 0 ? 1 : 0
+                ]);
+            }
+        } catch (Exception $_e) { /* gallery is best-effort; primary already saved on events.image */ }
+    } elseif (!empty($_POST['image'])) {
+        // URL-only image — also mirror to event_images so the gallery is consistent
+        try {
+            $pdo->prepare("INSERT INTO event_images (event_id, image_path, image_alt, sort_order, is_primary) VALUES (?, ?, ?, 0, 1)")
+                ->execute([$_POST['id'], $imagePath, $_POST['imageAlt']]);
+        } catch (Exception $_e) { /* ignore */ }
+    }
+
     // Clear any accidental output
     ob_end_clean();
-    
+
     echo json_encode(['success' => true]);
     exit;
-    
+
 } catch (Exception $e) {
     // Clear any buffered output
     ob_end_clean();
-    
+
     http_response_code(400);
     echo json_encode([
-        'success' => false, 
+        'success' => false,
         'error' => $e->getMessage()
     ]);
     exit;

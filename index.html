@@ -4533,13 +4533,18 @@ document.addEventListener('DOMContentLoaded', function() {
                 var bgContainer = document.querySelector('.hero-image-container');
                 var slidesAdded = 0;
 
-                // Add featured events as hero slides with their own images
+                // Add featured events as hero slides — one slide per uploaded image
+                // so a single event with multiple promotional designs rotates throughout the hero.
                 if (data.featured.events && data.featured.events.length > 0) {
                     data.featured.events.forEach(function(ev) {
-                        var slideHtml = createEventSlide(ev);
-                        var imageUrl = ev.image || null;
-                        addFeaturedSlide(bgContainer, slideHtml, imageUrl, 'event-bg');
-                        slidesAdded++;
+                        // Prefer image_urls array (from gallery); fall back to single ev.image; final fallback to none
+                        var imgs = (ev.image_urls && ev.image_urls.length) ? ev.image_urls
+                                  : (ev.image ? [ev.image] : [null]);
+                        imgs.forEach(function(imageUrl, idx) {
+                            var slideHtml = createEventSlide(ev, imageUrl, idx, imgs.length);
+                            addFeaturedSlide(bgContainer, slideHtml, imageUrl, 'event-bg');
+                            slidesAdded++;
+                        });
                     });
                 }
 
@@ -4610,19 +4615,24 @@ document.addEventListener('DOMContentLoaded', function() {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function createEventSlide(ev) {
+    function createEventSlide(ev, imageUrl, imgIdx, imgTotal) {
         var dateDisplay = ev.date || '';
         var locationDisplay = ev.location || '';
         var typeLabel = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : 'Event';
         var countdownBadge = ev.countdown ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
+        // Subtle indicator when an event spans multiple gallery images (e.g. "1 / 3")
+        var galleryPos = (typeof imgTotal === 'number' && imgTotal > 1)
+            ? '<span class="featured-meta-item">🖼 ' + (imgIdx + 1) + ' / ' + imgTotal + '</span>'
+            : '';
 
-        return '<div class="hero-slide featured-hero-slide" data-type="event">' +
+        return '<div class="hero-slide featured-hero-slide" data-type="event" data-event-id="' + escHtml(ev.id) + '">' +
             '<span class="featured-label featured-label--event"><span class="featured-label-icon">📅</span> Featured Event</span>' +
             '<h1>' + escHtml(ev.title) + '</h1>' +
             '<div class="featured-meta">' +
                 (dateDisplay ? '<span class="featured-meta-item">🗓 ' + escHtml(dateDisplay) + '</span>' : '') +
                 (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
                 '<span class="featured-meta-item">🎪 ' + escHtml(typeLabel) + '</span>' +
+                galleryPos +
             '</div>' +
             '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
             '<div class="featured-cta">' +
