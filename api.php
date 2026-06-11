@@ -25,7 +25,22 @@ if ($_SERVER['REQUEST_METHOD'] === 'OPTIONS') {
 
 require 'db.php';
 require_once 'upload_helper.php';
-require_once 'mailer.php';
+require_once 'event_helpers.php';
+require_once 'membership_helpers.php';
+
+function ensureMailer(): void
+{
+    static $loaded = false;
+    if (!$loaded) {
+        require_once __DIR__ . '/mailer.php';
+        $loaded = true;
+    }
+}
+
+function hosuPublicJsonCache(int $seconds = 30): void
+{
+    header('Cache-Control: public, max-age=' . $seconds);
+}
 
 // Server-side idle timeout check for API calls
 define('API_SESSION_IDLE_TIMEOUT', 900);
@@ -40,18 +55,23 @@ if (!empty($_SESSION['user_id']) && !empty($_SESSION['last_activity'])) {
     $_SESSION['last_activity'] = time();
 }
 
-// ── Auto-purge stale pending payments (older than 1 day) ──
-// Front-end auto-cancels immediately on timeout/fail/close.
-// This is a safety net for any records that slip through.
-try {
-    $pdo->exec("DELETE FROM payments WHERE status = 'pending' AND paid_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
-    $pdo->exec("DELETE FROM event_registrants WHERE payment_status = 'pending' AND registered_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
-} catch (Exception $e) {
-    error_log('Auto-purge error: ' . $e->getMessage());
-}
-
-// Get action from either GET or POST
+// Get action from either GET or POST (needed early for read-only fast path)
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
+
+// ── Auto-purge stale pending payments (older than 1 day) ──
+// Skip on public read-only GET requests to keep event/home APIs fast.
+$publicReadActions = [
+    'get_events', 'get_home_featured', 'get_home_spotlight', 'get_home_content', 'get_home_hero', 'get_homepage_extras', 'get_site_chrome',
+    'get_posts', 'get_leaders', 'get_site_stats', 'get_publications', 'get_grants',
+];
+if ($_SERVER['REQUEST_METHOD'] !== 'GET' || !in_array($action, $publicReadActions, true)) {
+    try {
+        $pdo->exec("DELETE FROM payments WHERE status = 'pending' AND paid_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
+        $pdo->exec("DELETE FROM event_registrants WHERE payment_status = 'pending' AND registered_at < DATE_SUB(NOW(), INTERVAL 1 DAY)");
+    } catch (Exception $e) {
+        error_log('Auto-purge error: ' . $e->getMessage());
+    }
+}
 
 // ── CSRF protection for all mutation (POST) requests ──
 // Exempt actions that don't require authentication (public submissions)
@@ -86,11 +106,13 @@ function auditLog($pdo, $action, $entityType = null, $entityId = null, $details 
 
 // ── Admin notification email ──────────────────────────────────────────
 function notifyAdmin(string $subject, string $htmlBody): void {
+    ensureMailer();
     hosuMail('info@hosu.or.ug', $subject, $htmlBody, 'HOSU Website');
 }
 
 // ── Membership pending acknowledgment ────────────────────────────────
 function sendMembershipPendingEmail(string $toEmail, string $name, string $membershipType, float $amount, string $receiptNum): void {
+    ensureMailer();
     $safeName    = htmlspecialchars($name,           ENT_QUOTES, 'UTF-8');
     $safeType    = htmlspecialchars($membershipType, ENT_QUOTES, 'UTF-8');
     $safeReceipt = htmlspecialchars($receiptNum,     ENT_QUOTES, 'UTF-8');
@@ -124,6 +146,7 @@ HTML;
 
 // ── Member status change notification ────────────────────────────────
 function sendMemberStatusEmail(string $toEmail, string $name, string $status): void {
+    ensureMailer();
     $safeName = htmlspecialchars($name, ENT_QUOTES, 'UTF-8');
     if ($status === 'active') {
         $subject   = 'HOSU Membership Approved — Welcome!';
@@ -165,6 +188,7 @@ HTML;
 
 // ── Grant application acknowledgment ─────────────────────────────────
 function sendGrantAckEmail(string $toEmail, string $name, string $grantTitle): void {
+    ensureMailer();
     $safeName  = htmlspecialchars($name,       ENT_QUOTES, 'UTF-8');
     $safeGrant = htmlspecialchars($grantTitle, ENT_QUOTES, 'UTF-8');
     $subject   = "HOSU Grant Application Received — {$safeGrant}";
@@ -190,6 +214,7 @@ HTML;
 
 // ── Grant application status update ──────────────────────────────────
 function sendGrantStatusEmail(string $toEmail, string $name, string $grantTitle, string $status): void {
+    ensureMailer();
     $safeName  = htmlspecialchars($name,       ENT_QUOTES, 'UTF-8');
     $safeGrant = htmlspecialchars($grantTitle, ENT_QUOTES, 'UTF-8');
     if ($status === 'approved') {
@@ -223,6 +248,7 @@ HTML;
 
 // ── Email receipt helper ──────────────────────────────────────────────
 function sendReceiptEmail($pdo, $paymentId, $receiptToken) {
+    ensureMailer();
     try {
         $stmt = $pdo->prepare("
             SELECT p.*, m.full_name, m.email, m.phone
@@ -498,110 +524,8 @@ case 'create_post':
 
     case 'get_events':
         try {
-            // Ensure date_start / date_end / is_free / event_fee columns exist (safe migration)
-            foreach (['date_start DATE NULL', 'date_end DATE NULL', 'is_free TINYINT(1) NOT NULL DEFAULT 1', 'event_fee DECIMAL(12,2) NOT NULL DEFAULT 0'] as $colDef) {
-                $colName = explode(' ', $colDef)[0];
-                try { $pdo->exec("ALTER TABLE events ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (Exception $_e) {}
-            }
-
-            // Ensure event_images table exists (safe migration)
-            try {
-                $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
-                    id INT AUTO_INCREMENT PRIMARY KEY,
-                    event_id VARCHAR(100) NOT NULL,
-                    image_path VARCHAR(500) NOT NULL,
-                    image_alt VARCHAR(255) DEFAULT '',
-                    caption VARCHAR(255) DEFAULT '',
-                    sort_order INT NOT NULL DEFAULT 0,
-                    is_primary TINYINT(1) NOT NULL DEFAULT 0,
-                    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    INDEX idx_event_id (event_id),
-                    INDEX idx_sort (sort_order)
-                ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
-            } catch (Exception $_e) {}
-
-            // ── Auto-expire: move past events to status='past', category='past' ──
-            $pdo->exec("
-                UPDATE events
-                SET status   = 'past',
-                    category = 'past'
-                WHERE status != 'past'
-                  AND (
-                      (date_end   IS NOT NULL AND date_end   < CURDATE())
-                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE())
-                  )
-            ");
-
-            $stmt = $pdo->query("SELECT * FROM events ORDER BY created_at DESC");
-            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Bulk-load all gallery images for these events
-            $galleryByEvent = [];
-            try {
-                $imgRows = $pdo->query("SELECT id, event_id, image_path, image_alt, caption, sort_order, is_primary FROM event_images ORDER BY event_id, sort_order ASC, id ASC")->fetchAll(PDO::FETCH_ASSOC);
-                foreach ($imgRows as $ir) {
-                    $ir['image_path'] = str_replace('\\', '/', $ir['image_path']);
-                    $galleryByEvent[$ir['event_id']][] = $ir;
-                }
-            } catch (Exception $_e) {}
-
-            $eventsData = [
-                'featured' => [], 'current' => [], 'upcoming' => [],
-                'conferences' => [], 'workshops' => [], 'webinars' => [], 'past' => []
-            ];
-            $today = new DateTimeImmutable('today');
-            foreach ($rows as $ev) {
-                $cat = $ev['category'] ?? 'upcoming';
-                unset($ev['category']);
-                $ev['featured'] = (bool)$ev['featured'];
-                $ev['is_free'] = (bool)($ev['is_free'] ?? 1);
-                $ev['event_fee'] = (float)($ev['event_fee'] ?? 0);
-                // Normalize image path for browser use
-                $ev['image'] = str_replace('\\', '/', $ev['image']);
-
-                // Attach gallery: array of {id, image_path, image_alt, caption, sort_order, is_primary}
-                $ev['images'] = $galleryByEvent[$ev['id']] ?? [];
-                // Build a simple URL list for convenience (primary first, then rest)
-                $urlList = [];
-                if (!empty($ev['images'])) {
-                    foreach ($ev['images'] as $img) $urlList[] = $img['image_path'];
-                } elseif (!empty($ev['image'])) {
-                    $urlList[] = $ev['image'];
-                }
-                $ev['image_urls'] = $urlList;
-
-                // ── Auto-compute countdown from date_start / date_end ──
-                if (!empty($ev['date_start'])) {
-                    $start = new DateTimeImmutable($ev['date_start']);
-                    $end   = !empty($ev['date_end']) ? new DateTimeImmutable($ev['date_end']) : $start;
-
-                    if ($today > $end) {
-                        $ev['countdown'] = 'Event Ended';
-                    } elseif ($today >= $start && $today <= $end) {
-                        $ev['countdown'] = 'Happening Now';
-                    } else {
-                        $diff = $today->diff($start);
-                        if ($diff->y > 0) {
-                            $ev['countdown'] = 'In ' . $diff->y . ' year' . ($diff->y > 1 ? 's' : '') . ($diff->m > 0 ? ', ' . $diff->m . ' month' . ($diff->m > 1 ? 's' : '') : '');
-                        } elseif ($diff->m > 0) {
-                            $ev['countdown'] = 'In ' . $diff->m . ' month' . ($diff->m > 1 ? 's' : '') . ($diff->d > 0 ? ', ' . $diff->d . ' day' . ($diff->d > 1 ? 's' : '') : '');
-                        } elseif ($diff->d > 1) {
-                            $ev['countdown'] = 'In ' . $diff->d . ' days';
-                        } elseif ($diff->d === 1) {
-                            $ev['countdown'] = 'Tomorrow';
-                        } else {
-                            $ev['countdown'] = 'Today';
-                        }
-                    }
-                }
-
-                if (array_key_exists($cat, $eventsData)) {
-                    $eventsData[$cat][] = $ev;
-                } else {
-                    $eventsData['upcoming'][] = $ev;
-                }
-            }
-            echo json_encode(['success' => true, 'eventsData' => $eventsData]);
+            hosuPublicJsonCache(30);
+            echo json_encode(['success' => true, 'eventsData' => fetchEventsPagePayload($pdo)]);
         } catch (PDOException $e) {
             http_response_code(500);
             echo json_encode(['error' => 'Failed to fetch events']);
@@ -632,6 +556,19 @@ case 'create_post':
                     if (!empty($p) && strpos($p, 'uploads/') === 0 && file_exists($p)) @unlink($p);
                 }
                 $pdo->prepare("DELETE FROM event_images WHERE event_id = ?")->execute([$id]);
+            } catch (Exception $_e) {}
+            try {
+                $m = $pdo->prepare("SELECT media_path, media_type FROM event_media WHERE event_id = ?");
+                $m->execute([$id]);
+                foreach ($m->fetchAll(PDO::FETCH_ASSOC) as $mr) {
+                    if ($mr['media_type'] === 'document' && strpos($mr['media_path'], 'uploads/') === 0 && file_exists($mr['media_path'])) {
+                        @unlink($mr['media_path']);
+                    }
+                }
+                $pdo->prepare("DELETE FROM event_media WHERE event_id = ?")->execute([$id]);
+            } catch (Exception $_e) {}
+            try {
+                $pdo->prepare('DELETE FROM event_live_content WHERE event_id = ?')->execute([$id]);
             } catch (Exception $_e) {}
             $stmt = $pdo->prepare("DELETE FROM events WHERE id = ?");
             $stmt->execute([$id]);
@@ -664,7 +601,8 @@ case 'create_post':
                    OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE())
                   )
             ");
-            $stmt = $pdo->query("SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, is_free, event_fee, created_at FROM events ORDER BY created_at DESC");
+            migrateEventSchema($pdo);
+            $stmt = $pdo->query("SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events ORDER BY created_at DESC");
             echo json_encode(['success' => true, 'events' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -786,6 +724,7 @@ case 'create_post':
   </td></tr>
 </table></body></html>
 HTML;
+                    ensureMailer();
                     hosuMail($er['email'], "HOSU Event Registration Confirmed — {$safeEvent}", $html, 'HOSU Events');
                 }
             }
@@ -803,6 +742,7 @@ HTML;
             $id = (int)($_POST['registrant_id'] ?? 0);
             if (!$id) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); break; }
             $pdo->prepare("DELETE FROM event_registrants WHERE id=?")->execute([$id]);
+            auditLog($pdo, 'delete_registrant', 'event_registrant', (string)$id);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -965,12 +905,8 @@ HTML;
                 $amount = $planPrices[$memPeriod] ?? 100000;
             }
 
-            // Membership expiry
-            $expiresAt = null;
-            if ($paymentType === 'membership') {
-                $add = ['1_year'=>'+1 year','2_years'=>'+2 years','3_years'=>'+3 years'];
-                if (isset($add[$memPeriod])) $expiresAt = date('Y-m-d', strtotime($add[$memPeriod]));
-            }
+            // Calendar-year-end expiry rule (Improvement Plan §6, §12, roll-forward)
+            $expiresAt = ($paymentType === 'membership') ? hosuMembershipExpiry($memPeriod) : null;
 
             if (!$name || !$email || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
                 http_response_code(400);
@@ -1067,15 +1003,38 @@ HTML;
             $membershipTypeLabel = $paymentType === 'membership' ? $memPeriod : $paymentType;
 
             $pdo->beginTransaction();
-            $stmt = $pdo->prepare("INSERT INTO members (full_name, email, phone, profession, institution, membership_type) VALUES (?,?,?,?,?,?)");
+
+            // Resolve category from profession slug if portal categories table is populated
+            $catId = null;
+            $profSlug = trim($_POST['profession'] ?? '');
+            if ($profSlug !== '') {
+                try {
+                    $catStmt = $pdo->prepare("SELECT id FROM membership_categories WHERE slug = ? LIMIT 1");
+                    $catStmt->execute([$profSlug]);
+                    $catId = $catStmt->fetchColumn() ?: null;
+                } catch (Exception $_e) { /* membership_categories may not exist yet — ignore */ }
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO members
+                (full_name, email, phone, profession, institution, membership_type,
+                 category_id, expiry_date, approval_status, status)
+                VALUES (?,?,?,?,?,?,?,?,'pending','pending')");
             $stmt->execute([
                 $name, $email,
                 trim($_POST['phone']       ?? ''),
                 trim($_POST['profession']  ?? ''),
                 trim($_POST['institution'] ?? ''),
-                $membershipTypeLabel
+                $membershipTypeLabel,
+                $catId,
+                $expiresAt
             ]);
             $memberId = (int)$pdo->lastInsertId();
+
+            // Stamp a stable membership number now (HOSU-YYYY-#### form)
+            try {
+                $memNum = hosuMembershipNumber($memberId);
+                $pdo->prepare("UPDATE members SET membership_number = ? WHERE id = ?")->execute([$memNum, $memberId]);
+            } catch (Exception $_e) {}
 
             // Handle payment proof upload (secure)
             $proofPath = '';
@@ -1225,11 +1184,8 @@ HTML;
             $amount     = (float)($_POST['amount'] ?? 0);
             if ($amount <= 0) $amount = $paymentType === 'membership' ? ($planPrices[$memPeriod] ?? 100000) : 50000;
 
-            $expiresAt = null;
-            if ($paymentType === 'membership') {
-                $add = ['1_year'=>'+1 year','2_years'=>'+2 years','3_years'=>'+3 years'];
-                if (isset($add[$memPeriod])) $expiresAt = date('Y-m-d', strtotime($add[$memPeriod]));
-            }
+            // Calendar-year-end expiry rule (Improvement Plan §6, §12, roll-forward)
+            $expiresAt = ($paymentType === 'membership') ? hosuMembershipExpiry($memPeriod) : null;
 
             $membershipTypeLabel = $paymentType === 'membership' ? $memPeriod : $paymentType;
 
@@ -1312,7 +1268,8 @@ HTML;
             }
 
             // Verify token matches payment_id to prevent tampering
-            $row = $pdo->prepare("SELECT id, member_id FROM payments WHERE id=? AND receipt_token=? AND status='pending'");
+            $row = $pdo->prepare("SELECT id, member_id, payment_type, membership_period, membership_expires_at
+                                  FROM payments WHERE id=? AND receipt_token=? AND status='pending'");
             $row->execute([$paymentId, $receiptToken]);
             $pay = $row->fetch(PDO::FETCH_ASSOC);
 
@@ -1331,7 +1288,21 @@ HTML;
 
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE payments SET status='verified', paid_at=NOW() WHERE id=?")->execute([$pay['id']]);
-            $pdo->prepare("UPDATE members  SET status='active'             WHERE id=?")->execute([$pay['member_id']]);
+
+            // For memberships: stamp dues_paid_at + expiry on the members row.
+            // Status flips to 'active' only after admin approval (Improvement Plan §5, §6).
+            // Existing approved members go straight to active here.
+            if (($pay['payment_type'] ?? 'membership') === 'membership') {
+                $expiry = $pay['membership_expires_at']
+                    ?: hosuMembershipExpiry($pay['membership_period'] ?? '1_year');
+                $pdo->prepare("UPDATE members
+                    SET dues_paid_at = NOW(),
+                        expiry_date  = COALESCE(expiry_date, ?),
+                        status       = CASE WHEN approval_status = 'approved' THEN 'active' ELSE status END
+                    WHERE id = ?")->execute([$expiry, $pay['member_id']]);
+            } else {
+                $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
+            }
             $pdo->commit();
 
             // Send receipt email
@@ -1396,6 +1367,25 @@ HTML;
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
+    case 'delete_member':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) { http_response_code(400); echo json_encode(['error' => 'Invalid member id']); break; }
+            $memStmt = $pdo->prepare('SELECT full_name, email FROM members WHERE id = ?');
+            $memStmt->execute([$id]);
+            $memRow = $memStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$memRow) { http_response_code(404); echo json_encode(['error' => 'Member not found']); break; }
+            $pdo->prepare('DELETE FROM members WHERE id = ?')->execute([$id]);
+            auditLog($pdo, 'delete_member', 'member', (string)$id, $memRow['full_name'] ?? $memRow['email'] ?? '');
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
     case 'verify_payment':
         if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
             http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
@@ -1427,6 +1417,35 @@ HTML;
             auditLog($pdo, 'verify_payment', 'payment', $id, $status);
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
+    case 'delete_payment':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['payment_id'] ?? 0);
+            $source = $_POST['source'] ?? 'payments';
+            if (!$id) { http_response_code(400); echo json_encode(['error' => 'Invalid payment id']); break; }
+            if ($source === 'event_registrants') {
+                $pdo->prepare('DELETE FROM event_registrants WHERE id = ?')->execute([$id]);
+                auditLog($pdo, 'delete_payment', 'event_registrant', (string)$id);
+                echo json_encode(['success' => true]);
+                break;
+            }
+            $payStmt = $pdo->prepare('SELECT id, member_id, proof_file FROM payments WHERE id = ?');
+            $payStmt->execute([$id]);
+            $payRow = $payStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$payRow) { http_response_code(404); echo json_encode(['error' => 'Payment not found']); break; }
+            if (!empty($payRow['proof_file']) && strpos($payRow['proof_file'], 'uploads/') === 0 && file_exists($payRow['proof_file'])) {
+                @unlink($payRow['proof_file']);
+            }
+            $pdo->prepare('DELETE FROM payments WHERE id = ?')->execute([$id]);
+            auditLog($pdo, 'delete_payment', 'payment', (string)$id);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
         break;
 
     case 'mark_invoice_sent':
@@ -1548,12 +1567,17 @@ HTML;
         $id = $_GET['id'] ?? '';
         if (!$id) { http_response_code(400); echo json_encode(['error' => 'ID required']); break; }
         try {
-            $stmt = $pdo->prepare("SELECT * FROM events WHERE id=?");
+            migrateEventSchema($pdo);
+            $stmt = $pdo->prepare('SELECT * FROM events WHERE id=?');
             $stmt->execute([$id]);
             $ev = $stmt->fetch(PDO::FETCH_ASSOC);
             if (!$ev) { http_response_code(404); echo json_encode(['error' => 'Not found']); break; }
-            $ev['image'] = str_replace('\\', '/', $ev['image']);
-            echo json_encode(['success' => true, 'event' => $ev]);
+            enrichEventRow($ev);
+            $events = [$ev];
+            attachGalleryToEvents($events, loadEventGalleries($pdo, [$id]));
+            attachMediaToEvents($events, loadEventMedia($pdo, [$id]));
+            attachLiveContentToEvents($events, loadLiveContent($pdo, [$id], false), false);
+            echo json_encode(['success' => true, 'event' => $events[0]]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
@@ -1565,6 +1589,24 @@ HTML;
             $id = trim($_POST['id'] ?? '');
             if (!$id) { http_response_code(400); echo json_encode(['error' => 'ID required']); break; }
 
+            migrateEventSchema($pdo);
+            $existingStmt = $pdo->prepare('SELECT * FROM events WHERE id = ?');
+            $existingStmt->execute([$id]);
+            $existing = $existingStmt->fetch(PDO::FETCH_ASSOC);
+            if (!$existing) {
+                http_response_code(404);
+                echo json_encode(['error' => 'Event not found']);
+                break;
+            }
+
+            $partial = !empty($_POST['partial']) && $_POST['partial'] !== '0';
+            $mergeField = function (string $key, $fallback = '') use ($partial, $existing) {
+                if ($partial && !array_key_exists($key, $_POST)) {
+                    return $existing[$key] ?? $fallback;
+                }
+                return $_POST[$key] ?? ($existing[$key] ?? $fallback);
+            };
+
             // Ensure is_free / event_fee / date_start / date_end columns exist (safe migration)
             foreach (['date_start DATE NULL', 'date_end DATE NULL', 'is_free TINYINT(1) NOT NULL DEFAULT 1', 'event_fee DECIMAL(12,2) NOT NULL DEFAULT 0'] as $colDef) {
                 $colName = explode(' ', $colDef)[0];
@@ -1572,12 +1614,14 @@ HTML;
             }
 
             // Validate date_start / date_end
-            $dateStart = !empty($_POST['date_start']) ? trim($_POST['date_start']) : null;
-            $dateEnd   = !empty($_POST['date_end'])   ? trim($_POST['date_end'])   : null;
+            $dateStartRaw = $mergeField('date_start', $existing['date_start'] ?? '');
+            $dateEndRaw   = $mergeField('date_end', $existing['date_end'] ?? '');
+            $dateStart = !empty($dateStartRaw) ? trim((string)$dateStartRaw) : null;
+            $dateEnd   = !empty($dateEndRaw) ? trim((string)$dateEndRaw) : null;
 
             // Auto-determine status and category from dates
-            $status   = $_POST['status'] ?? 'open';
-            $category = $_POST['category'] ?? 'upcoming';
+            $status   = $mergeField('status', $existing['status'] ?? 'open');
+            $category = $mergeField('category', $existing['category'] ?? 'upcoming');
             if ($dateStart) {
                 $today    = new DateTimeImmutable('today');
                 $startDt  = new DateTimeImmutable($dateStart);
@@ -1628,7 +1672,9 @@ HTML;
                     if (!in_array($ft, $allowed)) continue;
                     $fname = uniqid() . '_' . basename($_FILES['imageFiles']['name'][$i]);
                     if (move_uploaded_file($_FILES['imageFiles']['tmp_name'][$i], $dir . $fname)) {
-                        $newUploads[] = $dir . $fname;
+                        $saved = $dir . $fname;
+                        optimizeUploadedImage($saved);
+                        $newUploads[] = $saved;
                     }
                 }
             }
@@ -1641,7 +1687,9 @@ HTML;
                 if (in_array($ft, $allowed) && $_FILES['imageFile']['size'] <= 5000000) {
                     $fname = uniqid() . '_' . basename($_FILES['imageFile']['name']);
                     if (move_uploaded_file($_FILES['imageFile']['tmp_name'], $dir . $fname)) {
-                        $newUploads[] = $dir . $fname;
+                        $saved = $dir . $fname;
+                        optimizeUploadedImage($saved);
+                        $newUploads[] = $saved;
                     }
                 }
             }
@@ -1698,40 +1746,124 @@ HTML;
                 } catch (Exception $_e) { /* gallery is best-effort */ }
             }
 
-            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?";
-            $isFree = !empty($_POST['is_free']) ? 1 : 0;
-            $eventFee = $isFree ? 0 : max(0, (float)($_POST['event_fee'] ?? 0));
+            $displayFields = $partial
+                ? parseDisplayFields(array_merge($existing, $_POST))
+                : parseDisplayFields($_POST);
+
+            // Add image URLs to gallery without replacing existing images
+            $imageUrls = [];
+            if (!empty($_POST['imageUrls']) && is_array($_POST['imageUrls'])) {
+                $imageUrls = $_POST['imageUrls'];
+            } elseif (!empty($_POST['imageUrls'])) {
+                $imageUrls = preg_split('/[\r\n,]+/', $_POST['imageUrls']);
+            }
+            $imagesAddedFromUrls = 0;
+            if (!empty($imageUrls)) {
+                $imagesAddedFromUrls = insertEventImageUrls($pdo, $id, $imageUrls, $_POST['imageAlt'] ?? '');
+            }
+
+            saveEventMediaFromRequest($pdo, $id, $_POST, $_FILES);
+            if (array_key_exists('live_content_json', $_POST)) {
+                saveLiveContentFromRequest($pdo, $id, $_POST);
+            }
+            $liveFields = parseLiveFields(array_merge($existing, $_POST));
+
+            $featuredRaw = $mergeField('featured', $existing['featured'] ?? 0);
+            $isFreeRaw = $mergeField('is_free', $existing['is_free'] ?? 1);
+            $isFree = !empty($isFreeRaw) && $isFreeRaw !== '0' ? 1 : 0;
+            $eventFee = $isFree ? 0 : max(0, (float)$mergeField('event_fee', $existing['event_fee'] ?? 0));
+
+            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?, speakers=?, highlights=?, announcements=?, display_start=?, display_end=?, display_for_event=?, pinned=?, home_priority=?, post_event_display_days=?, live_message=?, live_cta_label=?, live_cta_url=?, drive_folder_url=?, show_live_on_home=?";
             $vals = [
-                $_POST['type'] ?? '', $status, $_POST['imageAlt'] ?? '',
-                $_POST['countdown'] ?? '', $_POST['date'] ?? '', $_POST['title'] ?? '',
-                $_POST['description'] ?? '', $_POST['location'] ?? '',
-                (!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0, $category,
-                $isFree, $eventFee, $dateStart, $dateEnd,
+                $mergeField('type', $existing['type'] ?? ''),
+                $status,
+                $mergeField('imageAlt', $existing['imageAlt'] ?? ''),
+                $mergeField('countdown', $existing['countdown'] ?? ''),
+                $mergeField('date', $existing['date'] ?? ''),
+                $mergeField('title', $existing['title'] ?? ''),
+                $mergeField('description', $existing['description'] ?? ''),
+                $mergeField('location', $existing['location'] ?? ''),
+                (!empty($featuredRaw) && $featuredRaw !== '0') ? 1 : 0,
+                $category,
+                $isFree,
+                $eventFee,
+                $dateStart,
+                $dateEnd,
+                $displayFields['speakers'],
+                $displayFields['highlights'],
+                $displayFields['announcements'],
+                $displayFields['display_start'],
+                $displayFields['display_end'],
+                $displayFields['display_for_event'],
+                $displayFields['pinned'],
+                $displayFields['home_priority'],
+                $displayFields['post_event_display_days'],
+                $liveFields['live_message'],
+                $liveFields['live_cta_label'],
+                $liveFields['live_cta_url'],
+                $liveFields['drive_folder_url'],
+                $liveFields['show_live_on_home'],
             ];
-            if ($imagePath !== null) { $fields .= ", image=?"; $vals[] = $imagePath; }
+            if ($imagePath !== null) {
+                $fields .= ', image=?';
+                $vals[] = $imagePath;
+            }
             $vals[] = $id;
             $pdo->prepare("UPDATE events SET $fields WHERE id=?")->execute($vals);
 
-            // Ensure events.image reflects the current primary gallery image (if any)
-            try {
-                $primStmt = $pdo->prepare("SELECT image_path FROM event_images WHERE event_id = ? AND is_primary = 1 LIMIT 1");
-                $primStmt->execute([$id]);
-                $primPath = $primStmt->fetchColumn();
-                if ($primPath) {
-                    $pdo->prepare("UPDATE events SET image = ? WHERE id = ?")->execute([$primPath, $id]);
-                } else {
-                    // No primary flagged — fall back to first gallery image
-                    $firstStmt = $pdo->prepare("SELECT image_path FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC LIMIT 1");
-                    $firstStmt->execute([$id]);
-                    $firstPath = $firstStmt->fetchColumn();
-                    if ($firstPath) {
-                        $pdo->prepare("UPDATE event_images SET is_primary = 1 WHERE event_id = ? AND image_path = ? LIMIT 1")->execute([$id, $firstPath]);
-                        $pdo->prepare("UPDATE events SET image = ? WHERE id = ?")->execute([$firstPath, $id]);
+            // Sync events.image from gallery only when uploads/deletes changed the gallery
+            $galleryTouched = !empty($newUploads)
+                || !empty($imageUrls)
+                || (!empty($_POST['delete_image_ids']) && is_array($_POST['delete_image_ids']));
+            if ($galleryTouched) {
+                try {
+                    $galleryStmt = $pdo->prepare(
+                        'SELECT image_path FROM event_images WHERE event_id = ? ORDER BY is_primary DESC, sort_order ASC, id ASC'
+                    );
+                    $galleryStmt->execute([$id]);
+                    $bestPath = null;
+                    foreach ($galleryStmt->fetchAll(PDO::FETCH_COLUMN) as $path) {
+                        if (isUsableSpotlightMediaUrl((string)$path, 'image')) {
+                            $bestPath = $path;
+                            break;
+                        }
                     }
-                }
-            } catch (Exception $_e) {}
+                    if ($bestPath) {
+                        $pdo->prepare('UPDATE event_images SET is_primary = 0 WHERE event_id = ?')->execute([$id]);
+                        $pdo->prepare('UPDATE event_images SET is_primary = 1 WHERE event_id = ? AND image_path = ? LIMIT 1')->execute([$id, $bestPath]);
+                        $pdo->prepare('UPDATE events SET image = ? WHERE id = ?')->execute([$bestPath, $id]);
+                    }
+                } catch (Exception $_e) {}
+            }
 
-            echo json_encode(['success' => true]);
+            $driveSync = null;
+            $folderUrl = resolveEventDriveFolderUrl(array_merge($existing, $liveFields));
+            if ($folderUrl !== '') {
+                $folderId = extractDriveFolderId($folderUrl);
+                if ($folderId !== '') {
+                    invalidateDriveFolderCache($folderId);
+                    $driveIds = fetchDriveFolderFileIds($folderId, true);
+                    $driveSync = [
+                        'ok' => count($driveIds) > 0,
+                        'photo_count' => count($driveIds),
+                        'folder_id' => $folderId,
+                    ];
+                }
+            }
+
+            $eventRow = null;
+            try {
+                $evStmt = $pdo->prepare('SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, drive_folder_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events WHERE id = ?');
+                $evStmt->execute([$id]);
+                $eventRow = $evStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+            } catch (Exception $_evFetch) {}
+
+            echo json_encode([
+                'success' => true,
+                'event' => $eventRow,
+                'drive_sync' => $driveSync,
+                'images_added_from_urls' => $imagesAddedFromUrls,
+            ]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
@@ -1757,7 +1889,7 @@ HTML;
                     INDEX idx_sort (sort_order)
                 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
             } catch (Exception $_e) {}
-            $st = $pdo->prepare("SELECT id, image_path, image_alt, caption, sort_order, is_primary FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC");
+            $st = $pdo->prepare("SELECT id, image_path, image_alt, caption, sort_order, is_primary, COALESCE(caption_disabled,0) AS caption_disabled FROM event_images WHERE event_id = ? ORDER BY sort_order ASC, id ASC");
             $st->execute([$eventId]);
             $rows = $st->fetchAll(PDO::FETCH_ASSOC);
             foreach ($rows as &$r) { $r['image_path'] = str_replace('\\', '/', $r['image_path']); }
@@ -2405,98 +2537,726 @@ HTML;
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
         break;
 
+    case 'toggle_event_pinned':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = $_POST['id'] ?? '';
+            $pinned = (!empty($_POST['pinned']) && $_POST['pinned'] !== '0') ? 1 : 0;
+            if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
+            $stmt = $pdo->prepare('UPDATE events SET pinned = ? WHERE id = ?');
+            $stmt->execute([$pinned, $id]);
+            if ($stmt->rowCount() === 0) { echo json_encode(['success' => false, 'error' => 'Event not found']); break; }
+            auditLog($pdo, 'toggle_event_pinned', 'event', $id, $pinned ? 'pinned' : 'unpinned');
+            echo json_encode(['success' => true, 'pinned' => $pinned]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
+    case 'toggle_event_spotlight':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            $id = $_POST['id'] ?? '';
+            $show = (!empty($_POST['show_live_on_home']) && $_POST['show_live_on_home'] !== '0') ? 1 : 0;
+            if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
+            $stmt = $pdo->prepare('UPDATE events SET show_live_on_home = ? WHERE id = ?');
+            $stmt->execute([$show, $id]);
+            if ($stmt->rowCount() === 0) { echo json_encode(['success' => false, 'error' => 'Event not found']); break; }
+            auditLog($pdo, 'toggle_event_spotlight', 'event', $id, $show ? 'on' : 'off');
+            echo json_encode(['success' => true, 'show_live_on_home' => $show]);
+        } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
+        break;
+
+    case 'append_event_assets':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $eventId = trim($_POST['event_id'] ?? $_POST['id'] ?? '');
+            if (!$eventId) {
+                http_response_code(400); echo json_encode(['error' => 'event_id required']); break;
+            }
+            $check = $pdo->prepare('SELECT id FROM events WHERE id = ?');
+            $check->execute([$eventId]);
+            if (!$check->fetchColumn()) {
+                http_response_code(404); echo json_encode(['error' => 'Event not found']); break;
+            }
+            $summary = appendEventAssets($pdo, $eventId, $_POST, $_FILES);
+            echo json_encode(['success' => true, 'summary' => $summary]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'set_event_primary_image':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $eventId = trim($_POST['event_id'] ?? '');
+            $imageId = (int)($_POST['image_id'] ?? 0);
+            if (!$eventId || !$imageId) {
+                http_response_code(400); echo json_encode(['error' => 'event_id and image_id required']); break;
+            }
+            if (!setEventPrimaryImage($pdo, $eventId, $imageId)) {
+                http_response_code(404); echo json_encode(['error' => 'Image not found']); break;
+            }
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'remove_event_from_home':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = $_POST['id'] ?? '';
+            if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
+            migrateEventSchema($pdo);
+            $now = (new DateTimeImmutable())->format('Y-m-d H:i:s');
+            $stmt = $pdo->prepare('UPDATE events SET featured = 0, pinned = 0, show_live_on_home = 0, display_end = ?, display_for_event = 0, post_event_display_days = 0 WHERE id = ?');
+            $stmt->execute([$now, $id]);
+            auditLog($pdo, 'remove_event_from_home', 'event', $id);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'list_spotlights':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true, 'spotlights' => loadHomepageSpotlights($pdo, false)]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_spotlight':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+
+            $id = (int)($_POST['id'] ?? 0);
+            $title = trim($_POST['title'] ?? '');
+            if ($title === '') {
+                http_response_code(400); echo json_encode(['error' => 'Title is required']); break;
+            }
+
+            $images = collectPostedSlideImages('images_json', 'image_urls', 'image_url', '', 'uploads/spotlights/', 5000000);
+            /* Merge admin-supplied video URLs (YouTube/Vimeo/.mp4 etc.) into the same gallery. */
+            if (!empty($_POST['video_urls'])) {
+                $images = appendSlideVideoUrlsFromText((string)$_POST['video_urls'], $images);
+            }
+            $imagesJson = encodeSlideImagesJson($images);
+            /* Cover image is the first non-video item; falls back to first item or legacy field. */
+            $imageUrl = '';
+            foreach ($images as $it) {
+                if (($it['type'] ?? 'image') !== 'video') { $imageUrl = $it['url']; break; }
+            }
+            if ($imageUrl === '') {
+                $imageUrl = $images[0]['url'] ?? trim($_POST['image_url'] ?? '');
+            }
+
+            $data = [
+                trim($_POST['title'] ?? ''),
+                trim($_POST['headline'] ?? ''),
+                trim($_POST['body'] ?? ''),
+                $imageUrl,
+                $imagesJson,
+                trim($_POST['badge_label'] ?? 'Important'),
+                trim($_POST['content_type'] ?? 'announcement'),
+                trim($_POST['cta_primary_label'] ?? ''),
+                trim($_POST['cta_primary_url'] ?? ''),
+                trim($_POST['cta_secondary_label'] ?? ''),
+                trim($_POST['cta_secondary_url'] ?? ''),
+                !empty($_POST['display_start']) ? trim($_POST['display_start']) : null,
+                !empty($_POST['display_end']) ? trim($_POST['display_end']) : null,
+                !empty($_POST['show_in_hero']) && $_POST['show_in_hero'] !== '0' ? 1 : 0,
+                !isset($_POST['show_in_spotlight']) || $_POST['show_in_spotlight'] !== '0' ? 1 : 0,
+                (int)($_POST['sort_order'] ?? 0),
+                (int)($_POST['priority'] ?? 0),
+                !isset($_POST['is_active']) || $_POST['is_active'] !== '0' ? 1 : 0,
+                trim($_POST['event_id'] ?? '') ?: null,
+            ];
+
+            if ($id > 0) {
+                $pdo->prepare('UPDATE homepage_spotlights SET title=?, headline=?, body=?, image_url=?, images_json=?, badge_label=?, content_type=?, cta_primary_label=?, cta_primary_url=?, cta_secondary_label=?, cta_secondary_url=?, display_start=?, display_end=?, show_in_hero=?, show_in_spotlight=?, sort_order=?, priority=?, is_active=?, event_id=? WHERE id=?')
+                    ->execute(array_merge($data, [$id]));
+            } else {
+                $pdo->prepare('INSERT INTO homepage_spotlights (title, headline, body, image_url, images_json, badge_label, content_type, cta_primary_label, cta_primary_url, cta_secondary_label, cta_secondary_url, display_start, display_end, show_in_hero, show_in_spotlight, sort_order, priority, is_active, event_id) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                    ->execute($data);
+                $id = (int)$pdo->lastInsertId();
+            }
+            $row = $pdo->query('SELECT * FROM homepage_spotlights WHERE id = ' . (int)$id)->fetch(PDO::FETCH_ASSOC);
+            if ($row) {
+                $row['is_active'] = (bool)($row['is_active'] ?? 0);
+                $row['show_in_hero'] = (bool)($row['show_in_hero'] ?? 0);
+                $row['show_in_spotlight'] = !isset($row['show_in_spotlight']) || (bool)$row['show_in_spotlight'];
+                $row['images'] = parseSlideImageList($row, 'image_url', 'image_alt');
+                /* Split out videos for the admin form (so the textarea pre-fills on edit). */
+                $row['videos'] = array_values(array_filter($row['images'], function ($i) {
+                    return ($i['type'] ?? 'image') === 'video';
+                }));
+                /* Keep `images` as image-only for the gallery preview. */
+                $row['images'] = array_values(array_filter($row['images'], function ($i) {
+                    return ($i['type'] ?? 'image') !== 'video';
+                }));
+            }
+            auditLog($pdo, 'save_spotlight', 'spotlight', (string)$id, trim($_POST['title'] ?? ''));
+            echo json_encode(['success' => true, 'id' => $id, 'spotlight' => $row ?: null]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'delete_spotlight':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('DELETE FROM homepage_spotlights WHERE id = ?')->execute([$id]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_spotlight':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            $active = !empty($_POST['is_active']) && $_POST['is_active'] !== '0' ? 1 : 0;
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE homepage_spotlights SET is_active = ? WHERE id = ?')->execute([$active, $id]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ── Homepage Hero Slides ───────────────────────────────────────────
+    case 'get_home_hero':
+        try {
+            hosuPublicJsonCache(30);
+            migrateEventSchema($pdo);
+            $slides = loadHomepageHeroSlides($pdo, true);
+            echo json_encode(['success' => true, 'slides' => $slides]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'list_hero_slides':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            $rows = $pdo->query('SELECT * FROM homepage_hero_slides ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+            $slides = array_map(function ($row) use ($pdo) {
+                return normalizeHeroSlideRowWithPersist($pdo, $row);
+            }, $rows);
+            echo json_encode(['success' => true, 'slides' => $slides]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_hero_slide':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $id = (int)($_POST['id'] ?? 0);
+            $title = trim($_POST['title'] ?? '');
+            if ($title === '') {
+                http_response_code(400); echo json_encode(['error' => 'Title is required']); break;
+            }
+
+            $defaultAlt = trim($_POST['image_alt'] ?? '');
+            $images = collectPostedSlideImages('images_json', 'image_urls', 'image_path', $defaultAlt, 'uploads/hero/', 8000000);
+            $imagesJson = encodeSlideImagesJson($images);
+            $imagePath = $images[0]['url'] ?? trim($_POST['image_path'] ?? '');
+            $imageAlt = $images[0]['alt'] ?? $defaultAlt;
+
+            $pillsJson = trim($_POST['pills_json'] ?? '[]');
+            $pillsDecoded = json_decode($pillsJson, true);
+            if (!is_array($pillsDecoded)) {
+                $pillsJson = '[]';
+            }
+
+            $slideKey = trim($_POST['slide_key'] ?? '');
+            if ($slideKey === '') {
+                $slideKey = slugifyHeroKey($title, $id);
+            }
+
+            $data = [
+                $title,
+                trim($_POST['body'] ?? ''),
+                trim($_POST['badge_label'] ?? ''),
+                $pillsJson,
+                trim($_POST['popup_title'] ?? ''),
+                trim($_POST['popup_html'] ?? ''),
+                $imagePath,
+                $imageAlt,
+                $imagesJson,
+                trim($_POST['cta_label'] ?? ''),
+                trim($_POST['cta_url'] ?? ''),
+                trim($_POST['cta_secondary_label'] ?? ''),
+                trim($_POST['cta_secondary_url'] ?? ''),
+                trim($_POST['read_more_label'] ?? 'Read More →'),
+                $slideKey,
+                (int)($_POST['sort_order'] ?? 0),
+                !isset($_POST['is_active']) || $_POST['is_active'] !== '0' ? 1 : 0,
+                !empty($_POST['display_start']) ? trim($_POST['display_start']) : null,
+                !empty($_POST['display_end']) ? trim($_POST['display_end']) : null,
+            ];
+
+            if ($id > 0) {
+                $pdo->prepare('UPDATE homepage_hero_slides SET title=?, body=?, badge_label=?, pills_json=?, popup_title=?, popup_html=?, image_path=?, image_alt=?, images_json=?, cta_label=?, cta_url=?, cta_secondary_label=?, cta_secondary_url=?, read_more_label=?, slide_key=?, sort_order=?, is_active=?, display_start=?, display_end=? WHERE id=?')
+                    ->execute(array_merge($data, [$id]));
+            } else {
+                $pdo->prepare('INSERT INTO homepage_hero_slides (title, body, badge_label, pills_json, popup_title, popup_html, image_path, image_alt, images_json, cta_label, cta_url, cta_secondary_label, cta_secondary_url, read_more_label, slide_key, sort_order, is_active, display_start, display_end) VALUES (?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?,?)')
+                    ->execute($data);
+                $id = (int)$pdo->lastInsertId();
+            }
+            auditLog($pdo, 'save_hero_slide', 'hero_slide', (string)$id, $title);
+            $row = $pdo->query('SELECT * FROM homepage_hero_slides WHERE id = ' . (int)$id)->fetch(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'id' => $id, 'slide' => $row ? normalizeHeroSlideRow($row) : null]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'delete_hero_slide':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? $_GET['id'] ?? 0);
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $stmt = $pdo->prepare('SELECT image_path FROM homepage_hero_slides WHERE id = ?');
+            $stmt->execute([$id]);
+            $img = $stmt->fetchColumn();
+            if ($img && strpos($img, 'uploads/') === 0 && file_exists($img)) {
+                @unlink($img);
+            }
+            $pdo->prepare('DELETE FROM homepage_hero_slides WHERE id = ?')->execute([$id]);
+            auditLog($pdo, 'delete_hero_slide', 'hero_slide', (string)$id);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_hero_slide':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            $active = !empty($_POST['is_active']) && $_POST['is_active'] !== '0' ? 1 : 0;
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE homepage_hero_slides SET is_active = ? WHERE id = ?')->execute([$active, $id]);
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'get_homepage_extras':
+        try {
+            hosuPublicJsonCache(30);
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true] + fetchHomepageExtrasPayload($pdo));
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'get_site_chrome':
+        try {
+            hosuPublicJsonCache(30);
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true, 'chrome' => fetchSiteChromePayload($pdo)]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'get_homepage_settings':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true] + fetchHomepageExtrasPayload($pdo) + ['chrome' => fetchSiteChromePayload($pdo)]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'get_homepage_admin_overview':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true] + fetchHomepageAdminOverview($pdo));
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_publication_home':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int) ($_POST['id'] ?? 0);
+            $show = !empty($_POST['show_on_home']) && $_POST['show_on_home'] !== '0' ? 1 : 0;
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE publications SET show_on_home = ? WHERE id = ?')->execute([$show, $id]);
+            auditLog($pdo, 'toggle_publication_home', 'publication', (string) $id, $show ? 'on' : 'off');
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_grant_home':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int) ($_POST['id'] ?? 0);
+            $show = !empty($_POST['show_on_home']) && $_POST['show_on_home'] !== '0' ? 1 : 0;
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE grants_opportunities SET show_on_home = ? WHERE id = ?')->execute([$show, $id]);
+            auditLog($pdo, 'toggle_grant_home', 'grant', (string) $id, $show ? 'on' : 'off');
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_site_chrome':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $chrome = json_decode($_POST['chrome_json'] ?? '', true);
+            if (!is_array($chrome)) {
+                http_response_code(400); echo json_encode(['error' => 'Invalid chrome_json']); break;
+            }
+            saveSiteChromePayload($pdo, $chrome);
+            auditLog($pdo, 'save_site_chrome', 'site', 'chrome', 'Site chrome updated');
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_homepage_extras':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $partnersJson = $_POST['partners_json'] ?? '';
+            $ctaJson = $_POST['cta_json'] ?? '';
+            $partners = json_decode($partnersJson, true);
+            $cta = json_decode($ctaJson, true);
+            if (!is_array($partners) || !is_array($cta)) {
+                http_response_code(400); echo json_encode(['error' => 'Invalid JSON payload']); break;
+            }
+            if (!empty($_FILES['partner_logo_new']) && $_FILES['partner_logo_new']['error'] === UPLOAD_ERR_OK) {
+                $idx = (int)($_POST['partner_logo_index'] ?? -1);
+                $up = secureUpload($_FILES['partner_logo_new'], 'uploads/partners/', false, 8000000);
+                if ($up && isset($partners['items'][$idx])) {
+                    $partners['items'][$idx]['logo'] = $up;
+                }
+            }
+            saveHomepageSetting($pdo, 'partners', $partners);
+            saveHomepageSetting($pdo, 'cta', $cta);
+            auditLog($pdo, 'save_homepage_extras', 'homepage', 'extras', $partners['title'] ?? 'Homepage sections');
+            echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
     // ── Home Featured Content ─────────────────────────────────────────
     case 'get_home_featured':
         try {
-            // Auto-expire past events before fetching featured content
-            $pdo->exec("
-                UPDATE events
-                SET status   = 'past',
-                    category = 'past'
-                WHERE status != 'past'
-                  AND (
-                      (date_end   IS NOT NULL AND date_end   < CURDATE())
-                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE())
-                  )
-            ");
-
-            // Auto-unfeatured events that ended more than 2 days ago
-            $pdo->exec("
-                UPDATE events
-                SET featured = 0
-                WHERE featured = 1
-                  AND status = 'past'
-                  AND (
-                      (date_end   IS NOT NULL AND date_end   < CURDATE() - INTERVAL 2 DAY)
-                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start < CURDATE() - INTERVAL 2 DAY)
-                  )
-            ");
-
-            // Get featured events: show non-past + events that ended within last 2 days (grace period)
-            $evStmt = $pdo->query("
-                SELECT id, title, description, date, date_start, date_end, location, image, type, countdown, is_free, event_fee, status
-                FROM events
-                WHERE featured = 1
-                  AND (
-                      status != 'past'
-                   OR (date_end   IS NOT NULL AND date_end   >= CURDATE() - INTERVAL 2 DAY)
-                   OR (date_end   IS NULL     AND date_start IS NOT NULL AND date_start >= CURDATE() - INTERVAL 2 DAY)
-                  )
-                ORDER BY date_start ASC
-                LIMIT 3
-            ");
-            $events = $evStmt->fetchAll(PDO::FETCH_ASSOC);
-
-            // Attach gallery images (one slide per image will be rendered on home)
-            $galleryByEvent = [];
-            try {
-                if (!empty($events)) {
-                    $ids = array_column($events, 'id');
-                    $placeholders = implode(',', array_fill(0, count($ids), '?'));
-                    $gstmt = $pdo->prepare("SELECT event_id, image_path, image_alt, caption, sort_order, is_primary
-                                             FROM event_images
-                                             WHERE event_id IN ($placeholders)
-                                             ORDER BY event_id, sort_order ASC, id ASC");
-                    $gstmt->execute($ids);
-                    foreach ($gstmt->fetchAll(PDO::FETCH_ASSOC) as $ir) {
-                        $ir['image_path'] = str_replace('\\', '/', $ir['image_path']);
-                        $galleryByEvent[$ir['event_id']][] = $ir;
-                    }
-                }
-            } catch (Exception $_e) {}
-
-            foreach ($events as &$ev) {
-                $ev['image'] = str_replace('\\', '/', $ev['image']);
-                $gallery = $galleryByEvent[$ev['id']] ?? [];
-                $urls = [];
-                foreach ($gallery as $g) $urls[] = $g['image_path'];
-                if (empty($urls) && !empty($ev['image'])) $urls[] = $ev['image'];
-                $ev['images'] = $gallery;
-                $ev['image_urls'] = $urls;
-            }
-            unset($ev);
-
-            // Get publications shown on home (graceful if table missing)
-            $publications = [];
-            try {
-                $pubStmt = $pdo->query("SELECT id, title, authors, pub_type, pub_date, link, link_label FROM publications WHERE show_on_home = 1 ORDER BY sort_order ASC, created_at DESC LIMIT 3");
-                $publications = $pubStmt->fetchAll(PDO::FETCH_ASSOC);
-            } catch (PDOException $_e) { /* table may not exist yet */ }
-            
-            // Get grants shown on home (graceful if table missing)
-            $grants = [];
-            try {
-                $grantStmt = $pdo->query("SELECT id, title, amount, currency, deadline, status, description FROM grants_opportunities WHERE show_on_home = 1 AND status != 'closed' ORDER BY sort_order ASC, created_at DESC LIMIT 3");
-                $grants = $grantStmt->fetchAll(PDO::FETCH_ASSOC);
-            } catch (PDOException $_e) { /* table may not exist yet */ }
-            
+            hosuPublicJsonCache(30);
             echo json_encode([
                 'success' => true,
-                'featured' => [
-                    'events' => $events,
+                'featured' => fetchHomeFeaturedPayload($pdo),
+            ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'preview_pasted_image_urls':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $raw = file_get_contents('php://input');
+            $body = is_string($raw) && $raw !== '' ? json_decode($raw, true) : [];
+            $urls = [];
+            if (!empty($body['urls']) && is_array($body['urls'])) {
+                $urls = $body['urls'];
+            } elseif (!empty($_POST['urls'])) {
+                $urls = is_array($_POST['urls']) ? $_POST['urls'] : preg_split('/[\r\n,]+/', $_POST['urls']);
+            }
+            $urls = array_values(array_filter(array_map('trim', $urls)));
+            if (empty($urls)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Paste at least one URL']);
+                break;
+            }
+            foreach ($urls as $url) {
+                if (isDriveFolderUrl($url)) {
+                    invalidateDriveFolderCache(extractDriveFolderId($url));
+                }
+            }
+            $parsed = expandPastedImageUrls($urls);
+            $previews = array_map(function ($url) {
+                $id = extractDriveFileId($url);
+                return $id !== '' ? driveProxiedImageUrl($id, 320) : $url;
+            }, array_slice($parsed['urls'], 0, 16));
+            echo json_encode([
+                'success' => true,
+                'photo_count' => $parsed['photo_count'],
+                'folders' => $parsed['folders'],
+                'urls' => $parsed['urls'],
+                'previews' => $previews,
+            ]);
+        } catch (Throwable $e) {
+            error_log('API preview_pasted_image_urls: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not resolve links']);
+        }
+        break;
+
+    case 'preview_drive_folder':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $url = trim($_GET['url'] ?? $_POST['url'] ?? '');
+            if (!isDriveFolderUrl($url)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Paste a Google Drive folder link']);
+                break;
+            }
+            $folderId = extractDriveFolderId($url);
+            invalidateDriveFolderCache($folderId);
+            $ids = fetchDriveFolderFileIds($folderId, true);
+            $previews = array_map(
+                fn($id) => driveProxiedImageUrl($id, 480),
+                array_slice($ids, 0, 8)
+            );
+            echo json_encode([
+                'success' => true,
+                'folder_id' => $folderId,
+                'photo_count' => count($ids),
+                'previews' => $previews,
+            ]);
+        } catch (Throwable $e) {
+            error_log('API preview_drive_folder: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not read folder']);
+        }
+        break;
+
+    case 'get_home_spotlight':
+        try {
+            header('Cache-Control: no-store, no-cache, must-revalidate');
+            $payload = fetchHomeSpotlightPayload($pdo);
+            echo json_encode([
+                'success' => true,
+                'spotlight_slides' => $payload['spotlight_slides'],
+                'hero_spotlights' => $payload['hero_spotlights'],
+                'has_live' => $payload['has_live'] ?? false,
+            ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ── Homepage Dynamic Sections ─────────────────────────────────────
+    case 'get_home_content':
+        try {
+            migrateEventSchema($pdo);
+            autoExpirePastEvents($pdo);
+
+            $stmt = $pdo->query('SELECT * FROM events ORDER BY updated_at DESC, created_at DESC');
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $today = new DateTimeImmutable('today');
+            $all = [];
+
+            foreach ($rows as $ev) {
+                enrichEventRow($ev, $today);
+                $all[] = $ev;
+            }
+
+            $ids = array_column($all, 'id');
+            attachGalleryToEvents($all, loadEventGalleries($pdo, $ids));
+            attachMediaToEvents($all, loadEventMedia($pdo, $ids));
+            attachLiveContentToEvents($all, loadLiveContent($pdo, $ids, true), true);
+
+            $visible = array_values(array_filter($all, fn($ev) => $ev['is_display_active'] || $ev['featured'] || $ev['pinned']));
+
+            // Live/ongoing events always surface on homepage when event day is reached
+            $liveEvents = array_values(array_filter($all, function ($ev) {
+                return $ev['is_live']
+                    && ($ev['status'] ?? '') !== 'past'
+                    && $ev['show_live_on_home'];
+            }));
+            usort($liveEvents, function ($a, $b) {
+                if ($a['home_priority'] !== $b['home_priority']) {
+                    return $b['home_priority'] <=> $a['home_priority'];
+                }
+                return strcmp($a['date_start'] ?? '', $b['date_start'] ?? '');
+            });
+            $featuredEvents = array_values(array_filter($visible, fn($ev) => $ev['featured'] || $ev['pinned']));
+            usort($featuredEvents, function ($a, $b) {
+                if ($a['pinned'] !== $b['pinned']) return $b['pinned'] <=> $a['pinned'];
+                if ($a['home_priority'] !== $b['home_priority']) return $b['home_priority'] <=> $a['home_priority'];
+                return strcmp($a['date_start'] ?? '', $b['date_start'] ?? '');
+            });
+            $featuredEvents = array_slice($featuredEvents, 0, 6);
+
+            $upcomingEvents = array_values(array_filter($visible, fn($ev) => !$ev['is_live'] && ($ev['category'] ?? '') === 'upcoming'));
+            usort($upcomingEvents, fn($a, $b) => strcmp($a['date_start'] ?? '', $b['date_start'] ?? ''));
+            $upcomingEvents = array_slice($upcomingEvents, 0, 8);
+
+            $recentlyUpdated = array_slice($visible, 0, 6);
+
+            $conferences = array_values(array_filter($visible, fn($ev) => ($ev['type'] ?? '') === 'conference'));
+            $workshops = array_values(array_filter($visible, fn($ev) => ($ev['type'] ?? '') === 'workshop'));
+            $webinars = array_values(array_filter($visible, fn($ev) => ($ev['type'] ?? '') === 'webinar'));
+
+            $announcements = [];
+            foreach ($visible as $ev) {
+                if (!empty($ev['announcements'])) {
+                    $announcements[] = [
+                        'id' => $ev['id'],
+                        'title' => $ev['title'],
+                        'text' => $ev['announcements'],
+                        'date' => $ev['date'],
+                        'is_live' => $ev['is_live'],
+                        'pinned' => $ev['pinned'],
+                    ];
+                }
+            }
+            usort($announcements, fn($a, $b) => ($b['pinned'] <=> $a['pinned']) ?: strcmp($a['date'] ?? '', $b['date'] ?? ''));
+            $announcements = array_slice($announcements, 0, 8);
+
+            $highlights = [];
+            foreach ($visible as $ev) {
+                if (!empty($ev['highlights'])) {
+                    $highlights[] = [
+                        'id' => $ev['id'],
+                        'title' => $ev['title'],
+                        'text' => $ev['highlights'],
+                        'image' => $ev['image_urls'][0] ?? $ev['image'] ?? '',
+                        'is_live' => $ev['is_live'],
+                        'countdown' => $ev['countdown'],
+                    ];
+                }
+                $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, 'homepage');
+                foreach ($blocks as $block) {
+                    if (($block['content_type'] ?? '') === 'image' && !empty($block['image_url'])) {
+                        $highlights[] = [
+                            'id' => $ev['id'],
+                            'title' => $block['title'] ?: $ev['title'],
+                            'text' => $block['body'] ?? '',
+                            'image' => $block['image_url'],
+                            'is_live' => $ev['is_live'],
+                            'countdown' => $ev['countdown'],
+                        ];
+                    }
+                }
+            }
+            $highlights = array_slice($highlights, 0, 8);
+
+            $mediaGallery = [];
+            foreach ($visible as $ev) {
+                foreach ($ev['image_urls'] ?? [] as $img) {
+                    $mediaGallery[] = ['type' => 'image', 'url' => $img, 'event_id' => $ev['id'], 'title' => $ev['title']];
+                }
+                foreach ($ev['videos'] ?? [] as $vid) {
+                    $mediaGallery[] = ['type' => 'video', 'url' => $vid['media_path'], 'event_id' => $ev['id'], 'title' => $vid['title'] ?: $ev['title']];
+                }
+            }
+            $mediaGallery = array_slice($mediaGallery, 0, 12);
+
+            $successStories = array_values(array_filter($visible, fn($ev) => !empty($ev['highlights']) && ($ev['status'] ?? '') === 'past'));
+            $successStories = array_slice($successStories, 0, 4);
+
+            $publications = [];
+            try {
+                $pubStmt = $pdo->query("SELECT id, title, authors, pub_type, pub_date, link, link_label FROM publications WHERE show_on_home = 1 ORDER BY sort_order ASC, created_at DESC LIMIT 4");
+                $publications = $pubStmt->fetchAll(PDO::FETCH_ASSOC);
+            } catch (PDOException $_e) {}
+
+            $customSpotlights = loadHomepageSpotlights($pdo, true);
+            $spotlightSlides = buildSpotlightSlides($all, $customSpotlights);
+            $heroSpotlights = array_values(array_filter($spotlightSlides, fn($s) => !empty($s['show_in_hero'])));
+
+            echo json_encode([
+                'success' => true,
+                'spotlight_slides' => $spotlightSlides,
+                'hero_spotlights' => $heroSpotlights,
+                'sections' => [
+                    'live_events' => $liveEvents,
+                    'spotlight_slides' => $spotlightSlides,
+                    'featured_events' => $featuredEvents,
+                    'upcoming_events' => $upcomingEvents,
+                    'recently_updated' => $recentlyUpdated,
+                    'conferences' => array_slice($conferences, 0, 6),
+                    'workshops' => array_slice($workshops, 0, 4),
+                    'webinars' => array_slice($webinars, 0, 4),
+                    'announcements' => $announcements,
+                    'highlights' => $highlights,
+                    'media_gallery' => $mediaGallery,
+                    'success_stories' => $successStories,
                     'publications' => $publications,
-                    'grants' => $grants
-                ]
+                ],
             ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);

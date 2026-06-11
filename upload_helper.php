@@ -5,6 +5,80 @@
  */
 
 define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 MB
+define('UPLOAD_IMAGE_MAX_WIDTH', 1200);
+define('UPLOAD_IMAGE_MAX_HEIGHT', 900);
+define('UPLOAD_IMAGE_JPEG_QUALITY', 85);
+define('UPLOAD_IMAGE_WEBP_QUALITY', 85);
+
+/**
+ * Downscale a GD image resource to fit within hero/spotlight display bounds.
+ */
+function downscaleImageResource(\GdImage $img, int $maxW = UPLOAD_IMAGE_MAX_WIDTH, int $maxH = UPLOAD_IMAGE_MAX_HEIGHT): \GdImage
+{
+    $w = imagesx($img);
+    $h = imagesy($img);
+    if ($w <= 0 || $h <= 0) {
+        return $img;
+    }
+    if ($w <= $maxW && $h <= $maxH) {
+        return $img;
+    }
+
+    $ratio = min($maxW / $w, $maxH / $h);
+    $nw = max(1, (int) round($w * $ratio));
+    $nh = max(1, (int) round($h * $ratio));
+
+    $resampled = imagecreatetruecolor($nw, $nh);
+    imagesavealpha($resampled, true);
+    $transparent = imagecolorallocatealpha($resampled, 0, 0, 0, 127);
+    imagefill($resampled, 0, 0, $transparent);
+    imagecopyresampled($resampled, $img, 0, 0, 0, 0, $nw, $nh, $w, $h);
+    imagedestroy($img);
+
+    return $resampled;
+}
+
+/**
+ * Re-encode an on-disk upload at standard hero dimensions (idempotent).
+ */
+function optimizeUploadedImage(string $path): bool
+{
+    if (!is_file($path)) {
+        return false;
+    }
+
+    $info = @getimagesize($path);
+    if (!$info || empty($info['mime']) || !isset(UPLOAD_ALLOWED_IMAGES[$info['mime']])) {
+        return false;
+    }
+
+    $img = @imagecreatefromstring((string) file_get_contents($path));
+    if (!$img) {
+        return false;
+    }
+
+    imagesavealpha($img, true);
+    $img = downscaleImageResource($img);
+    $ext = UPLOAD_ALLOWED_IMAGES[$info['mime']];
+
+    switch ($ext) {
+        case 'png':
+            imagepng($img, $path, 9);
+            break;
+        case 'gif':
+            imagegif($img, $path);
+            break;
+        case 'webp':
+            imagewebp($img, $path, UPLOAD_IMAGE_WEBP_QUALITY);
+            break;
+        default:
+            imagejpeg($img, $path, UPLOAD_IMAGE_JPEG_QUALITY);
+            break;
+    }
+    imagedestroy($img);
+
+    return true;
+}
 
 define('UPLOAD_ALLOWED_IMAGES', [
     'image/jpeg' => 'jpg',
@@ -54,8 +128,8 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
         $img = @imagecreatefromstring(file_get_contents($file['tmp_name']));
         if (!$img) return false;
 
-        // Preserve transparency for PNG/GIF/WebP
         imagesavealpha($img, true);
+        $img = downscaleImageResource($img);
 
         switch ($ext) {
             case 'png':
@@ -65,10 +139,10 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
                 imagegif($img, $targetPath);
                 break;
             case 'webp':
-                imagewebp($img, $targetPath, 85);
+                imagewebp($img, $targetPath, UPLOAD_IMAGE_WEBP_QUALITY);
                 break;
-            default: // jpg
-                imagejpeg($img, $targetPath, 85);
+            default:
+                imagejpeg($img, $targetPath, UPLOAD_IMAGE_JPEG_QUALITY);
                 break;
         }
         imagedestroy($img);

@@ -8,11 +8,8 @@
     Require all denied
 </Files>
 
-# Deny access to setup/seed scripts
+# Deny access to setup script
 <Files "setup_db.php">
-    Require all denied
-</Files>
-<Files "seed_sample_data.php">
     Require all denied
 </Files>
 <Files "_tmp_check.php">

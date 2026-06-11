@@ -55,7 +55,9 @@
                 + '<div style="font-weight:700;font-size:0.9rem;color:var(--secondary-color);">' + escHtml(u.username) + '</div>'
                 + '<div style="font-size:0.72rem;color:var(--text-light);text-transform:capitalize;">' + escHtml(u.role) + ' Account</div>'
                 + '</div>'
-                + (isAdmin ? '<a href="admin.html" style="display:block;margin:0.75rem 0 0.3rem;width:100%;text-align:center;padding:0.5rem;background:var(--secondary-color);color:#fff;border-radius:6px;font-weight:600;font-size:0.82rem;text-decoration:none;">&#9881; Admin Dashboard</a>' : '')
+                + (isAdmin
+                    ? '<a href="admin.html" style="display:block;margin:0.75rem 0 0.3rem;width:100%;text-align:center;padding:0.5rem;background:var(--secondary-color);color:#fff;border-radius:6px;font-weight:600;font-size:0.82rem;text-decoration:none;">&#9881; Admin Dashboard</a>'
+                    : '<a href="portal.html" style="display:block;margin:0.75rem 0 0.3rem;width:100%;text-align:center;padding:0.5rem;background:var(--secondary-color);color:#fff;border-radius:6px;font-weight:600;font-size:0.82rem;text-decoration:none;">&#128100; My Portal</a>')
                 + '<button onclick="doLogout()" style="width:100%;margin-top:0.4rem;padding:0.45rem;background:rgba(230,57,70,0.08);color:var(--primary-color);border:1px solid rgba(230,57,70,0.2);border-radius:6px;font-weight:600;font-size:0.82rem;cursor:pointer;">Sign Out</button>';
         } else {
             popup.innerHTML =

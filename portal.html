@@ -1,0 +1,590 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="robots" content="noindex, nofollow">
+    <title>Member Portal — HOSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="navbar.css?v=2026040404">
+    <link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --primary-dark: #c81d2a;
+            --secondary-color: #0d4593;
+            --secondary-dark: #072a5e;
+            --text-color: #001848;
+            --text-light: #4a5568;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --gray-400: #cbd5e0;
+            --gray-500: #a0aec0;
+            --green: #2ecc71;
+            --amber: #f39c12;
+            --red: #e63946;
+            --navbar-height: 90px;
+        }
+        * { margin:0; padding:0; box-sizing:border-box; }
+        body { font-family:'Inter',sans-serif; color:var(--text-color); background:var(--gray-100); line-height:1.5; }
+        .portal-shell { padding-top:calc(var(--navbar-height) + 1rem); max-width:1200px; margin:0 auto; padding-left:1.25rem; padding-right:1.25rem; padding-bottom:3rem; }
+
+        .portal-header { display:flex; align-items:center; gap:1rem; padding:1.5rem 0 1rem; flex-wrap:wrap; }
+        .portal-header h1 { font-size:1.6rem; color:var(--secondary-color); }
+        .portal-header p { color:var(--text-light); font-size:0.92rem; }
+
+        .status-pill { display:inline-flex; align-items:center; gap:0.4rem; padding:0.35rem 0.85rem; border-radius:999px; font-weight:600; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.04em; }
+        .status-active           { background:#e0f7ec; color:#1a7f4a; }
+        .status-pending          { background:#fef3c7; color:#92400e; }
+        .status-needs_correction { background:#fde8e8; color:#9b1c1c; }
+        .status-approved_unpaid  { background:#dbeafe; color:#1e40af; }
+        .status-expired          { background:#fee2e2; color:#991b1b; }
+        .status-suspended        { background:#f3f4f6; color:#4b5563; }
+        .status-honorary         { background:#ede9fe; color:#5b21b6; }
+        .status-retired          { background:#f1f5f9; color:#475569; }
+        .status-rejected         { background:#fee2e2; color:#991b1b; }
+
+        .portal-grid { display:grid; grid-template-columns: 280px 1fr; gap:1.5rem; }
+        @media (max-width: 820px) { .portal-grid { grid-template-columns: 1fr; } }
+
+        .side-nav { background:#fff; border-radius:14px; padding:1rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); position:sticky; top:calc(var(--navbar-height) + 1rem); align-self:start; }
+        .side-nav button { display:block; width:100%; text-align:left; padding:0.75rem 1rem; background:transparent; border:0; border-radius:10px; font-family:inherit; font-size:0.95rem; cursor:pointer; color:var(--text-color); margin-bottom:0.25rem; }
+        .side-nav button:hover { background:var(--gray-100); }
+        .side-nav button.active { background:var(--secondary-color); color:#fff; font-weight:600; }
+        .side-nav .nav-section-title { font-size:0.7rem; text-transform:uppercase; letter-spacing:0.07em; color:var(--gray-500); padding:0.5rem 1rem 0.25rem; }
+
+        .panel { background:#fff; border-radius:14px; padding:1.5rem; box-shadow:0 2px 8px rgba(0,0,0,0.04); margin-bottom:1.25rem; }
+        .panel h2 { font-size:1.15rem; color:var(--secondary-color); margin-bottom:1rem; display:flex; align-items:center; gap:0.5rem; }
+        .panel h2 i { color:var(--primary-color); }
+
+        .info-table { width:100%; border-collapse:collapse; font-size:0.95rem; }
+        .info-table th, .info-table td { padding:0.6rem 0.4rem; text-align:left; border-bottom:1px solid var(--gray-200); vertical-align:top; }
+        .info-table th { color:var(--text-light); font-weight:500; width:38%; }
+        .info-table td { color:var(--text-color); font-weight:600; }
+
+        .form-grid { display:grid; grid-template-columns:1fr 1fr; gap:1rem; }
+        @media (max-width:600px) { .form-grid { grid-template-columns:1fr; } }
+        .form-grid .full { grid-column:1 / -1; }
+        label.field-label { display:block; font-size:0.78rem; text-transform:uppercase; letter-spacing:0.06em; color:var(--text-light); margin-bottom:0.3rem; font-weight:600; }
+        input.field, select.field, textarea.field { width:100%; padding:0.65rem 0.85rem; border:1px solid var(--gray-300); border-radius:8px; font-family:inherit; font-size:0.95rem; background:#fff; }
+        input.field:focus, select.field:focus, textarea.field:focus { outline:none; border-color:var(--secondary-color); box-shadow:0 0 0 3px rgba(13,69,147,0.08); }
+        input.field[readonly] { background:var(--gray-100); color:var(--text-light); }
+
+        .btn { display:inline-flex; align-items:center; gap:0.4rem; padding:0.65rem 1.25rem; border:0; border-radius:8px; font-family:inherit; font-weight:600; font-size:0.92rem; cursor:pointer; }
+        .btn-primary  { background:var(--secondary-color); color:#fff; }
+        .btn-primary:hover  { background:var(--secondary-dark); }
+        .btn-danger   { background:var(--primary-color); color:#fff; }
+        .btn-danger:hover   { background:var(--primary-dark); }
+        .btn-ghost    { background:var(--gray-100); color:var(--text-color); }
+        .btn-ghost:hover    { background:var(--gray-200); }
+        .btn-small    { padding:0.4rem 0.85rem; font-size:0.82rem; }
+
+        .doc-row { display:flex; align-items:center; gap:0.75rem; padding:0.65rem 0; border-bottom:1px solid var(--gray-200); }
+        .doc-row:last-child { border-bottom:0; }
+        .doc-row .doc-type-pill { font-size:0.7rem; text-transform:uppercase; background:var(--gray-200); padding:0.25rem 0.55rem; border-radius:999px; font-weight:600; color:var(--text-light); }
+        .doc-row .doc-verified { color:var(--green); font-weight:600; font-size:0.82rem; }
+
+        .pay-row { display:grid; grid-template-columns: 1.1fr 1fr 1fr 0.9fr 0.9fr; gap:0.75rem; padding:0.6rem 0; border-bottom:1px solid var(--gray-200); font-size:0.9rem; align-items:center; }
+        .pay-row.head { font-weight:600; color:var(--text-light); font-size:0.78rem; text-transform:uppercase; }
+        .pay-row .pill { display:inline-flex; padding:0.2rem 0.55rem; border-radius:999px; font-size:0.72rem; font-weight:600; }
+        .pay-row .pill.verified { background:#e0f7ec; color:#1a7f4a; }
+        .pay-row .pill.pending  { background:#fef3c7; color:#92400e; }
+        .pay-row .pill.rejected { background:#fee2e2; color:#991b1b; }
+        @media (max-width:700px) { .pay-row { grid-template-columns: 1fr 1fr; } .pay-row.head { display:none; } }
+
+        .alert { padding:1rem; border-radius:10px; font-size:0.9rem; margin-bottom:1rem; }
+        .alert-info    { background:#dbeafe; color:#1e3a8a; }
+        .alert-warn    { background:#fef3c7; color:#92400e; }
+        .alert-success { background:#e0f7ec; color:#14532d; }
+        .alert-error   { background:#fee2e2; color:#991b1b; }
+
+        .toggle { position:relative; display:inline-block; width:46px; height:26px; }
+        .toggle input { opacity:0; width:0; height:0; }
+        .toggle .slider { position:absolute; cursor:pointer; inset:0; background:var(--gray-300); border-radius:999px; transition:0.2s; }
+        .toggle .slider::before { content:""; position:absolute; height:20px; width:20px; left:3px; top:3px; background:#fff; border-radius:50%; transition:0.2s; }
+        .toggle input:checked + .slider { background:var(--secondary-color); }
+        .toggle input:checked + .slider::before { transform: translateX(20px); }
+
+        .empty-state { padding:2.5rem 1rem; text-align:center; color:var(--text-light); }
+        .empty-state i { font-size:2.5rem; color:var(--gray-400); margin-bottom:0.5rem; display:block; }
+        .hide { display:none !important; }
+
+        .pane { display:none; }
+        .pane.active { display:block; }
+
+        .renew-banner { background:linear-gradient(135deg,#0d4593,#072a5e); color:#fff; padding:1.5rem; border-radius:14px; margin-bottom:1.25rem; display:flex; justify-content:space-between; align-items:center; gap:1rem; flex-wrap:wrap; }
+        .renew-banner h3 { font-size:1.1rem; }
+        .renew-banner p { opacity:0.85; font-size:0.88rem; }
+        .renew-banner .btn { background:#fff; color:var(--secondary-dark); }
+    </style>
+</head>
+<body>
+
+<nav id="navbar-placeholder"></nav>
+
+<main class="portal-shell">
+
+    <div id="portalLoadingState" class="panel" style="text-align:center; padding:3rem;">
+        <i class="fas fa-circle-notch fa-spin" style="font-size:2rem; color:var(--secondary-color);"></i>
+        <p style="margin-top:1rem; color:var(--text-light);">Loading your member portal…</p>
+    </div>
+
+    <div id="portalSignedOut" class="hide panel" style="text-align:center; padding:3rem;">
+        <i class="fas fa-user-lock" style="font-size:2.5rem; color:var(--gray-400);"></i>
+        <h2 style="margin-top:1rem; color:var(--secondary-color);">Please sign in</h2>
+        <p style="color:var(--text-light); margin:0.5rem 0 1.5rem;">You need to be signed in to view the member portal.</p>
+        <button class="btn btn-primary" onclick="openLoginPopup && openLoginPopup()">Sign in</button>
+    </div>
+
+    <div id="portalNoMember" class="hide panel" style="text-align:center; padding:2.5rem;">
+        <i class="fas fa-id-card" style="font-size:2.5rem; color:var(--gray-400);"></i>
+        <h2 style="margin-top:1rem; color:var(--secondary-color);">No membership on file</h2>
+        <p style="color:var(--text-light); margin:0.5rem 0 1rem;">We could not find a HOSU membership tied to your account email.</p>
+        <p style="color:var(--text-light); margin:0 0 1.5rem;">If you have already applied, click "Link existing application" — we will try to match your email.</p>
+        <div style="display:flex; gap:0.75rem; justify-content:center; flex-wrap:wrap;">
+            <a href="membership.html" class="btn btn-primary">Apply for membership</a>
+            <button class="btn btn-ghost" onclick="portalLinkExisting()">Link existing application</button>
+        </div>
+    </div>
+
+    <div id="portalBody" class="hide">
+        <div class="portal-header">
+            <div style="flex:1;">
+                <h1>Welcome, <span id="ph_name">Member</span></h1>
+                <p id="ph_memnum" style="font-family:monospace;"></p>
+            </div>
+            <span id="ph_status" class="status-pill">…</span>
+        </div>
+
+        <div id="renewBanner" class="renew-banner hide">
+            <div>
+                <h3 id="rb_title">Renewal due soon</h3>
+                <p id="rb_sub"></p>
+            </div>
+            <a href="membership.html" class="btn">Renew membership</a>
+        </div>
+
+        <div class="portal-grid">
+            <aside class="side-nav">
+                <div class="nav-section-title">Account</div>
+                <button data-pane="overview" class="active"><i class="fas fa-th-large" style="margin-right:0.5rem;"></i>Overview</button>
+                <button data-pane="profile"><i class="fas fa-user-edit" style="margin-right:0.5rem;"></i>Profile</button>
+                <button data-pane="documents"><i class="fas fa-folder-open" style="margin-right:0.5rem;"></i>Documents</button>
+                <button data-pane="payments"><i class="fas fa-receipt" style="margin-right:0.5rem;"></i>Payments</button>
+                <div class="nav-section-title">Society</div>
+                <button data-pane="directory-pref"><i class="fas fa-globe" style="margin-right:0.5rem;"></i>Directory</button>
+                <button data-pane="messages"><i class="fas fa-bullhorn" style="margin-right:0.5rem;"></i>Messages</button>
+            </aside>
+
+            <section>
+                <!-- OVERVIEW -->
+                <div id="pane-overview" class="pane active">
+                    <div class="panel">
+                        <h2><i class="fas fa-id-badge"></i> Membership summary</h2>
+                        <table class="info-table">
+                            <tr><th>Membership number</th><td id="ov_memnum">—</td></tr>
+                            <tr><th>Category</th><td id="ov_category">—</td></tr>
+                            <tr><th>Profession</th><td id="ov_profession">—</td></tr>
+                            <tr><th>Institution</th><td id="ov_institution">—</td></tr>
+                            <tr><th>Status</th><td id="ov_status">—</td></tr>
+                            <tr><th>Verification</th><td id="ov_verified">—</td></tr>
+                            <tr><th>Dues paid</th><td id="ov_paid">—</td></tr>
+                            <tr><th>Expires</th><td id="ov_expiry">—</td></tr>
+                            <tr><th>Committee</th><td id="ov_committee">—</td></tr>
+                            <tr><th>CPD points</th><td id="ov_cpd">0</td></tr>
+                            <tr><th>Date joined</th><td id="ov_joined">—</td></tr>
+                        </table>
+                    </div>
+                </div>
+
+                <!-- PROFILE -->
+                <div id="pane-profile" class="pane">
+                    <div class="panel">
+                        <h2><i class="fas fa-user-edit"></i> Edit your profile</h2>
+                        <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:1rem;">
+                            You can update your personal information. Membership category, status and verification are managed by the HOSU secretariat.
+                        </p>
+                        <form id="profileForm">
+                            <div class="form-grid">
+                                <div>
+                                    <label class="field-label" for="pf_name">Full name</label>
+                                    <input class="field" id="pf_name" name="full_name" required>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="pf_email">Email (read-only)</label>
+                                    <input class="field" id="pf_email" readonly>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="pf_phone">Phone</label>
+                                    <input class="field" id="pf_phone" name="phone" type="tel">
+                                </div>
+                                <div>
+                                    <label class="field-label" for="pf_country">Country</label>
+                                    <input class="field" id="pf_country" name="country">
+                                </div>
+                                <div>
+                                    <label class="field-label" for="pf_institution">Institution</label>
+                                    <input class="field" id="pf_institution" name="institution">
+                                </div>
+                                <div>
+                                    <label class="field-label" for="pf_specialty">Specialty</label>
+                                    <input class="field" id="pf_specialty" name="specialty">
+                                </div>
+                                <div class="full">
+                                    <label class="field-label">Category (admin-assigned)</label>
+                                    <input class="field" id="pf_category" readonly>
+                                </div>
+                            </div>
+                            <div style="margin-top:1.25rem;">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-save"></i> Save changes</button>
+                                <span id="pf_msg" style="margin-left:1rem; font-size:0.88rem;"></span>
+                            </div>
+                        </form>
+                    </div>
+                </div>
+
+                <!-- DOCUMENTS -->
+                <div id="pane-documents" class="pane">
+                    <div class="panel">
+                        <h2><i class="fas fa-folder-open"></i> My documents</h2>
+                        <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:1rem;">
+                            Upload verification documents: practising license, CV, or proof of training.
+                            Documents will be reviewed by the secretariat.
+                        </p>
+                        <form id="docForm" enctype="multipart/form-data">
+                            <div class="form-grid">
+                                <div>
+                                    <label class="field-label" for="doc_type">Document type</label>
+                                    <select class="field" id="doc_type" name="doc_type">
+                                        <option value="license">Practising License</option>
+                                        <option value="cv">CV / Resume</option>
+                                        <option value="proof_of_training">Proof of training</option>
+                                        <option value="id_document">National ID / Passport</option>
+                                        <option value="other">Other</option>
+                                    </select>
+                                </div>
+                                <div>
+                                    <label class="field-label" for="doc_file">File (PDF, JPG, PNG — max 10 MB)</label>
+                                    <input class="field" id="doc_file" name="document" type="file" required accept=".pdf,.jpg,.jpeg,.png">
+                                </div>
+                            </div>
+                            <div style="margin-top:1rem;">
+                                <button type="submit" class="btn btn-primary"><i class="fas fa-upload"></i> Upload</button>
+                                <span id="doc_msg" style="margin-left:1rem; font-size:0.88rem;"></span>
+                            </div>
+                        </form>
+
+                        <h3 style="margin-top:1.5rem; font-size:0.95rem; color:var(--text-light);">Uploaded documents</h3>
+                        <div id="docList"></div>
+                    </div>
+                </div>
+
+                <!-- PAYMENTS -->
+                <div id="pane-payments" class="pane">
+                    <div class="panel">
+                        <h2><i class="fas fa-receipt"></i> Payment history</h2>
+                        <div class="pay-row head">
+                            <div>Date</div><div>Type</div><div>Amount</div><div>Status</div><div>Receipt</div>
+                        </div>
+                        <div id="payList"></div>
+                    </div>
+                </div>
+
+                <!-- DIRECTORY PREF -->
+                <div id="pane-directory-pref" class="pane">
+                    <div class="panel">
+                        <h2><i class="fas fa-globe"></i> Public directory</h2>
+                        <p style="font-size:0.9rem; color:var(--text-light); margin-bottom:1rem;">
+                            Choose whether your name, title, institution and category appear in the HOSU public directory.
+                            Private information (phone, email, documents, payments) is never shown publicly.
+                        </p>
+                        <label style="display:flex; align-items:center; gap:1rem;">
+                            <span class="toggle">
+                                <input type="checkbox" id="dirToggle" onchange="portalSetVisibility(this.checked)">
+                                <span class="slider"></span>
+                            </span>
+                            <span id="dirToggleLabel">Hidden from public directory</span>
+                        </label>
+                    </div>
+                </div>
+
+                <!-- MESSAGES -->
+                <div id="pane-messages" class="pane">
+                    <div class="panel">
+                        <h2><i class="fas fa-bullhorn"></i> Messages from the secretariat</h2>
+                        <div id="noteList"></div>
+                    </div>
+                </div>
+            </section>
+        </div>
+    </div>
+</main>
+
+<footer></footer>
+
+<script src="shared-components.js?v=2026040404"></script>
+<script src="shared-login.js?v=2026040404"></script>
+<script src="donate-float.js?v=2026040404"></script>
+
+<script>
+'use strict';
+
+const PORTAL_API = 'portal.php';
+
+function esc(s) {
+    var d = document.createElement('div');
+    d.appendChild(document.createTextNode(s == null ? '' : String(s)));
+    return d.innerHTML;
+}
+
+function fmtDate(s) {
+    if (!s) return '—';
+    var d = new Date(s.replace(' ', 'T'));
+    if (isNaN(d.getTime())) return s;
+    return d.toLocaleDateString('en-GB', { day:'numeric', month:'short', year:'numeric' });
+}
+function fmtUGX(n) {
+    n = Number(n || 0);
+    return 'UGX ' + n.toLocaleString('en-US');
+}
+
+function show(id) { document.getElementById(id).classList.remove('hide'); }
+function hide(id) { document.getElementById(id).classList.add('hide'); }
+
+let _portalState = null;
+
+async function loadPortal() {
+    try {
+        var r = await fetch(PORTAL_API + '?action=me', { credentials:'include' });
+        if (r.status === 401) {
+            hide('portalLoadingState'); show('portalSignedOut'); return;
+        }
+        var data = await r.json();
+        hide('portalLoadingState');
+        _portalState = data;
+        if (!data.has_member) { show('portalNoMember'); return; }
+        show('portalBody');
+        renderPortal(data);
+    } catch (e) {
+        hide('portalLoadingState');
+        show('portalSignedOut');
+    }
+}
+
+async function portalLinkExisting() {
+    try {
+        var fd = new FormData(); fd.append('action', 'request_link');
+        if (window.hosuAppendCsrf) window.hosuAppendCsrf(fd);
+        var r = await fetch(PORTAL_API, { method:'POST', body:fd, credentials:'include' });
+        var d = await r.json();
+        if (d.success) { window.location.reload(); }
+        else alert(d.error || 'No matching application found. Please apply for membership.');
+    } catch (e) { alert('Server error'); }
+}
+
+function renderPortal(d) {
+    var m = d.member;
+    document.getElementById('ph_name').textContent = m.full_name || 'Member';
+    document.getElementById('ph_memnum').textContent = m.membership_number || '';
+    var pill = document.getElementById('ph_status');
+    pill.textContent = (m.status || 'pending').replace(/_/g, ' ');
+    pill.className = 'status-pill status-' + (m.status || 'pending');
+
+    // Overview
+    document.getElementById('ov_memnum').textContent      = m.membership_number || '—';
+    document.getElementById('ov_category').textContent    = m.category_name || '— pending assignment —';
+    document.getElementById('ov_profession').textContent  = m.profession || '—';
+    document.getElementById('ov_institution').textContent = m.institution || '—';
+    document.getElementById('ov_status').innerHTML        = '<span class="status-pill status-' + esc(m.status) + '">' + esc((m.status||'').replace(/_/g,' ')) + '</span>';
+    document.getElementById('ov_verified').textContent    = m.verified ? 'Verified by HOSU' : 'Not yet verified';
+    document.getElementById('ov_paid').textContent        = m.dues_paid_at ? fmtDate(m.dues_paid_at) : 'Not yet recorded';
+    document.getElementById('ov_expiry').textContent      = m.expiry_date ? fmtDate(m.expiry_date) : '—';
+    document.getElementById('ov_committee').textContent   = m.committee || '—';
+    document.getElementById('ov_cpd').textContent         = m.cpd_points || 0;
+    document.getElementById('ov_joined').textContent      = m.date_joined ? fmtDate(m.date_joined) : '—';
+
+    // Renewal banner — 60 days out, or once expired
+    if (m.expiry_date) {
+        var exp = new Date(m.expiry_date + 'T23:59:59');
+        var now = new Date();
+        var daysLeft = Math.ceil((exp - now) / 86400000);
+        var b = document.getElementById('renewBanner');
+        if (daysLeft < 0) {
+            b.classList.remove('hide');
+            document.getElementById('rb_title').textContent = 'Your membership has expired';
+            document.getElementById('rb_sub').textContent = 'Renew to regain access to member benefits.';
+        } else if (daysLeft <= 60) {
+            b.classList.remove('hide');
+            document.getElementById('rb_title').textContent = 'Renewal due in ' + daysLeft + ' days';
+            document.getElementById('rb_sub').textContent = 'Your membership ends ' + fmtDate(m.expiry_date) + '. Renew now to avoid lapse.';
+        }
+    }
+
+    // Profile
+    document.getElementById('pf_name').value        = m.full_name || '';
+    document.getElementById('pf_email').value       = m.email || '';
+    document.getElementById('pf_phone').value       = m.phone || '';
+    document.getElementById('pf_country').value     = m.country || 'Uganda';
+    document.getElementById('pf_institution').value = m.institution || '';
+    document.getElementById('pf_specialty').value   = m.specialty || '';
+    document.getElementById('pf_category').value    = m.category_name || 'Awaiting category assignment by the secretariat';
+
+    // Directory toggle
+    var tog = document.getElementById('dirToggle');
+    tog.checked = !!m.public_profile;
+    document.getElementById('dirToggleLabel').textContent = m.public_profile ? 'Visible in public directory' : 'Hidden from public directory';
+
+    renderDocs(d.documents || []);
+    renderPayments(d.payments || []);
+    renderNotes(d.notes || []);
+}
+
+function renderDocs(docs) {
+    var html = '';
+    if (!docs.length) {
+        html = '<div class="empty-state"><i class="fas fa-folder-open"></i>No documents uploaded yet.</div>';
+    } else {
+        docs.forEach(function (doc) {
+            html += '<div class="doc-row">'
+                +   '<span class="doc-type-pill">' + esc((doc.doc_type||'').replace(/_/g,' ')) + '</span>'
+                +   '<div style="flex:1;">'
+                +     '<div style="font-weight:600;">' + esc(doc.original_name || ('Document #' + doc.id)) + '</div>'
+                +     '<div style="font-size:0.78rem; color:var(--text-light);">Uploaded ' + esc(fmtDate(doc.uploaded_at)) + '</div>'
+                +   '</div>'
+                +   (doc.verified ? '<span class="doc-verified"><i class="fas fa-check-circle"></i> Verified</span>'
+                                  : '<button class="btn btn-ghost btn-small" onclick="portalDeleteDoc(' + doc.id + ')"><i class="fas fa-trash"></i></button>')
+                + '</div>';
+        });
+    }
+    document.getElementById('docList').innerHTML = html;
+}
+
+function renderPayments(pays) {
+    var html = '';
+    if (!pays.length) {
+        html = '<div class="empty-state"><i class="fas fa-receipt"></i>No payments on record yet.</div>';
+    } else {
+        pays.forEach(function (p) {
+            var status = (p.status || 'pending');
+            var receipt = '—';
+            if (p.receipt_token && p.receipt_number) {
+                receipt = '<a href="receipt.php?token=' + encodeURIComponent(p.receipt_token) + '" target="_blank" style="color:var(--secondary-color); font-weight:600;">' + esc(p.receipt_number) + '</a>';
+            }
+            html += '<div class="pay-row">'
+                +   '<div>' + esc(fmtDate(p.paid_at)) + '</div>'
+                +   '<div>' + esc((p.payment_type||'').replace(/_/g,' ')) + '</div>'
+                +   '<div>' + esc(fmtUGX(p.amount)) + '</div>'
+                +   '<div><span class="pill ' + status + '">' + esc(status) + '</span></div>'
+                +   '<div>' + receipt + '</div>'
+                + '</div>';
+        });
+    }
+    document.getElementById('payList').innerHTML = html;
+}
+
+function renderNotes(notes) {
+    var html = '';
+    if (!notes.length) {
+        html = '<div class="empty-state"><i class="fas fa-bullhorn"></i>No messages from the secretariat yet.</div>';
+    } else {
+        notes.forEach(function (n) {
+            html += '<div style="padding:0.85rem 0; border-bottom:1px solid var(--gray-200);">'
+                +   '<div style="font-size:0.78rem; color:var(--text-light);">' + esc(fmtDate(n.created_at)) + ' &middot; ' + esc((n.action||'').replace(/_/g,' ')) + '</div>'
+                +   '<div style="margin-top:0.25rem;">' + esc(n.note || '') + '</div>'
+                + '</div>';
+        });
+    }
+    document.getElementById('noteList').innerHTML = html;
+}
+
+// ── Profile save
+document.addEventListener('submit', function (e) {
+    if (e.target && e.target.id === 'profileForm') {
+        e.preventDefault();
+        var fd = new FormData(e.target);
+        fd.append('action', 'update_profile');
+        if (window.hosuAppendCsrf) window.hosuAppendCsrf(fd);
+        var msg = document.getElementById('pf_msg');
+        msg.textContent = 'Saving…';
+        fetch(PORTAL_API, { method:'POST', body:fd, credentials:'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.success) { msg.textContent = 'Saved.'; msg.style.color = 'var(--green)'; loadPortal(); }
+                else { msg.textContent = d.error || 'Save failed'; msg.style.color = 'var(--red)'; }
+            })
+            .catch(function () { msg.textContent = 'Network error'; msg.style.color = 'var(--red)'; });
+    }
+    if (e.target && e.target.id === 'docForm') {
+        e.preventDefault();
+        var fd = new FormData(e.target);
+        fd.append('action', 'upload_document');
+        if (window.hosuAppendCsrf) window.hosuAppendCsrf(fd);
+        var msg = document.getElementById('doc_msg');
+        msg.textContent = 'Uploading…';
+        fetch(PORTAL_API, { method:'POST', body:fd, credentials:'include' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.success) {
+                    msg.textContent = 'Uploaded.';
+                    msg.style.color = 'var(--green)';
+                    e.target.reset();
+                    loadPortal();
+                } else {
+                    msg.textContent = d.error || 'Upload failed';
+                    msg.style.color = 'var(--red)';
+                }
+            })
+            .catch(function () { msg.textContent = 'Network error'; msg.style.color = 'var(--red)'; });
+    }
+});
+
+function portalDeleteDoc(id) {
+    if (!confirm('Remove this document?')) return;
+    var fd = new FormData();
+    fd.append('action', 'delete_document'); fd.append('document_id', id);
+    if (window.hosuAppendCsrf) window.hosuAppendCsrf(fd);
+    fetch(PORTAL_API, { method:'POST', body:fd, credentials:'include' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) { if (d.success) loadPortal(); else alert(d.error || 'Could not remove'); });
+}
+
+function portalSetVisibility(checked) {
+    var fd = new FormData();
+    fd.append('action', 'set_visibility');
+    fd.append('public_profile', checked ? '1' : '0');
+    if (window.hosuAppendCsrf) window.hosuAppendCsrf(fd);
+    fetch(PORTAL_API, { method:'POST', body:fd, credentials:'include' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.success) {
+                document.getElementById('dirToggleLabel').textContent = checked ? 'Visible in public directory' : 'Hidden from public directory';
+            } else {
+                alert(d.error || 'Could not update');
+                document.getElementById('dirToggle').checked = !checked;
+            }
+        });
+}
+
+// Side-nav tabs
+document.addEventListener('click', function (e) {
+    var b = e.target.closest('.side-nav button[data-pane]');
+    if (!b) return;
+    document.querySelectorAll('.side-nav button').forEach(function (x) { x.classList.remove('active'); });
+    b.classList.add('active');
+    var p = b.getAttribute('data-pane');
+    document.querySelectorAll('.pane').forEach(function (x) { x.classList.remove('active'); });
+    var pane = document.getElementById('pane-' + p);
+    if (pane) pane.classList.add('active');
+});
+
+document.addEventListener('DOMContentLoaded', loadPortal);
+</script>
+
+</body>
+</html>

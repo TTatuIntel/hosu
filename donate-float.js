@@ -28,11 +28,30 @@
         window._hosuFetchPatched = true;
     }
 
-    /* ── Shared popup HTML (class-based, no IDs — scoped per popup) ── */
-    var popupTemplate =
+    function getDonateChrome() {
+        var boot = window.__HOSU_SITE_CHROME;
+        if (boot && boot.success && boot.chrome && boot.chrome.donate) return boot.chrome.donate;
+        return {
+            float_label: 'Support Us',
+            modal_title: 'Support HOSU',
+            modal_subtitle: 'Your donation transforms cancer care in Uganda.',
+            amounts: [5000, 10000, 25000, 50000],
+            min_amount: 1000,
+        };
+    }
+
+    function buildPopupTemplate() {
+        var d = getDonateChrome();
+        var amounts = d.amounts && d.amounts.length ? d.amounts : [5000, 10000, 25000, 50000];
+        var amountsHtml = amounts.map(function (amt) {
+            return '<button type="button" class="dfp-amt" data-amt="' + amt + '">' +
+                Number(amt).toLocaleString() + '</button>';
+        }).join('');
+        var minAmt = d.min_amount || 1000;
+        return (
         '<button class="dfp-close" aria-label="Close">&times;</button>' +
-        '<div class="dfp-modal-header"><h3>Support HOSU</h3></div>' +
-        '<p class="dfp-subtitle">Your donation transforms cancer care in Uganda.</p>' +
+        '<div class="dfp-modal-header"><h3>' + (d.modal_title || 'Support HOSU') + '</h3></div>' +
+        '<p class="dfp-subtitle">' + (d.modal_subtitle || '') + '</p>' +
         '<div class="dfp-form-grid">' +
             '<div class="dfp-field dfp-fg-full">' +
                 '<label class="dfp-label">Full Name</label>' +
@@ -51,14 +70,9 @@
         '</div>' +
         '<div class="dfp-field">' +
             '<label class="dfp-label">Amount (UGX)</label>' +
-            '<input type="number" class="dfp-input dfp-amount" placeholder="Enter amount" min="1000">' +
+            '<input type="number" class="dfp-input dfp-amount" placeholder="Enter amount" min="' + minAmt + '">' +
         '</div>' +
-        '<div class="dfp-amounts">' +
-            '<button type="button" class="dfp-amt" data-amt="5000">5,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="10000">10,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="25000">25,000</button>' +
-            '<button type="button" class="dfp-amt" data-amt="50000">50,000</button>' +
-        '</div>' +
+        '<div class="dfp-amounts">' + amountsHtml + '</div>' +
         '<div class="dfp-pay-divider">Payment Method</div>' +
         '<div class="dfp-pay-chips">' +
             '<button type="button" class="dfp-pay-chip" data-method="visa">' +
@@ -80,15 +94,19 @@
             '<div class="dfp-proc-sub"></div>' +
             '<div class="dfp-proc-countdown" style="display:none"></div>' +
             '<button class="dfp-proc-close" style="display:none">Close</button>' +
-        '</div>';
+        '</div>');
+    }
+
+    var popupTemplate = buildPopupTemplate();
+    var donateChrome = getDonateChrome();
 
     /* ── Inject floating button ── */
     var floatWrap = document.createElement('div');
     floatWrap.className = 'floating-donate';
     floatWrap.innerHTML =
         '<div class="donate-trigger-wrap donate-trigger-wrap--fixed">' +
-            '<button class="donate-button" aria-label="Support Us">' +
-                '<span class="donate-icon">&#10084;</span> Support Us' +
+            '<button class="donate-button" aria-label="' + (donateChrome.float_label || 'Support Us') + '">' +
+                '<span class="donate-icon">&#10084;</span> ' + (donateChrome.float_label || 'Support Us') +
             '</button>' +
             '<div class="donate-float-popup"></div>' +
         '</div>';

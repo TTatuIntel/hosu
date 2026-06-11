@@ -1,13 +1,13 @@
 <?php
 /**
  * Database Setup Script
- * Creates the configured database, all tables, and seeds initial data.
+ * Creates the configured database and all tables (no sample content).
  * Run once: php setup_db.php   (CLI)   or visit setup_db.php in the browser.
  */
 
 require_once __DIR__ . '/env.php';
 
-$host     = getenv('DB_HOST') ?: 'localhost';
+$host     = getenv('DB_HOST') ?: '127.0.0.1';
 $username = getenv('DB_USER') ?: 'root';
 $password = getenv('DB_PASS') ?: '';
 $dbname   = getenv('DB_NAME') ?: 'hosuweb_db';
@@ -100,10 +100,76 @@ $pdo->exec("
         category    VARCHAR(50)  NOT NULL DEFAULT 'upcoming',
         is_free     TINYINT(1)   NOT NULL DEFAULT 1,
         event_fee   DECIMAL(12,2) NOT NULL DEFAULT 0,
+        speakers    TEXT         DEFAULT NULL,
+        highlights  TEXT         DEFAULT NULL,
+        announcements TEXT       DEFAULT NULL,
+        display_start DATETIME   DEFAULT NULL,
+        display_end   DATETIME   DEFAULT NULL,
+        display_for_event TINYINT(1) NOT NULL DEFAULT 0,
+        pinned      TINYINT(1)   NOT NULL DEFAULT 0,
+        home_priority INT        NOT NULL DEFAULT 0,
+        live_message VARCHAR(500) DEFAULT NULL,
+        live_cta_label VARCHAR(120) DEFAULT NULL,
+        show_live_on_home TINYINT(1) NOT NULL DEFAULT 1,
+        updated_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
         created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8
 ");
 echo "✓ Table 'events' created.\n";
+
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS event_images (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        event_id VARCHAR(100) NOT NULL,
+        image_path VARCHAR(500) NOT NULL,
+        image_alt VARCHAR(255) DEFAULT '',
+        caption VARCHAR(255) DEFAULT '',
+        sort_order INT NOT NULL DEFAULT 0,
+        is_primary TINYINT(1) NOT NULL DEFAULT 0,
+        source_type VARCHAR(20) NOT NULL DEFAULT 'upload',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_event_id (event_id),
+        INDEX idx_sort (sort_order)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+echo "✓ Table 'event_images' created.\n";
+
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS event_media (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        event_id VARCHAR(100) NOT NULL,
+        media_type ENUM('video','document') NOT NULL DEFAULT 'video',
+        media_path VARCHAR(500) NOT NULL,
+        title VARCHAR(255) DEFAULT '',
+        sort_order INT NOT NULL DEFAULT 0,
+        source_type VARCHAR(20) NOT NULL DEFAULT 'url',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_event_media_event (event_id),
+        INDEX idx_event_media_sort (sort_order)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+echo "✓ Table 'event_media' created.\n";
+
+$pdo->exec("
+    CREATE TABLE IF NOT EXISTS event_live_content (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        event_id VARCHAR(100) NOT NULL,
+        title VARCHAR(255) NOT NULL DEFAULT '',
+        body TEXT NULL,
+        content_type VARCHAR(30) NOT NULL DEFAULT 'update',
+        image_url VARCHAR(500) DEFAULT '',
+        link_url VARCHAR(500) DEFAULT '',
+        link_label VARCHAR(120) DEFAULT '',
+        sort_order INT NOT NULL DEFAULT 0,
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        visibility VARCHAR(20) NOT NULL DEFAULT 'always',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        INDEX idx_elc_event (event_id),
+        INDEX idx_elc_sort (sort_order)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+");
+echo "✓ Table 'event_live_content' created.\n";
 
 // Posts (blog)
 $pdo->exec("
@@ -309,26 +375,6 @@ $pdo->exec("
 ");
 echo "✓ Table 'site_stats' created.\n";
 
-// Seed default stats if empty
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM site_stats");
-$stmt->execute();
-if ((int)$stmt->fetchColumn() === 0) {
-    $defaultStats = [
-        ['members_count',    '500+', 'Members',        'membership', 1],
-        ['specialties_count','12+',  'Specialties',    'membership', 2],
-        ['institutions_count','50+', 'Institutions',   'membership', 3],
-        ['about_members',    '150+', 'Members',        'about',      1],
-        ['about_founded',    '2019', 'Founded',        'about',      2],
-        ['about_events',     '50+',  'Events',         'about',      3],
-        ['research_studies', '12+',  'Active Studies',  'research',   1],
-        ['research_centers', '8',    'Partner Centers', 'research',   2],
-        ['research_domains', '4',    'Focus Domains',   'research',   3],
-    ];
-    $ins = $pdo->prepare("INSERT INTO site_stats (stat_key, stat_value, stat_label, page, sort_order) VALUES (?,?,?,?,?)");
-    foreach ($defaultStats as $s) { $ins->execute($s); }
-    echo "✓ Default site stats seeded.\n";
-}
-
 // Site Media — admin-uploaded images / content
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS site_media (
@@ -363,50 +409,7 @@ $pdo->exec("
 ");
 echo "✓ Table 'audit_logs' created.\n";
 
-// -------------------------------------------------------------------
-// 4. Seed leadership data (skip if leaders already exist)
-// -------------------------------------------------------------------
-$stmt = $pdo->prepare("SELECT COUNT(*) FROM leaders");
-$stmt->execute();
-if ((int)$stmt->fetchColumn() === 0) {
-    $leaders = [
-        ['Dr. Ddungu Henry',          'President',               'MD, PhD',                  'img/Picture1.jpg',  1,
-         'Dr. Ddungu graduated from Makerere University in 1998 and later obtained a Masters in Internal Medicine from the same University in 2003. He trained in Hematology at McMaster University, Ontario, Canada, and holds a PhD from Makerere University, Kampala, Uganda.
-
-Dr. Ddungu is a Senior Consultant (Hematology-Oncology) and Head of Division of Medical Oncology and Hematology at the Uganda Cancer Institute. He is interested in global health and in advancements in the treatment of both classical and malignant hematological illnesses including immunotherapy and cellular therapies.
-
-He is the Founding President of the Hematology & Oncology Society of Uganda (HOSU).
-
-He is an Honorary Lecturer at Makerere University College of Health Sciences; Associate Clinical Professor (Adjunct), McMaster University, Faculty of Health Sciences Department of Medicine; and Honorary Lecturer, Department of Medicine, Mbarara University of Science and Technology, Uganda.
-
-For a long time, Dr. Ddungu worked with Palliative Care Organizations in Uganda and Africa, advocating for the advancement of quality palliative care to persons with life threatening illnesses.
-
-Dr. Ddungu is active in research and has been a principal investigator and co-investigator on several clinical studies. He has also supervised several Master of Medicine dissertations and has published papers in referenced journals.'],
-        ['Dr. Nabbosa Valeria',       'President Elect',         '',  'img/Picture2.jpg',  2, ''],
-        ['Dr. Odhiambo Clara',        'General Secretary',       '',  'img/Picture3.jpg',  3, ''],
-        ['Dr. Niyonzima Nixon',       'Treasurer',               '',  'img/Picture4.jpg',  4, ''],
-        ['Dr. Kakungulu Edward',      'Publicity Secretary',     '',  'img/Picture5.jpg',  5, ''],
-        ['Dr. Namazzi Ruth',          'Rep. Hematology',         '',  'img/Picture6.jpg',  6, ''],
-        ['Dr. Akullo Anne',           'Rep. Pediatric Oncology', '',  'img/Picture7.jpg',  7, ''],
-        ['Dr. Bogere Naghib',         'Rep. Medical Oncology',   '',  'img/Picture8.jpg',  8, ''],
-        ['Dr. Asiimwe Lois',          'Rep. Surgical Oncology',  '',  'img/Picture9.jpg',  9, ''],
-        ['Dr. Kibudde Solomon',       'Rep. Radiation Oncology', '',  'img/Picture10.jpg', 10, ''],
-        ['Dr. Ssali Francis',         'Rep. Research',           '',  'img/Picture11.jpg', 11, ''],
-        ['Dr. Lukande Robert',        'Rep. Pathology',          '',  'img/Picture12.jpg', 12, ''],
-        ['Dr. Kadhumbula Sylvester',  'Rep. Laboratory',         '',  'img/Picture13.jpg', 13, ''],
-        ['Ms. Irumba Lisa',           'Rep. Palliative Care',    '',  'img/Picture14.jpg', 14, ''],
-        ['Mr. Moses Echodu',          'Rep. Civil Society',      '',  'img/Picture15.jpg', 15, ''],
-    ];
-    $ins = $pdo->prepare("INSERT INTO leaders (name, title, qualifications, photo_url, sort_order, biography, is_active) VALUES (?, ?, ?, ?, ?, ?, 1)");
-    foreach ($leaders as $l) {
-        $ins->execute($l);
-    }
-    echo "✓ 15 leadership members seeded.\n";
-} else {
-    echo "– Leaders already exist, skipping seed.\n";
-}
-
-echo "– System running with real data only. Use the Admin panel to add content.\n";
+echo "– Tables ready. Add all public content via the Admin panel.\n";
 
 // -------------------------------------------------------------------
 // 6. Regenerate data.js from the database (if script exists)

@@ -186,14 +186,26 @@ try {
         }
         if ($payId) {
             $pdo->beginTransaction();
-            $row = $pdo->prepare("SELECT id, member_id, status FROM payments WHERE id = ? FOR UPDATE");
+            $row = $pdo->prepare("SELECT id, member_id, status, payment_type, membership_period, membership_expires_at
+                                  FROM payments WHERE id = ? FOR UPDATE");
             $row->execute([$payId]);
             $pay = $row->fetch(PDO::FETCH_ASSOC);
             if ($pay && $pay['status'] !== 'verified') {
                 $pdo->prepare("UPDATE payments SET status='verified', paid_at=NOW(), transaction_id=? WHERE id=?")
                     ->execute([$orderTrackingId, $payId]);
                 if ($pay['member_id']) {
-                    $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
+                    if (($pay['payment_type'] ?? 'membership') === 'membership') {
+                        require_once __DIR__ . '/membership_helpers.php';
+                        $expiry = $pay['membership_expires_at']
+                            ?: hosuMembershipExpiry($pay['membership_period'] ?? '1_year');
+                        $pdo->prepare("UPDATE members
+                            SET dues_paid_at = NOW(),
+                                expiry_date  = COALESCE(expiry_date, ?),
+                                status       = CASE WHEN approval_status = 'approved' THEN 'active' ELSE status END
+                            WHERE id = ?")->execute([$expiry, $pay['member_id']]);
+                    } else {
+                        $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
+                    }
                 }
             }
             $pdo->commit();

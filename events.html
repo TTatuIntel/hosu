@@ -13,6 +13,7 @@
 <link rel="stylesheet" href="donate-float.css?v=2026040404">
     <link rel="stylesheet" href="shared-footer.css?v=2026040404">
     <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <script src="page_bootstrap.php?page=events"></script>
 <style>
 :root {
     --primary-color: #e63946;
@@ -483,6 +484,13 @@ img { max-width: 100%; height: auto; }
     text-align: center; padding: 1.25rem 1rem; color: var(--text-light);
     font-size: 0.8rem; background: var(--white); border-radius: var(--border-radius);
     border: 1px dashed var(--gray-300);
+}
+.event-list-loading { animation: eventsPulse 1s ease-in-out infinite; }
+@keyframes eventsPulse { 0%, 100% { opacity: 0.55; } 50% { opacity: 1; } }
+.event-panel-in { animation: eventsFadeUp 0.4s cubic-bezier(0.22, 1, 0.36, 1) both; }
+@keyframes eventsFadeUp {
+    from { opacity: 0; transform: translateY(10px); }
+    to { opacity: 1; transform: translateY(0); }
 }
 
 /* Pagination — View More / View Less */
@@ -1775,25 +1783,73 @@ footer {
         else if (ev.status === 'past') statusClass = 'status-past';
 
         var countdownHtml = ev.countdown ? '<div class="edp-meta-item"><strong>&#9200;</strong> ' + ev.countdown + '</div>' : '';
+        var isLiveNow = ev.is_live || ev.countdown === 'Happening Now' || ev._category === 'current';
+        var regLabel = isLiveNow ? (ev.live_cta_label || 'Register & Join Now — Event In Progress') : 'Register Now';
         var actions = ev.status !== 'past'
-            ? '<button class="edp-btn edp-btn-primary" onclick="openRegModal(\'' + ev.id + '\')">&#128221; Register Now</button>'
+            ? '<button class="edp-btn edp-btn-primary" onclick="openRegModal(\'' + ev.id + '\')">' + (isLiveNow ? '&#128308; ' : '&#128221; ') + regLabel + '</button>'
               + '<button class="edp-btn edp-btn-secondary" onclick="addToCalendarFromPopup()">&#128197; Add to Calendar</button>'
             : '<a href="#" class="edp-btn edp-btn-secondary">&#128194; View Resources</a>';
 
-        var html = '<img class="edp-image" src="' + ev.image + '" alt="' + (ev.imageAlt || ev.title) + '">'
+        var galleryUrls = (ev.image_urls && ev.image_urls.length) ? ev.image_urls : (ev.image ? [ev.image] : []);
+        var galleryHtml = galleryUrls.length > 1
+            ? '<div class="edp-gallery" style="display:flex;gap:.5rem;overflow-x:auto;padding:.5rem 0;margin-bottom:.5rem;">'
+              + galleryUrls.map(function(u){ return '<img src="'+u+'" alt="" style="height:80px;width:120px;object-fit:cover;border-radius:8px;flex-shrink:0;">'; }).join('')
+              + '</div>' : '';
+
+        var mainImg = galleryUrls[0] || ev.image || '';
+        var speakersHtml = ev.speakers ? '<div class="edp-meta-item" style="margin-top:.5rem;"><strong>&#127908;</strong> ' + ev.speakers.replace(/\n/g, '<br>') + '</div>' : '';
+        var highlightsHtml = ev.highlights ? '<div style="margin-top:1rem;padding:.75rem;background:#f0f7ff;border-radius:8px;"><strong>&#10024; Highlights</strong><p style="margin:.35rem 0 0;font-size:.9rem;">' + ev.highlights + '</p></div>' : '';
+        var announceHtml = ev.announcements ? '<div style="margin-top:.75rem;padding:.75rem;background:#fff8e1;border-left:3px solid #f9a825;border-radius:4px;"><strong>&#128227; Announcement</strong><p style="margin:.35rem 0 0;font-size:.9rem;">' + ev.announcements + '</p></div>' : '';
+        var liveMessageHtml = isLiveNow && ev.live_message ? '<div style="margin-top:.75rem;padding:.85rem 1rem;background:linear-gradient(90deg,#e8f5e9,#f1f8e9);border-left:4px solid #2e7d32;border-radius:6px;"><strong>&#128308; Ongoing Event</strong><p style="margin:.35rem 0 0;font-size:.95rem;font-weight:500;">' + ev.live_message + '</p></div>' : '';
+        var allBlocks = ev.content_blocks || ev.live_content || [];
+        var visibleBlocks = allBlocks.filter(function(item) {
+            if (item.is_active === false || item.is_active === 0) return false;
+            var vis = item.visibility || 'always';
+            if (vis === 'always') return true;
+            if (vis === 'live') return isLiveNow;
+            return false;
+        });
+        var liveFeedHtml = '';
+        if (visibleBlocks.length) {
+            liveFeedHtml = '<div style="margin-top:1rem;"><strong>&#128225; ' + (isLiveNow ? 'Live Updates' : 'Event Information') + '</strong><div style="margin-top:.5rem;display:flex;flex-direction:column;gap:.5rem;">'
+                + visibleBlocks.map(function(item) {
+                    return '<div style="padding:.65rem .75rem;background:#f8f9fa;border-radius:8px;border-left:3px solid #1565c0;">'
+                        + '<div style="font-weight:700;font-size:.9rem;">' + (item.title || 'Update') + '</div>'
+                        + (item.body ? '<p style="margin:.25rem 0 0;font-size:.85rem;color:#444;">' + item.body + '</p>' : '')
+                        + (item.link_url ? '<a href="' + item.link_url + '" target="_blank" rel="noopener" style="font-size:.8rem;color:#1565c0;">' + (item.link_label || 'Open') + ' →</a>' : '')
+                        + '</div>';
+                }).join('') + '</div></div>';
+        }
+        var videosHtml = '';
+        if (ev.videos && ev.videos.length) {
+            videosHtml = '<div style="margin-top:1rem;"><strong>&#127916; Videos</strong><div style="display:flex;flex-direction:column;gap:.35rem;margin-top:.35rem;">'
+                + ev.videos.map(function(v){ return '<a href="'+v.media_path+'" target="_blank" rel="noopener" style="font-size:.85rem;color:var(--secondary-color);">&#9654; ' + (v.title || 'Watch video') + '</a>'; }).join('')
+                + '</div></div>';
+        }
+
+        var html = (mainImg ? '<img class="edp-image" src="' + mainImg + '" alt="' + (ev.imageAlt || ev.title) + '">' : '')
+            + galleryHtml
             + '<div class="edp-body">'
             + '<div class="edp-badges">'
             + '<span class="edp-badge ' + typeClass + '">' + ev.type + '</span>'
             + '<span class="edp-badge ' + statusClass + '">' + statusLabel + '</span>'
+            + (ev.is_live || ev.countdown === 'Happening Now' ? '<span class="edp-badge status-live">&#128308; Live</span>' : '')
             + (ev.featured ? '<span class="edp-badge" style="background:rgba(230,57,70,0.12);color:var(--primary-color);">&#11088; Featured</span>' : '')
+            + (ev.pinned ? '<span class="edp-badge" style="background:rgba(230,126,34,0.12);color:#e67e22;">&#128204; Pinned</span>' : '')
             + '</div>'
             + '<h2 class="edp-title">' + ev.title + '</h2>'
             + '<div class="edp-meta">'
             + '<div class="edp-meta-item"><strong>&#128197;</strong> ' + ev.date + '</div>'
             + '<div class="edp-meta-item"><strong>&#128205;</strong> ' + ev.location + '</div>'
             + countdownHtml
+            + speakersHtml
             + '</div>'
             + '<p class="edp-desc">' + ev.description + '</p>'
+            + liveMessageHtml
+            + highlightsHtml
+            + announceHtml
+            + liveFeedHtml
+            + videosHtml
             + '<div class="edp-actions">' + actions + '</div>'
             + '</div>';
 
@@ -1861,27 +1917,39 @@ footer {
         document.body.style.overflow = '';
     }
 
-    // ===== Init =====
-    document.addEventListener('DOMContentLoaded', function() {
-        // Show loading indicator in event list while fetching
-        var listEl = document.getElementById('event-list');
-        if (listEl) listEl.innerHTML = '<div class="event-list-empty" style="text-align:center;padding:2rem;">&#8987; Loading events…</div>';
+    function mergeEventsPayload(data) {
+        if (!data || !data.eventsData) return false;
+        var cats = Object.keys(eventsData);
+        cats.forEach(function(c) { eventsData[c] = data.eventsData[c] || []; });
+        return true;
+    }
 
-        fetch('api.php?action=get_events')
+    function bootEventsPage() {
+        var boot = window.__HOSU_PAGE_BOOTSTRAP;
+        if (boot && boot.success && boot.page === 'events' && mergeEventsPayload(boot)) {
+            initPage();
+            return;
+        }
+
+        var listEl = document.getElementById('event-list');
+        if (listEl) listEl.innerHTML = '<div class="event-list-empty event-list-loading">Loading events…</div>';
+
+        fetch('api.php?action=get_events', { credentials: 'same-origin' })
             .then(function(r) { return r.json(); })
             .then(function(data) {
-                if (data && data.eventsData) {
-                    // Merge DB data into our eventsData object
-                    var cats = Object.keys(eventsData);
-                    cats.forEach(function(c) { eventsData[c] = data.eventsData[c] || []; });
-                }
+                mergeEventsPayload(data);
                 initPage();
             })
             .catch(function() {
-                // Fallback: just init with empty data
                 initPage();
             });
-    });
+    }
+
+    if (document.readyState === 'loading') {
+        document.addEventListener('DOMContentLoaded', bootEventsPage);
+    } else {
+        bootEventsPage();
+    }
 
     // Deep-link from home page: #evt-{id} opens popup, #evt-{id}&reg=1 opens registration
     function handleHashNavigation() {
@@ -1903,18 +1971,16 @@ footer {
         // Navigate calendar to event
         navigateCalendarToEvent(ev);
 
-        // Small delay so DOM is ready after initPage renders
-        setTimeout(function() {
+        requestAnimationFrame(function() {
             if (openReg && ev.status !== 'past') {
                 openRegModal(eventId);
             } else {
                 openEventDetail(eventId);
             }
-            // Clean hash without triggering navigation
             if (history.replaceState) {
                 history.replaceState(null, '', window.location.pathname + window.location.search);
             }
-        }, 300);
+        });
     }
 
     function initPage() {
@@ -1939,6 +2005,8 @@ footer {
         }
         renderCalendar();
         renderEventPanel();
+        var eventList = document.getElementById('event-list');
+        if (eventList) eventList.classList.add('event-panel-in');
         updateHeroContent();
         buildHeroSlides();
         updateCountdown();
@@ -2267,10 +2335,11 @@ function addToCalendarFromPopup() {
 }
 </style>
 
+<script src="site_bootstrap.php"></script>
 <script src="intl-phone.js?v=2026040404"></script>
 <script src="hosu-payment.js?v=2026041004"></script>
-<script src="shared-components.js?v=2026040701"></script>
+<script src="shared-components.js?v=2026061116"></script>
 <script src="shared-login.js?v=2026040404"></script>
-<script src="donate-float.js?v=2026041004"></script>
+<script src="donate-float.js?v=2026061116"></script>
 </body>
 </html>

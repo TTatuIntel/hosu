@@ -20,6 +20,9 @@
 <link rel="stylesheet" href="donate-float.css?v=2026040404">
     <link rel="stylesheet" href="shared-footer.css?v=2026040404">
     <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <link rel="stylesheet" href="home-sections.css?v=2026061130">
+    <script src="site_bootstrap.php"></script>
+    <script src="page_bootstrap.php?page=home&amp;v=2026061128"></script>
 <style>
 /* CSS for home page - ensuring uniform colors with blog page */
 :root {
@@ -492,10 +495,36 @@ section {
     z-index: 2;
     pointer-events: none;
     background:
-        linear-gradient(to right, #f7fafc 0%, rgba(247,250,252,0.85) 8%, rgba(247,250,252,0.5) 18%, rgba(247,250,252,0.15) 30%, transparent 45%),
-        linear-gradient(to left, #f7fafc 0%, rgba(247,250,252,0.4) 3%, transparent 10%),
-        linear-gradient(to bottom, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%),
-        linear-gradient(to top, #f7fafc 0%, rgba(247,250,252,0.5) 3%, transparent 12%);
+        linear-gradient(to right,
+            var(--gray-100) 0%,
+            rgba(247, 250, 252, 0.96) 8%,
+            rgba(247, 250, 252, 0.78) 18%,
+            rgba(247, 250, 252, 0.48) 32%,
+            rgba(247, 250, 252, 0.18) 46%,
+            rgba(247, 250, 252, 0.04) 58%,
+            transparent 72%
+        ),
+        linear-gradient(to left, var(--gray-100) 0%, rgba(247, 250, 252, 0.35) 4%, transparent 14%),
+        linear-gradient(to bottom, var(--gray-100) 0%, rgba(247, 250, 252, 0.55) 4%, transparent 16%),
+        linear-gradient(to top, var(--gray-100) 0%, rgba(247, 250, 252, 0.55) 4%, transparent 16%);
+}
+
+/* Soft fade below hero (Ongoing Now section now lives after Partners) */
+.hero::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 88px;
+    background: linear-gradient(
+        to bottom,
+        transparent 0%,
+        rgba(247, 250, 252, 0.35) 35%,
+        rgba(13, 69, 147, 0.08) 100%
+    );
+    pointer-events: none;
+    z-index: 6;
 }
 
 @keyframes fadeIn {
@@ -518,6 +547,13 @@ section {
 }
 
 #hero-bg-0{background-image:url('img/IMG_7825.webp')}
+.hero-copy-dynamic {
+    transition: opacity 0.35s ease, transform 0.35s ease;
+}
+.hero-copy-dynamic.hero-copy-swapping {
+    opacity: 0.4;
+    transform: translateY(6px);
+}
 /* Load the remaining hero backgrounds lazily after first paint to reduce initial bandwidth */
 .hero-background.active {
     opacity: 1;
@@ -2034,6 +2070,14 @@ footer {
         max-height: 350px;
     }
 
+    #home-ongoing.hero--spotlight .hero-image-container {
+        left: auto;
+    }
+
+    #home-ongoing.hero--spotlight .hero-content {
+        margin-left: 0;
+    }
+
     :root {
         --navbar-height: 90px;
         --hero-height: auto;
@@ -2599,192 +2643,27 @@ footer {
 <section id="home" class="hero">
 <div class="hero-container">
     <div class="hero-content">
-        <!-- Slide 0: Default intro -->
-        <div class="hero-slide active" data-slide="intro">
-            <h1>A Uganda Free from Cancer<br>&amp; Blood Diseases</h1>
-            <p>The Hematology &amp; Oncology Society of Uganda (HOSU) is a nonprofit organization dedicated to eliminating suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
-            <div class="cta-buttons">
-                <a href="membership.html" class="interactive-button" id="join-button">
-                    Join Our Community
-                    <span class="icon">→</span>
-                </a>
-            </div>
-        </div>
-        <!-- Slide 1: Surgical Oncology -->
-        <div class="hero-slide" data-slide="surgical-oncology">
-            <h1>Surgical Oncology</h1>
-            <p>Focuses on the diagnosis, staging, and treatment of cancer through surgery — often combined with other therapies for the best outcomes.</p>
-            <div class="hero-pills">
-                <span class="hero-pill">🔬 Diagnosis</span>
-                <span class="hero-pill">📋 Staging</span>
-                <span class="hero-pill">💊 Curative</span>
-                <span class="hero-pill">🤝 Palliative</span>
-                <span class="hero-pill">🔧 Reconstructive</span>
-            </div>
-            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'surgical-oncology'); return false;">Read More →
-                <div class="hero-float-popup" data-popup="surgical-oncology"></div>
-            </a>
-        </div>
-        <!-- Slide 2: Medical Oncology -->
-        <div class="hero-slide" data-slide="medical-oncology">
-            <h1>Medical Oncology</h1>
-            <p>Treats cancer with medicines — chemotherapy, targeted therapy, immunotherapy, and hormonal therapy — tailored to each patient's needs.</p>
-            <div class="hero-pills">
-                <span class="hero-pill">💉 Chemotherapy</span>
-                <span class="hero-pill">🛡️ Immunotherapy</span>
-                <span class="hero-pill">🎯 Targeted Therapy</span>
-                <span class="hero-pill">⚖️ Hormone Therapy</span>
-                <span class="hero-pill">🧬 Precision Medicine</span>
-            </div>
-            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'medical-oncology'); return false;">Read More →
-                <div class="hero-float-popup" data-popup="medical-oncology"></div>
-            </a>
-        </div>
-        <!-- Slide 3: Radiation Oncology -->
-        <div class="hero-slide" data-slide="radiation-oncology">
-            <h1>Radiation Oncology</h1>
-            <p>Uses high-energy radiation to target and destroy cancer cells while sparing healthy tissue, alone or combined with other treatments.</p>
-            <div class="hero-pills">
-                <span class="hero-pill">📡 External Beam</span>
-                <span class="hero-pill">🔬 Brachytherapy</span>
-                <span class="hero-pill">⚡ Stereotactic</span>
-                <span class="hero-pill">🔵 Proton Therapy</span>
-                <span class="hero-pill">🖥️ Image-Guided</span>
-            </div>
-            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'radiation-oncology'); return false;">Read More →
-                <div class="hero-float-popup" data-popup="radiation-oncology"></div>
-            </a>
-        </div>
-        <!-- Slide 4: Pediatric Oncology -->
-        <div class="hero-slide" data-slide="pediatric-oncology">
-            <h1>Pediatric Oncology</h1>
-            <p>Focuses on cancers in children and adolescents — leukemia, brain tumors, and sarcomas — with care tailored to young patients.</p>
-            <div class="hero-pills">
-                <span class="hero-pill">🩸 Leukemia</span>
-                <span class="hero-pill">🧠 Brain Tumors</span>
-                <span class="hero-pill">🦴 Sarcoma Care</span>
-                <span class="hero-pill">💛 Supportive Care</span>
-                <span class="hero-pill">📈 Follow-Up</span>
-            </div>
-            <a href="#" class="hero-readmore" onclick="toggleFloatPopup(this, 'pediatric-oncology'); return false;">Read More →
-                <div class="hero-float-popup" data-popup="pediatric-oncology"></div>
-            </a>
-        </div>
-
-        <!-- Slide indicators -->
-        <div class="hero-indicators">
-            <span class="hero-dot active" data-index="0"></span>
-            <span class="hero-dot" data-index="1"></span>
-            <span class="hero-dot" data-index="2"></span>
-            <span class="hero-dot" data-index="3"></span>
-            <span class="hero-dot" data-index="4"></span>
-        </div>
-    </div>            
-    <div class="hero-image-container">
-        <div id="hero-bg-0" class="hero-background active"></div>
-        <div id="hero-bg-1" class="hero-background" data-bg="img/IMG_7891.jpg"></div>
-        <div id="hero-bg-2" class="hero-background" data-bg="img/IMG_8022.webp"></div>
-        <div id="hero-bg-3" class="hero-background" data-bg="img/IMG_8316.jpg"></div>
-        <div id="hero-bg-4" class="hero-background" data-bg="img/IMG_8317.webp"></div>
+        <div id="hero-slides-mount"></div>
+        <div class="hero-indicators" id="hero-indicators-mount"></div>
     </div>
+    <div class="hero-image-container" id="hero-bg-mount"></div>
 </div>
 
 </section>
 
 <section id="partners" class="partners-section">
-    <div class="partners-container">
-        <div class="partners-header">
-            <h2 class="partners-title">Our Partners</h2>
-        </div>
-        
-        <div class="partners-track">
-        <div class="partners-grid">
-            <div class="partner-logo partner-logo--uci">
-                <img src="img/uci.png" alt="Uganda Cancer Institute" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/ado.png" alt="Adonis Healthcare" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/Agakhan.png" alt="Aga Khan University Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/future.png" alt="Future Healthcare" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/hetero.png" alt="Hetero" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/metro.png" alt="Metropolis" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/msn.png" alt="MSN" loading="lazy">
-            </div>
-            <div class="partner-logo partner-logo--mulago">
-                <img src="img/mulago.png" alt="Mulago National Referral Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/nsambya.png" alt="Nsambya Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo partner-logo--onco">
-                <img src="img/onco.png" alt="OncoPharm" loading="lazy">
-            </div>
-        </div>
-        <!-- Duplicate for seamless loop -->
-        <div class="partners-grid">
-            <div class="partner-logo partner-logo--uci">
-                <img src="img/uci.png" alt="Uganda Cancer Institute" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/ado.png" alt="Adonis Healthcare" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/Agakhan.png" alt="Aga Khan University Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/future.png" alt="Future Healthcare" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/hetero.png" alt="Hetero" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/metro.png" alt="Metropolis" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/msn.png" alt="MSN" loading="lazy">
-            </div>
-            <div class="partner-logo partner-logo--mulago">
-                <img src="img/mulago.png" alt="Mulago National Referral Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo">
-                <img src="img/nsambya.png" alt="Nsambya Hospital" loading="lazy">
-            </div>
-            <div class="partner-logo partner-logo--onco">
-                <img src="img/onco.png" alt="OncoPharm" loading="lazy">
-            </div>
-        </div>
-        </div>
-    </div>
+    <div id="home-partners-mount"></div>
 </section>
 
-
+<!-- Ongoing Now: admin-curated live updates (events + custom spotlights). Placed after partners. -->
+<section id="home-ongoing" class="ongoing-now" aria-live="polite" aria-label="Ongoing now" hidden></section>
+<script src="home-sections.js?v=2026061130"></script>
 
 <!-- CTA Section -->
 <section class="cta-section">
-<div class="container">
-    <div class="cta-inner">
-        <h2 class="section-title">Make a Difference</h2>
-        <p>Join us in our mission to eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.</p>
-        <div class="cta-buttons">
-            <a href="about.html" class="cta-button cta-button--outline">Learn More About HOSU</a>
-            <div class="donate-trigger-wrap">
-                <button class="cta-button donate-trigger">Support Us</button>
-                <div class="donate-float-popup" id="cta-donate-popup"></div>
-            </div>
-        </div>
-    </div>
-</div>
+    <div id="home-cta-mount"></div>
 </section>
+<script src="home-extras.js?v=2026061108"></script>
 
 <style>
 /* Floating Donate Popup */
@@ -3446,43 +3325,168 @@ var HeroSlideshow = (function() {
     var heroBgs = [];
     var heroDots = [];
     var heroTimer = null;
+    var heroMediaTimer = null;
+    var heroMediaIndex = 0;
 
     function ensureHeroBackgroundLoaded(bgEl) {
         if (!bgEl) return;
         var src = bgEl.getAttribute('data-bg');
         if (src && !bgEl.style.backgroundImage) {
-            bgEl.style.backgroundImage = "url('" + src + "')";
+            bgEl.style.backgroundImage = "url('" + src.replace(/\\/g, '\\\\').replace(/'/g, '%27') + "')";
         }
     }
 
-    function init() {
-        heroSlides = Array.from(document.querySelectorAll('.hero-slide'));
-        heroBgs = Array.from(document.querySelectorAll('.hero-background'));
-        heroDots = Array.from(document.querySelectorAll('.hero-dot'));
-        heroIndex = 0;
+    function applyHeroMediaContent(slideIndex, mediaIndex) {
+        var slideEl = heroSlides[slideIndex];
+        if (!slideEl) return;
+        var slideBgs = getBgsForSlide(slideIndex);
+        var bgEl = slideBgs[mediaIndex] || slideBgs[0];
+        var wrap = slideEl.querySelector('.hero-copy-dynamic');
+        if (!wrap) return;
 
-        // Sync visual state: show slide 0
+        var titleEl = wrap.querySelector('.hero-dynamic-title');
+        var bodyEl = wrap.querySelector('.hero-dynamic-body');
+        var ctaEl = wrap.querySelector('.hero-dynamic-cta');
+
+        wrap.classList.add('hero-copy-swapping');
+        window.setTimeout(function () {
+            if (titleEl) {
+                if (bgEl && bgEl.getAttribute('data-media-title')) {
+                    titleEl.textContent = bgEl.getAttribute('data-media-title');
+                } else {
+                    titleEl.innerHTML = titleEl.getAttribute('data-default-html') || titleEl.innerHTML;
+                }
+            }
+            if (bodyEl) {
+                if (bgEl && bgEl.getAttribute('data-media-body')) {
+                    bodyEl.textContent = bgEl.getAttribute('data-media-body');
+                    bodyEl.style.display = '';
+                } else {
+                    bodyEl.innerHTML = bodyEl.getAttribute('data-default-html') || '';
+                    bodyEl.style.display = bodyEl.getAttribute('data-default-display') || (bodyEl.innerHTML.trim() ? '' : 'none');
+                }
+            }
+            if (ctaEl) {
+                var label = (bgEl && bgEl.getAttribute('data-media-cta-label')) || '';
+                var url = (bgEl && bgEl.getAttribute('data-media-cta-url')) || '';
+                if (label && url) {
+                    ctaEl.innerHTML = '<div class="cta-buttons"><a href="' + url.replace(/"/g, '&quot;') +
+                        '" class="interactive-button hero-cta-primary">' + label.replace(/</g, '&lt;') +
+                        ' <span class="icon">→</span></a></div>';
+                } else {
+                    ctaEl.innerHTML = ctaEl.getAttribute('data-default-html') || ctaEl.innerHTML;
+                }
+            }
+            wrap.classList.remove('hero-copy-swapping');
+        }, 180);
+    }
+
+    function cacheDefaultCtaHtml() {
+        heroSlides.forEach(function (slideEl) {
+            var titleEl = slideEl.querySelector('.hero-dynamic-title');
+            var bodyEl = slideEl.querySelector('.hero-dynamic-body');
+            var ctaEl = slideEl.querySelector('.hero-dynamic-cta');
+            if (titleEl && !titleEl.getAttribute('data-default-html')) {
+                titleEl.setAttribute('data-default-html', titleEl.innerHTML);
+            }
+            if (bodyEl && !bodyEl.getAttribute('data-default-html')) {
+                bodyEl.setAttribute('data-default-html', bodyEl.innerHTML);
+                bodyEl.setAttribute('data-default-display', bodyEl.style.display || '');
+            }
+            if (ctaEl && !ctaEl.getAttribute('data-default-html')) {
+                ctaEl.setAttribute('data-default-html', ctaEl.innerHTML);
+            }
+        });
+    }
+
+    function getBgsForSlide(slideIndex) {
+        return heroBgs.filter(function (b) {
+            var si = b.getAttribute('data-hero-slide');
+            return si !== null && parseInt(si, 10) === slideIndex;
+        });
+    }
+
+    function stopHeroMediaRotation() {
+        if (heroMediaTimer) {
+            clearTimeout(heroMediaTimer);
+            heroMediaTimer = null;
+        }
+    }
+
+    function randomHeroMediaDelay() {
+        return 3500 + Math.floor(Math.random() * 2000);
+    }
+
+    function showHeroMedia(slideIndex, mediaIndex) {
+        var slideBgs = getBgsForSlide(slideIndex);
+        if (!slideBgs.length) {
+            if (heroBgs[slideIndex]) {
+                slideBgs = [heroBgs[slideIndex]];
+            } else {
+                return;
+            }
+        }
+        if (mediaIndex < 0) mediaIndex = slideBgs.length - 1;
+        if (mediaIndex >= slideBgs.length) mediaIndex = 0;
+
+        heroBgs.forEach(function (b) { b.classList.remove('active'); });
+        var target = slideBgs[mediaIndex];
+        ensureHeroBackgroundLoaded(target);
+        target.classList.add('active');
+        if (slideBgs[(mediaIndex + 1) % slideBgs.length]) {
+            ensureHeroBackgroundLoaded(slideBgs[(mediaIndex + 1) % slideBgs.length]);
+        }
+        heroMediaIndex = mediaIndex;
+        applyHeroMediaContent(slideIndex, mediaIndex);
+    }
+
+    function startHeroMediaRotation(slideIndex) {
+        stopHeroMediaRotation();
+        var slideBgs = getBgsForSlide(slideIndex);
+        if (slideBgs.length <= 1) {
+            showHeroMedia(slideIndex, 0);
+            return;
+        }
+
+        function tick() {
+            if (heroIndex !== slideIndex) return;
+            var next = (heroMediaIndex + 1) % slideBgs.length;
+            showHeroMedia(slideIndex, next);
+            heroMediaTimer = setTimeout(tick, randomHeroMediaDelay());
+        }
+
+        showHeroMedia(slideIndex, 0);
+        heroMediaTimer = setTimeout(tick, randomHeroMediaDelay());
+    }
+
+    function init() {
+        stopHeroMediaRotation();
+        heroSlides = Array.from(document.querySelectorAll('#home .hero-slide'));
+        heroBgs = Array.from(document.querySelectorAll('#home .hero-background'));
+        heroDots = Array.from(document.querySelectorAll('#home .hero-indicators .hero-dot'));
+        heroIndex = 0;
+        heroMediaIndex = 0;
+
         heroSlides.forEach(function(s) { s.classList.remove('active'); });
         heroBgs.forEach(function(b) { b.classList.remove('active'); });
         heroDots.forEach(function(d) { d.classList.remove('active'); });
         if (heroSlides[0]) heroSlides[0].classList.add('active');
-        if (heroBgs[0]) heroBgs[0].classList.add('active');
         if (heroDots[0]) heroDots[0].classList.add('active');
+        cacheDefaultCtaHtml();
+        showHeroMedia(0, 0);
+        applyHeroMediaContent(0, 0);
+        startHeroMediaRotation(0);
 
-        ensureHeroBackgroundLoaded(heroBgs[0]);
-
-        // Warm remaining backgrounds after first paint instead of blocking initial load
         if ('requestIdleCallback' in window) {
             requestIdleCallback(function () {
-                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+                heroBgs.forEach(ensureHeroBackgroundLoaded);
             }, { timeout: 2000 });
         } else {
             setTimeout(function () {
-                heroBgs.slice(1).forEach(ensureHeroBackgroundLoaded);
+                heroBgs.forEach(ensureHeroBackgroundLoaded);
             }, 1500);
         }
 
-        // Bind dot clicks
         heroDots.forEach(function(dot, idx) {
             dot.onclick = function() {
                 showSlide(idx);
@@ -3494,7 +3498,6 @@ var HeroSlideshow = (function() {
     }
 
     function showSlide(index) {
-        // Close any open floating popups on slide change
         document.querySelectorAll('.hero-float-popup.active').forEach(function(p) {
             p.classList.remove('active');
         });
@@ -3503,31 +3506,29 @@ var HeroSlideshow = (function() {
         if (index < 0) index = heroSlides.length - 1;
         if (index >= heroSlides.length) index = 0;
 
+        stopHeroMediaRotation();
         heroSlides.forEach(function(s) { s.classList.remove('active'); });
-        heroBgs.forEach(function(b) { b.classList.remove('active'); });
         heroDots.forEach(function(d) { d.classList.remove('active'); });
 
         heroSlides[index].classList.add('active');
-        // Use exact index matching for backgrounds (1:1 with slides)
-        if (heroBgs[index]) {
-            ensureHeroBackgroundLoaded(heroBgs[index]);
-            heroBgs[index].classList.add('active');
-        }
-        if (heroBgs[(index + 1) % heroBgs.length]) {
-            ensureHeroBackgroundLoaded(heroBgs[(index + 1) % heroBgs.length]);
-        }
         if (heroDots[index]) {
             heroDots[index].classList.add('active');
         }
 
         heroIndex = index;
+        startHeroMediaRotation(index);
+    }
+
+    function getCarouselInterval() {
+        var ms = window.HOSU_CAROUSEL_INTERVAL;
+        return (typeof ms === 'number' && ms >= 3000) ? ms : 6000;
     }
 
     function startTimer() {
         if (heroTimer) clearInterval(heroTimer);
         heroTimer = setInterval(function() {
             showSlide((heroIndex + 1) % heroSlides.length);
-        }, 6000);
+        }, getCarouselInterval());
     }
 
     function resetTimer() {
@@ -3539,9 +3540,9 @@ var HeroSlideshow = (function() {
     }
 
     function addSlide(slideHtml, bgClass) {
-        var heroContent = document.querySelector('.hero-content');
-        var indicators = document.querySelector('.hero-indicators');
-        var bgContainer = document.querySelector('.hero-image-container');
+        var heroContent = document.querySelector('#home .hero-content');
+        var indicators = document.querySelector('#home .hero-indicators');
+        var bgContainer = document.querySelector('#home .hero-image-container');
         if (!heroContent || !indicators) return;
 
         // Insert slide before indicators
@@ -3575,8 +3576,8 @@ var HeroSlideshow = (function() {
         return heroSlides.length;
     }
 
-    // Auto-init on load
-    init();
+    // Initialized after home-hero.js loads slides
+    // init();
 
     return {
         init: init,
@@ -3592,70 +3593,12 @@ var HeroSlideshow = (function() {
 // Legacy compatibility
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
+</script>
+<script src="home-hero.js?v=2026061132"></script>
+<script>
 
-// Hero popup content data
-const heroPopupData = {
-    'surgical-oncology': {
-        title: 'Surgical Oncology',
-        content: `
-            <p>Surgical oncology uses surgery to diagnose, stage, and treat cancer — a critical part of multidisciplinary tumor management.</p>
-            <h4>Key Areas</h4>
-            <ul>
-                <li><strong>Diagnostic</strong> — Biopsies to confirm diagnosis and extent of disease.</li>
-                <li><strong>Curative</strong> — Complete removal of tumors with cancer-free margins.</li>
-                <li><strong>Staging</strong> — Determining how far cancer has spread.</li>
-                <li><strong>Palliative</strong> — Relieving symptoms when a cure is not possible.</li>
-                <li><strong>Reconstructive</strong> — Restoring function after tumor removal.</li>
-            </ul>
-        `
-    },
-    'medical-oncology': {
-        title: 'Medical Oncology',
-        content: `
-            <p>Medical oncology treats cancer with systemic therapies that reach cancer cells throughout the body.</p>
-            <h4>Treatment Modalities</h4>
-            <ul>
-                <li><strong>Chemotherapy</strong> — Cytotoxic drugs given in cycles to kill rapidly dividing cells.</li>
-                <li><strong>Immunotherapy</strong> — Harnesses the immune system to attack cancer cells.</li>
-                <li><strong>Targeted Therapy</strong> — Drugs targeting specific molecular pathways in tumors.</li>
-                <li><strong>Hormone Therapy</strong> — Blocks hormones that fuel certain cancers.</li>
-                <li><strong>Precision Medicine</strong> — Genetic profiling to select optimal treatment.</li>
-            </ul>
-        `
-    },
-    'radiation-oncology': {
-        title: 'Radiation Oncology',
-        content: `
-            <p>Radiation oncology uses high-energy beams to destroy cancer cells while sparing healthy tissue.</p>
-            <h4>Techniques</h4>
-            <ul>
-                <li><strong>External Beam</strong> — Focused beams delivered from outside the body.</li>
-                <li><strong>Brachytherapy</strong> — Radioactive sources placed inside or near the tumor.</li>
-                <li><strong>Stereotactic</strong> — High-dose radiation to small, well-defined tumors.</li>
-                <li><strong>Proton Therapy</strong> — Proton beams that spare surrounding tissue.</li>
-                <li><strong>Image-Guided</strong> — Imaging during treatment for precise targeting.</li>
-            </ul>
-        `
-    },
-    'pediatric-oncology': {
-        title: 'Pediatric Oncology',
-        content: `
-            <p>Pediatric oncology diagnoses and treats cancers in children and adolescents with age-appropriate protocols.</p>
-            <h4>Common Cancers</h4>
-            <ul>
-                <li><strong>Leukemia</strong> — Most common childhood cancer, affecting blood and bone marrow.</li>
-                <li><strong>Brain Tumors</strong> — Including medulloblastoma and gliomas.</li>
-                <li><strong>Sarcomas</strong> — Bone and soft tissue cancers.</li>
-                <li><strong>Lymphomas</strong> — Hodgkin and non-Hodgkin lymphoma.</li>
-            </ul>
-            <h4>Specialized Care</h4>
-            <ul>
-                <li><strong>Supportive Care</strong> — Managing side effects, nutrition, and psychological support.</li>
-                <li><strong>Long-Term Follow-Up</strong> — Monitoring survivors into adulthood.</li>
-            </ul>
-        `
-    }
-};
+// Hero popup content — populated by home-hero.js from admin slides
+window.heroPopupData = window.heroPopupData || {};
 
 // Open / Close floating popup near Read More
 function toggleFloatPopup(link, specialty) {
@@ -3675,13 +3618,13 @@ function toggleFloatPopup(link, specialty) {
     closeLoginPopup();
 
     // Fill content
-    const data = heroPopupData[specialty];
+    const data = window.heroPopupData[specialty];
     if (!data) return;
     popup.innerHTML = '<button class="float-popup-close" onclick="event.stopPropagation(); closeAllFloatPopups();">&times;</button>'
         + '<h3>' + data.title + '</h3>' + data.content;
 
     popup.classList.add('active');
-    clearInterval(heroTimer);
+    if (typeof HeroSlideshow !== 'undefined') HeroSlideshow.stop();
 
     // Auto-scroll so popup is visible
     setTimeout(function() {
@@ -4521,93 +4464,146 @@ document.addEventListener('DOMContentLoaded', function() {
    Featured Content - Dynamic Hero Slides
    ══════════════════════════════════════════════════════════════════ */
 (function() {
-    function loadFeaturedHeroSlides() {
-        fetch('api.php?action=get_home_featured', { credentials: 'same-origin' })
-            .then(function(r) {
-                if (!r.ok) throw new Error('HTTP ' + r.status);
-                return r.json();
-            })
-            .then(function(data) {
-                if (!data.success || !data.featured) return;
-
-                var bgContainer = document.querySelector('.hero-image-container');
-                var slidesAdded = 0;
-
-                // Add featured events as hero slides — one slide per uploaded image
-                // so a single event with multiple promotional designs rotates throughout the hero.
-                if (data.featured.events && data.featured.events.length > 0) {
-                    data.featured.events.forEach(function(ev) {
-                        // Prefer image_urls array (from gallery); fall back to single ev.image; final fallback to none
-                        var imgs = (ev.image_urls && ev.image_urls.length) ? ev.image_urls
-                                  : (ev.image ? [ev.image] : [null]);
-                        imgs.forEach(function(imageUrl, idx) {
-                            var slideHtml = createEventSlide(ev, imageUrl, idx, imgs.length);
-                            addFeaturedSlide(bgContainer, slideHtml, imageUrl, 'event-bg');
-                            slidesAdded++;
-                        });
-                    });
-                }
-
-                // Add featured publications as hero slides
-                if (data.featured.publications && data.featured.publications.length > 0) {
-                    data.featured.publications.forEach(function(pub) {
-                        var slideHtml = createPublicationSlide(pub);
-                        addFeaturedSlide(bgContainer, slideHtml, null, 'publication-bg');
-                        slidesAdded++;
-                    });
-                }
-
-                // Add featured grants as hero slides
-                if (data.featured.grants && data.featured.grants.length > 0) {
-                    data.featured.grants.forEach(function(grant) {
-                        var slideHtml = createGrantSlide(grant);
-                        addFeaturedSlide(bgContainer, slideHtml, null, 'grant-bg');
-                        slidesAdded++;
-                    });
-                }
-
-                // Reinitialize hero slideshow if slides were added
-                if (slidesAdded > 0 && typeof HeroSlideshow !== 'undefined') {
-                    HeroSlideshow.init();
-                }
-            })
-            .catch(function(err) {
-                console.error('Failed to load featured content for hero:', err);
-            });
+    function createSpotlightHeroSlide(slide) {
+        var liveBadge = slide.is_live ? '<span class="featured-status featured-status--open">● Happening Now</span>' : '';
+        var cta = slide.cta_primary_url
+            ? '<a href="' + escHtml(slide.cta_primary_url) + '" class="btn btn-primary">' + escHtml(slide.cta_primary || 'Learn More') + '</a>'
+            : '<a href="#home-ongoing" class="btn btn-primary">View Update</a>';
+        return '<div class="hero-slide featured-hero-slide" data-type="spotlight">' +
+            '<span class="featured-label featured-label--event"><span class="featured-label-icon">📢</span> ' + escHtml(slide.badge || 'Update') + '</span>' +
+            '<h1>' + escHtml(slide.title) + '</h1>' +
+            (slide.headline ? '<p>' + escHtml(slide.headline) + '</p>' : '') +
+            (slide.body ? '<p style="opacity:.9">' + escHtml(slide.body) + '</p>' : '') +
+            '<div class="featured-cta">' + cta + liveBadge + '</div></div>';
     }
 
-    function addFeaturedSlide(bgContainer, slideHtml, imageUrl, bgClass) {
-        var heroContent = document.querySelector('.hero-content');
-        var indicators = document.querySelector('.hero-indicators');
+    function loadFeaturedHeroSlides() {
+        var heroReady = window.__HOSU_HERO_READY || Promise.resolve();
+        heroReady.then(function () {
+            loadFeaturedHeroSlidesInner();
+        });
+    }
+
+    function loadFeaturedHeroSlidesInner() {
+        var bgContainer = document.querySelector('#home .hero-image-container');
+        var slidesAdded = 0;
+
+        function spotlightHasLive(spotData) {
+            if (spotData && spotData.has_live) return true;
+            var slides = (spotData && spotData.spotlight_slides) ? spotData.spotlight_slides : [];
+            return slides.some(function (s) { return s.is_live; });
+        }
+
+        function addSlidesFromFeatured(data, spotData) {
+            if (!data || !data.success || !data.featured) return;
+            var liveOnHome = spotlightHasLive(spotData);
+
+            if (data.featured.events && data.featured.events.length > 0) {
+                data.featured.events.forEach(function(ev) {
+                    /* Live events are shown in Ongoing Now — do not duplicate them in the hero. */
+                    if (liveOnHome && ev.is_live) return;
+                    if (liveOnHome && !ev.is_live) return;
+                    var imgs = (ev.image_display_urls && ev.image_display_urls.length) ? ev.image_display_urls
+                        : (ev.image_urls && ev.image_urls.length) ? ev.image_urls
+                        : (ev.image ? [ev.image] : [null]);
+                    addFeaturedSlideWithMedia(bgContainer, createEventSlide(ev, imgs.length), imgs, 'event-bg');
+                    slidesAdded++;
+                });
+            }
+            if (data.featured.publications && data.featured.publications.length > 0) {
+                data.featured.publications.forEach(function(pub) {
+                    addFeaturedSlide(bgContainer, createPublicationSlide(pub), null, 'publication-bg');
+                    slidesAdded++;
+                });
+            }
+            if (data.featured.grants && data.featured.grants.length > 0) {
+                data.featured.grants.forEach(function(grant) {
+                    addFeaturedSlide(bgContainer, createGrantSlide(grant), null, 'grant-bg');
+                    slidesAdded++;
+                });
+            }
+        }
+
+        function addSlidesFromSpotlight(spotData) {
+            if (!spotData || !spotData.success) return;
+            var heroItems = spotData.hero_spotlights || [];
+            heroItems.forEach(function(slide) {
+                var imgs = [];
+                var sources = slide.media || slide.images || [];
+                sources.forEach(function(item) {
+                    if ((item.type || 'image') === 'video') return;
+                    var u = item.display_url || item.url || '';
+                    if (u) imgs.push(u);
+                });
+                if (!imgs.length && slide.image) imgs.push(slide.image);
+                addFeaturedSlideWithMedia(bgContainer, createSpotlightHeroSlide(slide), imgs, 'event-bg');
+                slidesAdded++;
+            });
+        }
+
+        function finishHero() {
+            if (slidesAdded > 0 && typeof HeroSlideshow !== 'undefined') {
+                HeroSlideshow.init();
+            }
+        }
+
+        var boot = window.__HOSU_PAGE_BOOTSTRAP;
+        if (boot && boot.success) {
+            addSlidesFromSpotlight(boot);
+            addSlidesFromFeatured({ success: true, featured: boot.featured }, boot);
+            finishHero();
+            return;
+        }
+
+        Promise.all([
+            fetch('api.php?action=get_home_featured', { credentials: 'same-origin' }).then(function(r) { return r.json(); }).catch(function() { return null; }),
+            fetch('api.php?action=get_home_spotlight', { credentials: 'same-origin' }).then(function(r) { return r.json(); }).catch(function() { return null; }),
+        ]).then(function(results) {
+            addSlidesFromSpotlight(results[1]);
+            addSlidesFromFeatured(results[0], results[1]);
+            finishHero();
+        });
+    }
+
+    function addFeaturedSlideWithMedia(bgContainer, slideHtml, mediaUrls, bgClass) {
+        var heroContent = document.querySelector('#home .hero-content');
+        var indicators = document.querySelector('#home .hero-indicators');
         if (!heroContent || !indicators) return;
 
-        // Insert slide before indicators
+        var slideIndex = indicators.querySelectorAll('.hero-dot').length;
+
         var temp = document.createElement('div');
         temp.innerHTML = slideHtml.trim();
         var newSlide = temp.firstElementChild;
         if (!newSlide) return;
         heroContent.insertBefore(newSlide, indicators);
 
-        // Add new dot indicator
-        var dotCount = indicators.querySelectorAll('.hero-dot').length;
         var newDot = document.createElement('span');
         newDot.className = 'hero-dot';
-        newDot.setAttribute('data-index', dotCount);
+        newDot.setAttribute('data-index', slideIndex);
         indicators.appendChild(newDot);
 
-        // Add background image
+        var urls = (mediaUrls && mediaUrls.length) ? mediaUrls : [null];
         if (bgContainer) {
-            var newBg = document.createElement('div');
-            newBg.className = 'hero-background';
-            if (imageUrl) {
-                newBg.setAttribute('data-bg', imageUrl);
-            } else if (bgClass) {
-                newBg.classList.add(bgClass);
-            } else {
-                newBg.classList.add('dynamic-bg');
-            }
-            bgContainer.appendChild(newBg);
+            urls.forEach(function(imageUrl, mi) {
+                var newBg = document.createElement('div');
+                newBg.className = 'hero-background' + (mi === 0 ? ' active' : '');
+                newBg.setAttribute('data-hero-slide', String(slideIndex));
+                newBg.setAttribute('data-hero-media', String(mi));
+                if (imageUrl) {
+                    newBg.setAttribute('data-bg', imageUrl);
+                } else if (bgClass) {
+                    newBg.classList.add(bgClass);
+                } else {
+                    newBg.classList.add('dynamic-bg');
+                }
+                bgContainer.appendChild(newBg);
+            });
         }
+    }
+
+    function addFeaturedSlide(bgContainer, slideHtml, imageUrl, bgClass) {
+        addFeaturedSlideWithMedia(bgContainer, slideHtml, imageUrl ? [imageUrl] : [], bgClass);
     }
 
     function escHtml(str) {
@@ -4615,14 +4611,15 @@ document.addEventListener('DOMContentLoaded', function() {
         return String(str).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
     }
 
-    function createEventSlide(ev, imageUrl, imgIdx, imgTotal) {
+    function createEventSlide(ev, imgTotal) {
         var dateDisplay = ev.date || '';
         var locationDisplay = ev.location || '';
         var typeLabel = ev.type ? ev.type.charAt(0).toUpperCase() + ev.type.slice(1) : 'Event';
-        var countdownBadge = ev.countdown ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
-        // Subtle indicator when an event spans multiple gallery images (e.g. "1 / 3")
+        var liveBadge = ev.is_live ? '<span class="featured-status featured-status--open">● Happening Now</span>' : '';
+        var countdownBadge = (!ev.is_live && ev.countdown) ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
+        var speakersLine = ev.speakers ? '<span class="featured-meta-item">🎤 ' + escHtml(ev.speakers.split(',')[0]) + '</span>' : '';
         var galleryPos = (typeof imgTotal === 'number' && imgTotal > 1)
-            ? '<span class="featured-meta-item">🖼 ' + (imgIdx + 1) + ' / ' + imgTotal + '</span>'
+            ? '<span class="featured-meta-item">🖼 ' + imgTotal + ' photos</span>'
             : '';
 
         return '<div class="hero-slide featured-hero-slide" data-type="event" data-event-id="' + escHtml(ev.id) + '">' +
@@ -4632,11 +4629,13 @@ document.addEventListener('DOMContentLoaded', function() {
                 (dateDisplay ? '<span class="featured-meta-item">🗓 ' + escHtml(dateDisplay) + '</span>' : '') +
                 (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
                 '<span class="featured-meta-item">🎪 ' + escHtml(typeLabel) + '</span>' +
+                speakersLine +
                 galleryPos +
             '</div>' +
             '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
             '<div class="featured-cta">' +
-                '<a href="events.html#evt-' + escHtml(ev.id) + '" class="btn btn-primary">View Event Details</a>' +
+                '<a href="events.html#evt-' + escHtml(ev.id) + '" class="btn btn-primary">' + (ev.is_live ? 'Join Live Event' : 'View Event Details') + '</a>' +
+                liveBadge +
                 countdownBadge +
             '</div>' +
         '</div>';
@@ -4683,19 +4682,16 @@ document.addEventListener('DOMContentLoaded', function() {
         '</div>';
     }
 
-    // Load after HeroSlideshow is ready
     if (document.readyState === 'loading') {
-        document.addEventListener('DOMContentLoaded', function() {
-            setTimeout(loadFeaturedHeroSlides, 100);
-        });
+        document.addEventListener('DOMContentLoaded', loadFeaturedHeroSlides);
     } else {
-        setTimeout(loadFeaturedHeroSlides, 100);
+        loadFeaturedHeroSlides();
     }
 })();
 </script>
 <script src="intl-phone.js?v=2026040404"></script>
-<script src="shared-components.js?v=2026040701"></script>
+<script src="shared-components.js?v=2026061116"></script>
 <script src="shared-login.js?v=2026040404"></script>
-<script src="donate-float.js?v=2026041004"></script>
+<script src="donate-float.js?v=2026061116"></script>
 </body>
 </html>
