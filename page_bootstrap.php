@@ -54,6 +54,7 @@ try {
         ];
     } else {
         $spotlight = fetchHomeSpotlightPayload($pdo);
+        $heroImages = loadHeroImageSettings($pdo);
         $payload = [
             'success' => true,
             'page' => 'home',
@@ -64,6 +65,8 @@ try {
             'ongoing_mode' => $spotlight['ongoing_mode'] ?? 'empty',
             'featured' => fetchHomeFeaturedPayload($pdo),
             'slides' => loadHomepageHeroSlides($pdo, true),
+            'image_mode' => $heroImages['mode'],
+            'pool_images' => $heroImages['pool'],
             'homepage_extras' => fetchHomepageExtrasPayload($pdo),
         ];
     }

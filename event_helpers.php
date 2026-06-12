@@ -2136,7 +2136,7 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
         $primaryImage = spotlightDisplayUrl($primaryImage);
     }
 
-    return [
+    $slide = [
         'id' => $overrides['id'] ?? ('event-' . $ev['id']),
         'event_id' => $ev['id'],
         'source' => 'event',
@@ -2172,7 +2172,106 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
         )),
         'show_in_hero' => $isLive && !empty($ev['show_live_on_home']),
         'updates' => $overrides['updates'] ?? [],
+        'recap_items' => [],
+        'has_recap' => false,
+        'cta_action' => 'link',
     ];
+
+    $slideType = $slide['type'] ?? $type;
+    if ($isPast || $slideType === 'post_event') {
+        $slide = applyPostEventRecapToSlide($ev, $slide);
+    }
+
+    return $slide;
+}
+
+/**
+ * Build admin-authored recap bullets for past events (homepage Ongoing Now).
+ *
+ * @return array<int, array{title: string, body: string}>
+ */
+function buildEventRecapItems(array $ev): array
+{
+    $items = [];
+    $highlights = trim((string) ($ev['highlights'] ?? ''));
+    if ($highlights !== '') {
+        $parts = preg_split('/\n\s*\n/', $highlights) ?: [$highlights];
+        foreach ($parts as $part) {
+            $part = trim((string) $part);
+            if ($part === '') {
+                continue;
+            }
+            $lines = preg_split('/\r\n|\n/', $part) ?: [$part];
+            if (count($lines) === 1) {
+                $items[] = ['title' => 'What happened', 'body' => $part];
+                continue;
+            }
+            foreach ($lines as $line) {
+                $line = trim((string) $line);
+                if ($line !== '') {
+                    $items[] = ['title' => 'Highlight', 'body' => $line];
+                }
+            }
+        }
+    }
+
+    $liveMessage = trim((string) ($ev['live_message'] ?? ''));
+    if ($liveMessage !== '') {
+        $items[] = ['title' => 'Summary', 'body' => $liveMessage];
+    }
+
+    $announcements = trim((string) ($ev['announcements'] ?? ''));
+    if ($announcements !== '') {
+        $items[] = ['title' => 'Announcements', 'body' => $announcements];
+    }
+
+    foreach ($ev['live_content'] ?? [] as $block) {
+        if (isset($block['is_active']) && empty($block['is_active'])) {
+            continue;
+        }
+        $title = trim((string) ($block['title'] ?? ''));
+        $body = trim((string) ($block['body'] ?? ''));
+        if ($title === '' && $body === '') {
+            continue;
+        }
+        $items[] = ['title' => $title !== '' ? $title : 'Update', 'body' => $body];
+    }
+
+    $speakers = trim((string) ($ev['speakers'] ?? ''));
+    if ($speakers !== '') {
+        $items[] = ['title' => 'Speakers & organizers', 'body' => $speakers];
+    }
+
+    return $items;
+}
+
+function eventHasRecapSummary(array $ev): bool
+{
+    return !empty(buildEventRecapItems($ev));
+}
+
+function applyPostEventRecapToSlide(array $ev, array $slide): array
+{
+    $recap = buildEventRecapItems($ev);
+    $slide['recap_items'] = $recap;
+    $slide['has_recap'] = !empty($recap);
+
+    if (!empty($recap)) {
+        $slide['cta_primary'] = 'See What Happened';
+        $slide['cta_primary_url'] = '';
+        $slide['cta_action'] = 'toggle_recap';
+        $slide['cta_secondary'] = '';
+        $slide['cta_secondary_url'] = '';
+        if (empty($slide['headline']) && !empty($recap[0]['body'])) {
+            $slide['headline'] = truncatePlain($recap[0]['body'], 82);
+        }
+    } else {
+        $slide['cta_primary'] = 'View Events';
+        $slide['cta_primary_url'] = 'events.html#evt-' . ($ev['id'] ?? '');
+        $slide['cta_action'] = 'link';
+    }
+
+    return $slide;
 }
 
 function buildSpotlightSlideFromCustom(array $row): array
@@ -2556,8 +2655,8 @@ function buildOngoingNowSlides(array $events, array $customSpotlights = [], $set
                 'ongoing_phase' => $badge['phase'],
                 'is_live' => false,
                 'headline' => truncatePlain($ev['highlights'] ?: $ev['announcements'] ?: ($ev['description'] ?? ''), 82),
-                'cta_primary' => 'See What Happened',
                 'media' => $eventMedia,
+                'updates' => array_values(array_filter($blocks, fn($b) => !empty($b['title']) || !empty($b['body']))),
             ]);
         }
     }
@@ -2622,7 +2721,6 @@ function buildOngoingNowSlides(array $events, array $customSpotlights = [], $set
                     : ($ev['live_message'] ?: $ev['announcements'] ?: ($ev['description'] ?? '')),
                 82
             ),
-            'cta_primary' => $isPast ? 'See What Happened' : ($ev['live_cta_label'] ?? 'Register & Join Now'),
             'updates' => $feedBlocks,
             'media' => $eventMedia,
         ]);
@@ -3042,6 +3140,90 @@ function slugifyHeroKey(string $title, int $id = 0): string
         $key = 'slide-' . $id;
     }
     return substr($key, 0, 80);
+}
+
+function defaultHeroImageSettings(): array
+{
+    return [
+        'mode' => 'per_slide',
+        'pool' => [],
+        'pool_alt' => '',
+    ];
+}
+
+function normalizeHeroPoolImages(array $items): array
+{
+    $items = expandHeroSlideImages(dedupeSlideImages($items));
+    $out = [];
+    foreach ($items as $img) {
+        if (isDriveFolderUrl($img['url'] ?? '')) {
+            continue;
+        }
+        $img['display_url'] = spotlightDisplayUrl($img['url'] ?? '');
+        if (!empty($img['display_url']) || !empty($img['url'])) {
+            $out[] = $img;
+        }
+    }
+    return $out;
+}
+
+function loadHeroImageSettings(PDO $pdo): array
+{
+    $raw = loadHomepageSetting($pdo, 'hero_images', defaultHeroImageSettings());
+    $mode = (($raw['mode'] ?? '') === 'global_pool') ? 'global_pool' : 'per_slide';
+    $pool = normalizeHeroPoolImages(is_array($raw['pool'] ?? null) ? $raw['pool'] : []);
+    return [
+        'mode' => $mode,
+        'pool' => $pool,
+        'pool_alt' => trim((string)($raw['pool_alt'] ?? '')),
+    ];
+}
+
+function saveHeroImageSettings(PDO $pdo, string $mode, array $pool, string $poolAlt = ''): array
+{
+    $mode = ($mode === 'global_pool') ? 'global_pool' : 'per_slide';
+    $pool = normalizeHeroPoolImages($pool);
+    $payload = [
+        'mode' => $mode,
+        'pool' => array_map(function ($img) {
+            return [
+                'url' => $img['url'] ?? '',
+                'alt' => trim((string)($img['alt'] ?? '')),
+            ];
+        }, $pool),
+        'pool_alt' => trim($poolAlt),
+    ];
+    saveHomepageSetting($pdo, 'hero_images', $payload);
+    return loadHeroImageSettings($pdo);
+}
+
+function collectPostedHeroPoolImages(string $defaultAlt = ''): array
+{
+    require_once __DIR__ . '/upload_helper.php';
+
+    $items = parsePostedSlideImages($_POST['pool_images_json'] ?? '[]', $defaultAlt);
+    $items = appendSlideImageUrlsFromText(trim($_POST['pool_image_urls'] ?? ''), $items, $defaultAlt);
+
+    if (!empty($_FILES['poolImageFiles']) && is_array($_FILES['poolImageFiles']['name'])) {
+        foreach ($_FILES['poolImageFiles']['name'] as $i => $name) {
+            if (($_FILES['poolImageFiles']['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+                continue;
+            }
+            $file = [
+                'name' => $_FILES['poolImageFiles']['name'][$i],
+                'type' => $_FILES['poolImageFiles']['type'][$i],
+                'tmp_name' => $_FILES['poolImageFiles']['tmp_name'][$i],
+                'error' => $_FILES['poolImageFiles']['error'][$i],
+                'size' => $_FILES['poolImageFiles']['size'][$i],
+            ];
+            $up = secureUpload($file, 'uploads/hero/pool/', false, 8000000);
+            if ($up) {
+                $items[] = ['url' => $up, 'alt' => $defaultAlt];
+            }
+        }
+    }
+
+    return normalizeHeroPoolImages($items);
 }
 
 function defaultHomepagePartners(): array

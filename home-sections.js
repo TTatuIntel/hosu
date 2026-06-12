@@ -336,10 +336,22 @@
         }
     }
 
-    function buildCtas(slide) {
+    function buildCtas(slide, slideIndex) {
+        if (slide.cta_action === 'toggle_recap' || (slide.has_recap && slide.recap_items && slide.recap_items.length)) {
+            return '<div class="cta-buttons">' +
+                '<button type="button" class="interactive-button on-recap-btn" data-recap-slide="' + slideIndex + '" aria-expanded="false">' +
+                esc(slide.cta_primary || 'See What Happened') +
+                ' <span class="icon on-recap-btn__icon" aria-hidden="true">↓</span></button></div>';
+        }
+
         var primary = slide.cta_primary && slide.cta_primary_url
             ? { label: slide.cta_primary, url: slide.cta_primary_url }
-            : null;
+            : (slide.cta_primary && !slide.cta_primary_url && slide.cta_action === 'link'
+                ? { label: slide.cta_primary, url: 'events.html' }
+                : null);
+        if (primary && !primary.url && slide.event_id) {
+            primary.url = 'events.html#evt-' + slide.event_id;
+        }
         var secondary = slide.cta_secondary && slide.cta_secondary_url
             ? { label: slide.cta_secondary, url: slide.cta_secondary_url }
             : null;
@@ -437,10 +449,10 @@
             : '';
         var altText = media.title || (driveId ? 'Event photo' : 'Event photo');
         var inner = safeUrl
-            ? '<button type="button" class="on-img-btn" aria-label="View full image">' +
-              '<img class="on-img on-img--main" src="' + safeUrl + '" data-full-src="' + fullUrl + '"' +
+            ? '<div class="on-img-shield" aria-hidden="true"></div>' +
+              '<img class="on-img on-img--main" src="' + safeUrl + '"' +
               ' alt="' + esc(altText) + '" loading="' + loadAttr + '"' +
-              priorityAttr + ' decoding="async" referrerpolicy="no-referrer"' + driveAttrs + '></button>'
+              priorityAttr + ' decoding="async" draggable="false" referrerpolicy="no-referrer"' + driveAttrs + '>'
             : '';
         return (
             '<div class="hero-background on-frame on-frame--image' + active + (url ? '' : ' event-bg') + '"' +
@@ -610,15 +622,9 @@
         });
     }
 
-    /* Top-right pill showing "N of M" + media-type icon. Updated as media rotates. */
-    function renderMediaCounter(slideIndex, mediaList) {
-        if (!mediaList || mediaList.length <= 1) return '';
-        var first = mediaList[0] || {};
-        var icon = first.type === 'video' ? '▶' : '📷';
-        return '<div class="lu-media-counter" data-lu-counter="' + slideIndex + '" aria-hidden="true">' +
-            '<span class="lu-media-counter__icon">' + icon + '</span>' +
-            '<span class="lu-media-counter__num"><b>1</b> / ' + mediaList.length + '</span>' +
-            '</div>';
+    /* Media counter hidden — carousel still rotates without showing N/M pill. */
+    function renderMediaCounter() {
+        return '';
     }
 
     /* Bottom-left caption strip overlaid on the spotlight image (event-title fallback flows through). */
@@ -630,6 +636,65 @@
             (text ? '' : ' hidden') + '>' +
             '<span class="lu-media-caption__text">' + esc(truncate(text, 90)) + '</span>' +
             '</div>';
+    }
+
+    function renderRecapPanel(slide, slideIndex) {
+        var items = slide.recap_items || [];
+        if (!items.length) return '';
+        return '<div class="on-recap" id="on-recap-' + slideIndex + '" hidden>' +
+            '<div class="on-recap__inner">' +
+            items.map(function (item) {
+                var title = item.title ? '<h4 class="on-recap__title">' + esc(item.title) + '</h4>' : '';
+                var body = item.body ? '<p class="on-recap__body">' + esc(item.body).replace(/\n/g, '<br>') + '</p>' : '';
+                return '<article class="on-recap__item">' + title + body + '</article>';
+            }).join('') +
+            '</div></div>';
+    }
+
+    function closeAllRecaps(section) {
+        if (!section) return;
+        section.querySelectorAll('.on-recap').forEach(function (el) {
+            el.setAttribute('hidden', '');
+        });
+        section.querySelectorAll('.on-recap-btn').forEach(function (btn) {
+            btn.setAttribute('aria-expanded', 'false');
+            var icon = btn.querySelector('.on-recap-btn__icon');
+            if (icon) icon.textContent = '↓';
+        });
+    }
+
+    function initRecapToggles(section) {
+        if (!section) return;
+        section.querySelectorAll('.on-recap-btn').forEach(function (btn) {
+            btn.addEventListener('click', function () {
+                var idx = btn.getAttribute('data-recap-slide');
+                var panel = document.getElementById('on-recap-' + idx);
+                if (!panel) return;
+                var open = panel.hasAttribute('hidden');
+                closeAllRecaps(section);
+                if (open) {
+                    panel.removeAttribute('hidden');
+                    btn.setAttribute('aria-expanded', 'true');
+                    var icon = btn.querySelector('.on-recap-btn__icon');
+                    if (icon) icon.textContent = '↑';
+                    panel.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+                }
+            });
+        });
+    }
+
+    function initImageProtection(section) {
+        if (!section) return;
+        section.addEventListener('contextmenu', function (e) {
+            if (e.target.closest('.on-media, .on-frame, .on-img')) {
+                e.preventDefault();
+            }
+        });
+        section.addEventListener('dragstart', function (e) {
+            if (e.target.closest('.on-img')) {
+                e.preventDefault();
+            }
+        });
     }
 
     function renderContentSlide(slide, slideIndex) {
@@ -646,7 +711,8 @@
                     : (slide.ongoing_phase === 'past' || slide.ongoing_phase === 'yesterday' ? '📅' : '📢')));
         var badge = slideBadge(slide);
         var desc = pickDescription(slide);
-        var defaultCta = buildCtas(slide);
+        var defaultCta = buildCtas(slide, slideIndex);
+        var recapHtml = renderRecapPanel(slide, slideIndex);
 
         var feedHtml = '';
         if (slide.updates && slide.updates.length) {
@@ -680,6 +746,7 @@
             (desc ? '<p class="on-desc lu-dynamic-desc">' + esc(desc) + '</p>' : '<p class="on-desc lu-dynamic-desc" style="display:none"></p>') +
             (pills ? '<div class="on-pills lu-dynamic-pills">' + pills + '</div>' : '') +
             '<div class="on-cta lu-dynamic-cta">' + defaultCta + '</div>' +
+            recapHtml +
             feedHtml +
             '</div></div>'
         );
@@ -763,6 +830,7 @@
         if (index >= slides.length) index = 0;
         _slideIndex = index;
 
+        closeAllRecaps(section);
         clearAllMediaTimers();
 
         section.querySelectorAll('.hero-slide[data-lu-slide]').forEach(function (s, i) {
@@ -907,7 +975,8 @@
             slideEl.setAttribute('data-media-count', String(count || 1));
         });
 
-        initImageLightbox(section);
+        initImageProtection(section);
+        initRecapToggles(section);
         initMediaNav(section);
         syncMediaNav(section, 0);
 

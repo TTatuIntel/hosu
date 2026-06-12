@@ -1511,11 +1511,11 @@
    Live Spotlight — media counter + caption overlay (v2 redesign)
    ============================================================ */
 #home-ongoing .lu-media-counter {
+    display: none !important;
     position: absolute;
     top: 0.75rem;
     right: 0.75rem;
     z-index: 5;
-    display: inline-flex;
     align-items: center;
     gap: 0.4rem;
     padding: 0.35rem 0.7rem;
@@ -1824,38 +1824,35 @@
     opacity: 1;
 }
 
-#home-ongoing .on-img-btn {
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    width: 100%;
-    height: 100%;
-    padding: 0;
-    margin: 0;
-    border: 0;
+#home-ongoing .on-img-shield {
+    position: absolute;
+    inset: 0;
+    z-index: 4;
     background: transparent;
-    cursor: zoom-in;
-    position: relative;
-    z-index: 2;
+    pointer-events: auto;
+    user-select: none;
+    -webkit-user-select: none;
 }
 
 #home-ongoing .on-img {
     display: block;
     user-select: none;
+    -webkit-user-select: none;
     -webkit-user-drag: none;
+    pointer-events: none;
 }
 
 #home-ongoing .on-img--main {
-    width: auto;
-    height: auto;
-    max-width: 100%;
-    max-height: 100%;
-    min-height: 0;
-    object-fit: contain;
+    width: 100%;
+    height: 100%;
+    min-width: 100%;
+    min-height: 100%;
+    object-fit: cover;
     object-position: center center;
     image-rendering: auto;
     filter: none;
     background: #e8edf3;
+    transition: transform 0.35s ease;
 }
 
 #home-ongoing .on-img--main.on-img--failed {
@@ -1863,15 +1860,14 @@
 }
 
 #home-ongoing .on-frame--image:hover .on-img--main {
-    transform: scale(1.01);
-    transition: transform 0.25s ease;
+    transform: scale(1.03);
 }
 
 #home-ongoing .on-media .spotlight-media-video video,
 #home-ongoing .on-media .spotlight-media-embed iframe {
     width: 100%;
     height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
 }
 
@@ -2149,6 +2145,60 @@
 .on-cta .cta-button--outline:hover {
     background: rgba(13, 69, 147, 0.06);
     border-color: var(--on-secondary);
+}
+
+.on-recap-btn {
+    border: 0;
+    cursor: pointer;
+    font-family: inherit;
+}
+
+.on-recap-btn__icon {
+    display: inline-block;
+    transition: transform 0.2s ease;
+}
+
+.on-recap {
+    margin-top: 0.75rem;
+    animation: onSlideIn 0.35s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.on-recap__inner {
+    max-height: min(42vh, 280px);
+    overflow-y: auto;
+    padding: 0.75rem 0.85rem;
+    border-radius: 12px;
+    background: var(--on-surface);
+    border: 1px solid var(--on-border);
+    -webkit-overflow-scrolling: touch;
+}
+
+.on-recap__item + .on-recap__item {
+    margin-top: 0.65rem;
+    padding-top: 0.65rem;
+    border-top: 1px solid rgba(15, 23, 42, 0.08);
+}
+
+.on-recap__title {
+    margin: 0 0 0.25rem;
+    font-size: 0.78rem;
+    font-weight: 700;
+    color: var(--on-secondary);
+    letter-spacing: 0.02em;
+}
+
+.on-recap__body {
+    margin: 0;
+    font-size: 0.8rem;
+    line-height: 1.55;
+    color: var(--on-text);
+}
+
+@media (max-width: 560px) {
+    .on-recap__inner {
+        max-height: min(38vh, 220px);
+        padding: 0.65rem 0.7rem;
+    }
 }
 
 /* ─── Feed strip (latest update under copy) ───────────────────────── */

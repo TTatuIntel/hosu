@@ -26,6 +26,8 @@ if (is_file($cachePath) && (time() - filemtime($cachePath)) < 3600) {
     $meta = @json_decode((string) file_get_contents($cachePath . '.meta'), true);
     $type = is_array($meta) ? ($meta['type'] ?? 'image/jpeg') : 'image/jpeg';
     header('Content-Type: ' . $type);
+    header('Content-Disposition: inline');
+    header('X-Content-Type-Options: nosniff');
     header('Cache-Control: public, max-age=3600');
     readfile($cachePath);
     exit;
@@ -54,6 +56,8 @@ foreach ($sources as $source) {
         @file_put_contents($cachePath, $body);
         @file_put_contents($cachePath . '.meta', json_encode(['type' => $type]));
         header('Content-Type: ' . $type);
+        header('Content-Disposition: inline');
+        header('X-Content-Type-Options: nosniff');
         header('Cache-Control: public, max-age=3600');
         echo $body;
         exit;

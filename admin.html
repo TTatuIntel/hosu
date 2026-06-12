@@ -1273,6 +1273,38 @@ body.density-compact .main{padding-top:.85rem;}
                     <table class="tbl"><thead><tr><th>Preview</th><th>Title</th><th>Order</th><th>Display</th><th>CTA</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-hero-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table>
                 </div>
+                <div class="card-body" style="border-top:1px solid var(--border);">
+                    <h3 style="margin:0 0 .5rem;font-size:1rem;">🎞 Hero Background Images</h3>
+                    <p class="hp-section-help" style="margin-bottom:.85rem;">Choose how background photos appear on the right side of the hero. Text slides always rotate as configured above — this controls the images only.</p>
+                    <div class="aef-grid grid-2cols" style="margin-bottom:.85rem;">
+                        <label class="hero-img-mode-opt" style="display:flex;gap:.6rem;align-items:flex-start;padding:.75rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+                            <input type="radio" name="hero-img-mode" id="hero-img-mode-per-slide" value="per_slide" checked style="margin-top:.2rem;">
+                            <span><strong>Per slide</strong><br><small style="color:var(--text-light);">Assign images inside each slide (edit slide → Slide Images). A random image from that slide&apos;s gallery shows when its text is active.</small></span>
+                        </label>
+                        <label class="hero-img-mode-opt" style="display:flex;gap:.6rem;align-items:flex-start;padding:.75rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
+                            <input type="radio" name="hero-img-mode" id="hero-img-mode-global-pool" value="global_pool" style="margin-top:.2rem;">
+                            <span><strong>Shared random pool</strong><br><small style="color:var(--text-light);">Upload a pool below with no link to specific slides. A random photo changes each time the hero text advances.</small></span>
+                        </label>
+                    </div>
+                    <div id="hero-pool-panel" style="display:none;">
+                        <p class="sc-gallery-hint">Add photos to the shared pool. They are <strong>not tied</strong> to any slide — the homepage picks one at random whenever the hero text changes.</p>
+                        <div id="sc-hero-pool-images-wrap" style="margin-bottom:.75rem;">
+                            <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Pool gallery <span id="sc-hero-pool-images-count"></span></div>
+                            <div id="sc-hero-pool-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
+                        </div>
+                        <div class="sc-gallery-add">
+                            <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-pool-image-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple><small>JPG, PNG, WebP, GIF · select multiple files</small></div>
+                            <div class="ff" style="margin:0;"><label>🔗 Image URL(s)</label><textarea id="sc-hero-pool-image-urls" rows="3" placeholder="img/photo.jpg&#10;https://drive.google.com/file/d/…/view" oninput="previewScGalleryUrls('hero-pool')"></textarea>
+                            <button type="button" class="btn-sm" style="margin-top:.35rem;" onclick="addScGalleryUrls('hero-pool',true)">➕ Add URLs to pool</button>
+                            <div id="sc-hero-pool-url-preview" class="ev-drive-preview" style="display:none;margin-top:.4rem;"></div>
+                            <small>One per line. Drive file or folder links OK.</small></div>
+                        </div>
+                        <div class="ff" style="margin-top:.65rem;"><label>Default Alt Text</label><input type="text" id="sc-hero-pool-image-alt" placeholder="Accessibility description for pool images"></div>
+                    </div>
+                    <div style="margin-top:.85rem;">
+                        <button type="button" class="btn-primary" id="sc-hero-img-settings-save-btn" onclick="saveHeroImageSettings()"><span id="sc-hero-img-settings-save-text">💾 Save Background Settings</span></button>
+                    </div>
+                </div>
             </div>
 
             <div class="card hp-section" id="hp-section-ongoing">
@@ -1751,7 +1783,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="collapse-sec open" data-collapse="hero-images">
                 <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>📷 Slide Images</span><span class="collapse-chevron">▼</span></button>
                 <div class="collapse-bd">
-                    <p class="sc-gallery-hint">Add <strong>multiple images</strong> for this slide. When the hero reaches this slide, photos <strong>rotate automatically</strong> — each can have its own headline &amp; text (optional fields in the gallery). Upload files and paste URLs below.</p>
+                    <p class="sc-gallery-hint">For <strong>per-slide</strong> mode: add images tied to this slide only. When the hero shows this text, one random photo from this gallery appears on the right. Optional headline &amp; text per image below.</p>
                     <div id="sc-hero-images-wrap" style="margin-bottom:.75rem;">
                         <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Rotation gallery <span id="sc-hero-images-count"></span> <small style="font-weight:400;">— order left→right is play order</small></div>
                         <div id="sc-hero-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
@@ -2051,10 +2083,10 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 </div>
                 <div class="ff desc-field"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
                 <div class="aef-grid" style="margin-top:.75rem;">
-                    <div class="ff"><label>Speakers / Organizers</label><textarea id="ev-speakers" rows="2" placeholder="Dr. Jane Doe — Keynote&#10;Prof. John Smith — Panel Chair"></textarea></div>
-                    <div class="ff"><label>Event Highlights</label><textarea id="ev-highlights" rows="2" placeholder="Key sessions, achievements, special announcements…"></textarea></div>
+                    <div class="ff"><label>Speakers / Organizers <small>(optional)</small></label><textarea id="ev-speakers" rows="2" placeholder="Dr. Jane Doe — Keynote&#10;Prof. John Smith — Panel Chair"></textarea><small class="fee-hint">Optional — included in recap if filled in.</small></div>
+                    <div class="ff"><label>What happened <small>(optional — your choice)</small></label><textarea id="ev-highlights" rows="3" placeholder="Optional. One paragraph or one bullet per line. Use this, Content blocks, or both — whatever you prefer."></textarea><small class="fee-hint">Included in homepage <em>See What Happened</em> if you add text here.</small></div>
                 </div>
-                <div class="ff" style="margin-top:.5rem;"><label>Important Announcements</label><textarea id="ev-announcements" rows="2" placeholder="Urgent updates shown on homepage ticker…"></textarea></div>
+                <div class="ff" style="margin-top:.5rem;"><label>Important Announcements <small>(optional)</small></label><textarea id="ev-announcements" rows="2" placeholder="Optional — also appears in the recap if filled in."></textarea></div>
             </div>
             </div><!-- /ev-tab-details -->
 
@@ -2082,9 +2114,17 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             </div>
             <div class="aef-sec" id="ev-live-sec">
                 <div class="aef-lbl">📝 Event Content Blocks</div>
-                <small class="fee-hint" style="display:block;margin-bottom:.75rem;">Optional text updates shown beside the rotating photos. Gallery images (Images tab) are what rotate on the homepage — not separate slides per block.</small>
+                <div class="ev-recap-help" style="margin-bottom:.85rem;padding:.65rem .75rem;background:#f0f7ff;border:1px solid rgba(13,69,147,.15);border-radius:8px;font-size:.74rem;line-height:1.5;color:var(--text-light);">
+                    <strong style="color:#0d4593;">Past event recap — use any combination you like:</strong>
+                    <ul style="margin:.35rem 0 0 1.1rem;padding:0;">
+                        <li><strong>Details</strong> → What happened, Announcements, or Speakers</li>
+                        <li><strong>Content tab</strong> → Live headline and/or content blocks below</li>
+                        <li><strong>Images tab</strong> or Drive folder → rotating photos (separate from text)</li>
+                    </ul>
+                    <span style="display:block;margin-top:.4rem;">Mix and match — only filled fields appear. If nothing is added, visitors see <em>View Events</em> instead of <em>See What Happened</em>.</span>
+                </div>
                 <div class="aef-grid">
-                    <div class="ff"><label>Live Headline <small>(shown when event is ongoing)</small></label><input type="text" id="ev-live-message" placeholder="e.g. We are waiting for more members to join us"></div>
+                    <div class="ff"><label>Live Headline <small>(optional — also used in past-event recap)</small></label><input type="text" id="ev-live-message" placeholder="e.g. Key outcomes from the AGM session…"></div>
                     <div class="ff ev-drive-folder-field">
                         <label>📁 Google Drive photo folder <small>(for Ongoing Now rotation)</small></label>
                         <input type="text" id="ev-drive-folder-url" placeholder="https://drive.google.com/drive/folders/… or …/mobile/folders/…" onchange="previewDriveFolder()" onblur="previewDriveFolder()">
@@ -2105,9 +2145,10 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <button type="button" class="btn-primary" id="ev-save-ongoing-btn" onclick="saveEventOngoingContent()">💾 Save Photos &amp; Live Content</button>
                     <small style="display:block;margin-top:.35rem;color:var(--text-light);font-size:.72rem;">Saves Drive folder, live text, and content blocks only — does not change event dates.</small>
                 </div>
-                <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(add, edit, remove anytime)</small></div>
+                <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(optional — add as many as you need, or skip entirely)</small></div>
                 <div id="ev-live-content-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
                 <button type="button" class="btn-sm" style="margin-top:.5rem;" onclick="addLiveContentItem()">➕ Add Content Block</button>
+                <small class="fee-hint" style="display:block;margin-top:.45rem;">Each block can have a title and body — all active blocks are merged into the homepage recap.</small>
             </div>
             </div><!-- /ev-tab-content -->
 
@@ -3653,7 +3694,7 @@ function renderLiveContentList(){
     if(!list)return;
     var visible=_evLiveContentItems.filter(function(it){return !it._delete;});
     if(!visible.length){
-        list.innerHTML='<div style="font-size:.8rem;color:var(--text-light);padding:.5rem;background:#f8f9fa;border-radius:6px;">No content blocks yet. Add updates, client info, images, links, schedules — as many as you need.</div>';
+        list.innerHTML='<div style="font-size:.8rem;color:var(--text-light);padding:.5rem;background:#f8f9fa;border-radius:6px;">No content blocks yet — optional. Use Details tab text only, or add blocks here, or both.</div>';
         return;
     }
     var types=['update','announcement','schedule','link','image','video'];
@@ -5833,6 +5874,14 @@ function textToPillsJson(text){
 /* ── Multi-image gallery for hero slides & spotlights ── */
 var _scHeroImages=[];
 var _scSpotlightImages=[];
+var _scHeroPoolImages=[];
+var _heroImageSettings={mode:'per_slide',pool:[],pool_alt:''};
+
+function scGalleryPrefix(section){
+    if(section==='hero')return 'sc-hero';
+    if(section==='hero-pool')return 'sc-hero-pool';
+    return 'sc-spotlight';
+}
 
 function setScImgMode(section,mode){
     /* Legacy — both panels stay visible in the unified gallery UI. */
@@ -5840,7 +5889,9 @@ function setScImgMode(section,mode){
 }
 
 function scGalleryItems(section){
-    return section==='hero'?_scHeroImages:_scSpotlightImages;
+    if(section==='hero')return _scHeroImages;
+    if(section==='hero-pool')return _scHeroPoolImages;
+    return _scSpotlightImages;
 }
 
 function revokeScGalleryBlobs(section){
@@ -5865,7 +5916,7 @@ function initScGallery(section,images){
         });}
     });
     renderScGallery(section);
-    var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    var prefix=scGalleryPrefix(section);
     var urlsEl=document.getElementById(prefix+'-image-urls');
     var filesEl=document.getElementById(prefix+'-image-files');
     var previewEl=document.getElementById(prefix+'-url-preview');
@@ -5876,7 +5927,7 @@ function initScGallery(section,images){
 
 var _scGalleryUrlPreviewTimer={};
 function previewScGalleryUrls(section,force){
-    var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    var prefix=scGalleryPrefix(section);
     var wrap=document.getElementById(prefix+'-url-preview');
     var ta=document.getElementById(prefix+'-image-urls');
     if(!wrap||!ta)return;
@@ -5921,7 +5972,7 @@ function addScGalleryFiles(section,fileList){
 }
 
 function addScGalleryUrls(section,expandDrive){
-    var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    var prefix=scGalleryPrefix(section);
     var ta=document.getElementById(prefix+'-image-urls');
     if(!ta)return Promise.resolve(0);
     var urls=parseUrlLines(ta.value);
@@ -5962,7 +6013,7 @@ function addScGalleryUrls(section,expandDrive){
 }
 
 function flushScGalleryUrlsBeforeSave(section){
-    var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    var prefix=scGalleryPrefix(section);
     var ta=document.getElementById(prefix+'-image-urls');
     if(!ta||!ta.value.trim())return Promise.resolve();
     return addScGalleryUrls(section,true);
@@ -5970,7 +6021,7 @@ function flushScGalleryUrlsBeforeSave(section){
 
 function renderScGallery(section){
     var items=scGalleryItems(section);
-    var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    var prefix=scGalleryPrefix(section);
     var wrap=document.getElementById(prefix+'-images-wrap');
     var grid=document.getElementById(prefix+'-images-grid');
     var countEl=document.getElementById(prefix+'-images-count');
@@ -5982,6 +6033,7 @@ function renderScGallery(section){
         grid.innerHTML='<p class="sc-gallery-empty">No images yet — upload files or paste URLs below, then save.</p>';
         return;
     }
+    var simple=section==='hero-pool';
     grid.innerHTML=items.map(function(img,i){
         var pending=!!img._pending;
         var thumb=img.url;
@@ -5989,16 +6041,17 @@ function renderScGallery(section){
             var proxied=adminDisplayImageUrl(thumb);
             if(proxied)thumb=proxied;
         }
+        var metaHtml=simple?'':('<div style="padding:.35rem .4rem .45rem;background:#fff;">'
+            +'<input type="text" placeholder="Optional headline for this photo" value="'+esc(img.title||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'title\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;margin-bottom:.25rem;border:1px solid var(--border);border-radius:4px;">'
+            +'<input type="text" placeholder="Optional supporting line" value="'+esc(img.body||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'body\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;border:1px solid var(--border);border-radius:4px;">'
+            +'</div>');
         return '<div style="position:relative;border:1px solid '+(pending?'#90caf9':'var(--border,#e2e2e2)')+';border-radius:6px;overflow:hidden;background:#fafafa;">'
             +'<span class="sc-gallery-order">'+(i+1)+'</span>'
             +'<img src="'+esc(thumb)+'" alt="" style="width:100%;height:72px;object-fit:cover;display:block;" onerror="this.style.opacity=.3">'
             +'<button type="button" onclick="removeScGalleryItem(\''+section+'\','+i+')" title="Remove" style="position:absolute;top:2px;right:2px;background:rgba(200,0,0,.85);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;">✕</button>'
             +(i===0?'<span style="position:absolute;bottom:2px;left:2px;background:#1976d2;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">Cover</span>':'')
             +(pending?'<span style="position:absolute;bottom:2px;right:2px;background:#ff9800;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">New</span>':'')
-            +'<div style="padding:.35rem .4rem .45rem;background:#fff;">'
-            +'<input type="text" placeholder="Optional headline for this photo" value="'+esc(img.title||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'title\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;margin-bottom:.25rem;border:1px solid var(--border);border-radius:4px;">'
-            +'<input type="text" placeholder="Optional supporting line" value="'+esc(img.body||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'body\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;border:1px solid var(--border);border-radius:4px;">'
-            +'</div>'
+            +metaHtml
             +'</div>';
     }).join('');
 }
@@ -6018,7 +6071,9 @@ function updateScGalleryMeta(section,index,field,value){
 }
 
 function scGallerySavedPayload(section){
-    var defaultAlt=section==='hero'?(document.getElementById('sc-hero-image-alt').value.trim()||''):'';
+    var defaultAlt='';
+    if(section==='hero')defaultAlt=document.getElementById('sc-hero-image-alt').value.trim()||'';
+    else if(section==='hero-pool')defaultAlt=document.getElementById('sc-hero-pool-image-alt').value.trim()||'';
     return scGalleryItems(section).filter(function(x){return !x._pending;}).map(function(img){
         var o={url:img.url,alt:img.alt||defaultAlt};
         if(img.title)o.title=img.title;
@@ -6034,8 +6089,8 @@ function scGalleryPendingFiles(section){
 }
 
 function bindScGalleryFileInputs(){
-    ['hero','spotlight'].forEach(function(section){
-        var prefix=section==='hero'?'sc-hero':'sc-spotlight';
+    ['hero','spotlight','hero-pool'].forEach(function(section){
+        var prefix=scGalleryPrefix(section);
         var input=document.getElementById(prefix+'-image-files');
         if(!input||input.dataset.bound)return;
         input.dataset.bound='1';

@@ -1,13 +1,15 @@
 /**
  * Loads admin-managed hero slides from the API and initializes the carousel.
- * Supports multiple images per slide (URL, upload, Drive folders) with optional
- * per-image title/body/CTA overrides. One random gallery image is shown each
- * time its slide becomes active in the carousel (no mid-slide image cycling).
+ * Two background modes (admin-configurable):
+ * - per_slide: images assigned to each slide; one random image when that slide activates
+ * - global_pool: shared image pool; random background as text slides change (no assignment)
  */
 (function () {
     'use strict';
 
     window.heroPopupData = window.heroPopupData || {};
+    var heroImageMode = 'per_slide';
+    var heroPoolImages = [];
 
     function escHtml(str) {
         if (!str) return '';
@@ -195,6 +197,26 @@
         return slides && slides.length ? slides : DEFAULT_HERO_SLIDES;
     }
 
+    function poolImagesFromList(images) {
+        return (images || []).map(function (img) {
+            return {
+                url: img.url || '',
+                display_url: resolveHeroDisplayUrl(img),
+                alt: img.alt || '',
+            };
+        }).filter(function (img) {
+            return img.display_url || (img.url && !/\/folders\//i.test(img.url));
+        });
+    }
+
+    function buildBackgroundDiv(id, attrs, img) {
+        var src = img.display_url || img.url;
+        var bg = src ? ' data-bg="' + escAttr(src) + '"' : '';
+        var alt = img.alt ? ' aria-label="' + escAttr(img.alt) + '"' : '';
+        var idAttr = id ? ' id="' + escAttr(id) + '"' : '';
+        return '<div' + idAttr + ' class="hero-background"' + attrs + bg + alt + mediaDataAttrs(img) + '></div>';
+    }
+
     function renderSlides(slides) {
         slides = effectiveSlides(slides);
         var mount = document.getElementById('hero-slides-mount');
@@ -202,34 +224,48 @@
         var bgMount = document.getElementById('hero-bg-mount');
         if (!mount || !dotsMount || !bgMount) return;
 
+        window.HOSU_HERO_IMAGE_MODE = heroImageMode;
+
         mount.innerHTML = slides.map(buildSlideHtml).join('');
         dotsMount.innerHTML = slides.map(function (_, i) {
             return '<span class="hero-dot' + (i === 0 ? ' active' : '') + '" data-index="' + i + '"></span>';
         }).join('');
 
         var bgHtml = '';
-        slides.forEach(function (slide, i) {
-            var imgs = slideImages(slide);
-            if (!imgs.length) {
-                bgHtml += '<div class="hero-background' +
-                    '" data-hero-slide="' + i + '" data-hero-media="0"></div>';
-                return;
-            }
-            imgs.forEach(function (img, j) {
-                var src = img.display_url || img.url;
-                var bg = src ? ' data-bg="' + escAttr(src) + '"' : '';
-                var alt = img.alt ? ' aria-label="' + escAttr(img.alt) + '"' : '';
-                bgHtml += '<div id="hero-bg-' + i + '-' + j + '" class="hero-background' +
-                    '" data-hero-slide="' + i +
-                    '" data-hero-media="' + j + '"' + bg + alt + mediaDataAttrs(img) + '></div>';
+        var useGlobalPool = heroImageMode === 'global_pool' && heroPoolImages.length > 0;
+
+        if (useGlobalPool) {
+            var poolImgs = poolImagesFromList(heroPoolImages);
+            poolImgs.forEach(function (img, j) {
+                bgHtml += buildBackgroundDiv(
+                    'hero-pool-' + j,
+                    ' data-hero-pool="1" data-hero-media="' + j + '"',
+                    img
+                );
             });
-        });
+        } else {
+            slides.forEach(function (slide, i) {
+                var imgs = slideImages(slide);
+                if (!imgs.length) {
+                    bgHtml += '<div class="hero-background" data-hero-slide="' + i + '" data-hero-media="0"></div>';
+                    return;
+                }
+                imgs.forEach(function (img, j) {
+                    bgHtml += buildBackgroundDiv(
+                        'hero-bg-' + i + '-' + j,
+                        ' data-hero-slide="' + i + '" data-hero-media="' + j + '"',
+                        img
+                    );
+                });
+            });
+        }
         bgMount.innerHTML = bgHtml;
 
         slides.forEach(function (slide, i) {
             var slideEl = mount.querySelector('.hero-slide[data-hero-slide="' + i + '"]');
             if (slideEl) {
-                slideEl.setAttribute('data-media-count', String(slideImages(slide).length || 1));
+                var count = useGlobalPool ? heroPoolImages.length : (slideImages(slide).length || 1);
+                slideEl.setAttribute('data-media-count', String(count));
             }
         });
     }
@@ -250,8 +286,14 @@
         });
     }
 
+    function applyHeroImageConfig(data) {
+        heroImageMode = (data && data.image_mode === 'global_pool') ? 'global_pool' : 'per_slide';
+        heroPoolImages = (data && Array.isArray(data.pool_images)) ? data.pool_images : [];
+    }
+
     function loadHeroFromBootstrap(boot) {
         if (boot && boot.success) {
+            applyHeroImageConfig(boot);
             renderSlides(Array.isArray(boot.slides) ? boot.slides : []);
             initHero();
             return true;
@@ -269,6 +311,7 @@
         fetch('api.php?action=get_home_hero', { credentials: 'same-origin' })
             .then(function (r) { return r.json(); })
             .then(function (data) {
+                applyHeroImageConfig(data);
                 var slides = (data && data.success && data.slides) ? data.slides : [];
                 renderSlides(slides);
                 initHero();

@@ -2969,7 +2969,13 @@ HTML;
             hosuPublicJsonCache(30);
             migrateEventSchema($pdo);
             $slides = loadHomepageHeroSlides($pdo, true);
-            echo json_encode(['success' => true, 'slides' => $slides]);
+            $heroImages = loadHeroImageSettings($pdo);
+            echo json_encode([
+                'success' => true,
+                'slides' => $slides,
+                'image_mode' => $heroImages['mode'],
+                'pool_images' => $heroImages['pool'],
+            ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -2985,7 +2991,32 @@ HTML;
             $slides = array_map(function ($row) use ($pdo) {
                 return normalizeHeroSlideRowWithPersist($pdo, $row);
             }, $rows);
-            echo json_encode(['success' => true, 'slides' => $slides]);
+            $heroImages = loadHeroImageSettings($pdo);
+            echo json_encode([
+                'success' => true,
+                'slides' => $slides,
+                'image_settings' => $heroImages,
+            ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_hero_image_settings':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $mode = trim($_POST['image_mode'] ?? 'per_slide');
+            $poolAlt = trim($_POST['pool_alt'] ?? '');
+            $pool = collectPostedHeroPoolImages($poolAlt);
+            $settings = saveHeroImageSettings($pdo, $mode, $pool, $poolAlt);
+            auditLog($pdo, 'save_hero_image_settings', 'hero_images', 'settings', $settings['mode']);
+            echo json_encode(['success' => true, 'image_settings' => $settings]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
