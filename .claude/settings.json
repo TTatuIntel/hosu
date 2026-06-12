@@ -1,9 +1,0 @@
-{
-  "permissions": {
-    "allow": [
-      "Bash(powershell -Command \"Select-String -Path api.php -Pattern \\\\\"case\\\\\\\\s+['\\\\\\\\\\\\\"]\\\\\" | Select-Object -ExpandProperty Line | Sort-Object | Get-Unique | head -80\")",
-      "Bash(cd \"c:\\\\xampp\\\\htdocs\\\\tattuintel\\\\hosu\" && grep -o \"case '[^']*'\" api.php | sed \"s/case '//;s/'$//\" | sort | uniq > /tmp/api_actions.txt && wc -l /tmp/api_actions.txt)",
-      "Read(//tmp/**)"
-    ]
-  }
-}

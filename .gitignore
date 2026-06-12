@@ -8,3 +8,7 @@
 
 # Diagnostic tools
 payment_test.php
+
+# Ignore generated cache and local tool settings
+cache/
+.claude/
