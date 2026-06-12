@@ -6449,7 +6449,18 @@ function renderScGallery(section){
     var countEl=document.getElementById(prefix+'-images-count');
     var noteEl=document.getElementById(prefix+'-images-rotate-note');
     if(!grid)return;
-    if(countEl)countEl.textContent=items.length?'('+items.length+')':'(0)';
+    if(countEl){
+        if(!items.length){
+            countEl.textContent='(0)';
+        }else{
+            var pendingN=items.filter(function(x){return x._pending;}).length;
+            var storedN=items.length-pendingN;
+            var parts=[];
+            if(storedN)parts.push(storedN+' stored');
+            if(pendingN)parts.push(pendingN+' new');
+            countEl.textContent='('+(parts.join(', ')||items.length)+')';
+        }
+    }
     if(noteEl)noteEl.style.display=items.length>1?'':'none';
     if(!items.length){
         grid.innerHTML='<p class="sc-gallery-empty">No images yet — upload files or paste URLs below, then save.</p>';
@@ -6470,12 +6481,21 @@ function renderScGallery(section){
             +'</div>');
         var tileId='sc-gal-'+section+'-'+i;
         var onErr="var t=document.getElementById('"+tileId+"');if(t){t.classList.add('sc-gal-missing');t.setAttribute('data-missing','1');}this.style.opacity=.3;";
+        // A tile is "Stored" (committed to DB + disk) when its URL is a server path,
+        // not a transient blob: URL from a not-yet-saved file picker selection.
+        var isStored=!pending && img.url && !/^blob:/i.test(img.url);
+        var statusPill='';
+        if(pending){
+            statusPill='<span style="position:absolute;bottom:2px;right:2px;background:#ff9800;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">New</span>';
+        }else if(isStored){
+            statusPill='<span style="position:absolute;bottom:2px;right:2px;background:#16a34a;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;" title="Saved to database">💾 Stored</span>';
+        }
         return '<div id="'+tileId+'" style="position:relative;border:1px solid '+(pending?'#90caf9':'var(--border,#e2e2e2)')+';border-radius:6px;overflow:hidden;background:#fafafa;">'
             +'<span class="sc-gallery-order">'+(i+1)+'</span>'
             +'<img src="'+esc(thumb)+'" alt="" style="width:100%;height:72px;object-fit:cover;display:block;" onerror="'+onErr+'">'
             +'<button type="button" onclick="removeScGalleryItem(\''+section+'\','+i+')" title="Remove" style="position:absolute;top:2px;right:2px;background:rgba(200,0,0,.85);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;z-index:2;">✕</button>'
             +(i===0?'<span style="position:absolute;bottom:2px;left:2px;background:#1976d2;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">Cover</span>':'')
-            +(pending?'<span style="position:absolute;bottom:2px;right:2px;background:#ff9800;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">New</span>':'')
+            +statusPill
             +'<span class="sc-gal-missing-tag" style="display:none;position:absolute;bottom:2px;right:2px;background:#b45309;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">404</span>'
             +metaHtml
             +'</div>';
