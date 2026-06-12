@@ -384,9 +384,10 @@ function collectPostedSlideImages(string $imagesJsonField, string $urlsField, st
     $GLOBALS['__upload_accepted']  = 0;
     $GLOBALS['__upload_rejected_names'] = [];
 
-    if (!empty($_FILES['imageFiles']) && is_array($_FILES['imageFiles']['name'])) {
-        foreach ($_FILES['imageFiles']['name'] as $i => $name) {
-            $err = $_FILES['imageFiles']['error'][$i] ?? UPLOAD_ERR_NO_FILE;
+    $multiFiles = hosuPostedMultiFiles('imageFiles');
+    if ($multiFiles !== null) {
+        foreach ($multiFiles['name'] as $i => $name) {
+            $err = $multiFiles['error'][$i] ?? UPLOAD_ERR_NO_FILE;
             if ($err === UPLOAD_ERR_NO_FILE) continue;
             $GLOBALS['__upload_attempted']++;
             if ($err !== UPLOAD_ERR_OK) {
@@ -394,11 +395,11 @@ function collectPostedSlideImages(string $imagesJsonField, string $urlsField, st
                 continue;
             }
             $file = [
-                'name' => $_FILES['imageFiles']['name'][$i],
-                'type' => $_FILES['imageFiles']['type'][$i],
-                'tmp_name' => $_FILES['imageFiles']['tmp_name'][$i],
-                'error' => $_FILES['imageFiles']['error'][$i],
-                'size' => $_FILES['imageFiles']['size'][$i],
+                'name' => $multiFiles['name'][$i],
+                'type' => $multiFiles['type'][$i],
+                'tmp_name' => $multiFiles['tmp_name'][$i],
+                'error' => $multiFiles['error'][$i],
+                'size' => $multiFiles['size'][$i],
             ];
             $up = secureUpload($file, $uploadDir, false, $maxBytes);
             if ($up) {
@@ -3372,29 +3373,58 @@ function saveHeroImageSettings(PDO $pdo, string $mode, array $pool, string $pool
     return loadHeroImageSettings($pdo);
 }
 
+/**
+ * Normalize $_FILES for multi-file fields (handles both `name[]` and `name` keys).
+ *
+ * @return array<string, mixed>|null
+ */
+function hosuPostedMultiFiles(string $baseKey): ?array
+{
+    foreach ([$baseKey, $baseKey . '[]'] as $key) {
+        if (!empty($_FILES[$key]) && is_array($_FILES[$key]['name'])) {
+            return $_FILES[$key];
+        }
+    }
+    return null;
+}
+
 function collectPostedHeroPoolUploads(string $defaultAlt = '', string $filesKey = 'poolImageFiles'): array
 {
     require_once __DIR__ . '/upload_helper.php';
 
     $items = [];
-    if (empty($_FILES[$filesKey]) || !is_array($_FILES[$filesKey]['name'])) {
+    $files = hosuPostedMultiFiles($filesKey);
+    if ($files === null) {
         return $items;
     }
 
-    foreach ($_FILES[$filesKey]['name'] as $i => $name) {
-        if (($_FILES[$filesKey]['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+    $GLOBALS['__hero_pool_upload_attempted'] = 0;
+    $GLOBALS['__hero_pool_upload_accepted'] = 0;
+    $GLOBALS['__hero_pool_upload_errors'] = [];
+
+    foreach ($files['name'] as $i => $name) {
+        $err = $files['error'][$i] ?? UPLOAD_ERR_NO_FILE;
+        if ($err === UPLOAD_ERR_NO_FILE) {
+            continue;
+        }
+        $GLOBALS['__hero_pool_upload_attempted']++;
+        if ($err !== UPLOAD_ERR_OK) {
+            $GLOBALS['__hero_pool_upload_errors'][] = $name . ' (upload error ' . $err . ')';
             continue;
         }
         $file = [
-            'name' => $_FILES[$filesKey]['name'][$i],
-            'type' => $_FILES[$filesKey]['type'][$i],
-            'tmp_name' => $_FILES[$filesKey]['tmp_name'][$i],
-            'error' => $_FILES[$filesKey]['error'][$i],
-            'size' => $_FILES[$filesKey]['size'][$i],
+            'name' => $files['name'][$i],
+            'type' => $files['type'][$i],
+            'tmp_name' => $files['tmp_name'][$i],
+            'error' => $files['error'][$i],
+            'size' => $files['size'][$i],
         ];
         $up = secureUpload($file, 'uploads/hero/pool/', false, 8000000);
         if ($up) {
             $items[] = ['url' => $up, 'alt' => $defaultAlt];
+            $GLOBALS['__hero_pool_upload_accepted']++;
+        } else {
+            $GLOBALS['__hero_pool_upload_errors'][] = $name;
         }
     }
 

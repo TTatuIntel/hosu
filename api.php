@@ -3161,8 +3161,16 @@ HTML;
                 $pool = collectPostedHeroPoolImages($poolAlt);
             }
             $settings = saveHeroImageSettings($pdo, $mode, $pool, $poolAlt);
+            $reachablePool = filterReachableHeroImages(normalizeHeroPoolImages($settings['pool']));
+            $settings['pool_missing'] = max(0, count($settings['pool']) - count($reachablePool));
             auditLog($pdo, 'save_hero_image_settings', 'hero_images', 'settings', $settings['mode']);
-            echo json_encode(['success' => true, 'image_settings' => $settings]);
+            echo json_encode([
+                'success' => true,
+                'image_settings' => $settings,
+                'upload_attempted' => (int)($GLOBALS['__hero_pool_upload_attempted'] ?? 0),
+                'upload_accepted' => (int)($GLOBALS['__hero_pool_upload_accepted'] ?? 0),
+                'upload_errors' => $GLOBALS['__hero_pool_upload_errors'] ?? [],
+            ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -3181,12 +3189,23 @@ HTML;
             $uploads = collectPostedHeroPoolUploads($poolAlt);
             if (empty($uploads)) {
                 http_response_code(400);
-                echo json_encode(['error' => 'No images uploaded']);
+                echo json_encode([
+                    'error' => 'No images uploaded',
+                    'upload_attempted' => (int)($GLOBALS['__hero_pool_upload_attempted'] ?? 0),
+                    'upload_errors' => $GLOBALS['__hero_pool_upload_errors'] ?? [],
+                ]);
                 break;
             }
             $settings = appendHeroPoolImages($pdo, $uploads, $poolAlt);
+            $reachablePool = filterReachableHeroImages(normalizeHeroPoolImages($settings['pool']));
+            $settings['pool_missing'] = max(0, count($settings['pool']) - count($reachablePool));
             auditLog($pdo, 'append_hero_pool_images', 'hero_images', 'pool', count($uploads) . ' image(s)');
-            echo json_encode(['success' => true, 'image_settings' => $settings, 'added' => count($uploads)]);
+            echo json_encode([
+                'success' => true,
+                'image_settings' => $settings,
+                'added' => count($uploads),
+                'upload_errors' => $GLOBALS['__hero_pool_upload_errors'] ?? [],
+            ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
