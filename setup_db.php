@@ -2,6 +2,7 @@
 /**
  * Database Setup Script
  * Creates the configured database and all tables (no sample content).
+ * Safe on existing databases: uses CREATE TABLE IF NOT EXISTS only — never truncates or deletes data.
  * Run once: php setup_db.php   (CLI)   or visit setup_db.php in the browser.
  */
 
@@ -328,7 +329,7 @@ $pdo->exec("
 echo "✓ Table 'grant_applications' created.\n";
 
 // -------------------------------------------------------------------
-// 3. Seed admin user (skip if one already exists)
+// 3. Admin user (only if none exists — never overwrites existing accounts)
 // -------------------------------------------------------------------
 $stmt = $pdo->prepare("SELECT COUNT(*) FROM users WHERE role = 'admin'");
 $stmt->execute();
@@ -337,7 +338,7 @@ if ((int)$stmt->fetchColumn() === 0) {
     $hash = password_hash($adminSeedPassword, PASSWORD_BCRYPT, ['cost' => 12]);
     $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, ?, ?, 'admin', 1)")
         ->execute(['admin', 'info@mcare.or.ug', '+256766529869', $hash]);
-    echo "✓ Admin user seeded (info@mcare.or.ug / {$adminSeedPassword}).\n";
+    echo "✓ Admin user created (info@mcare.or.ug / {$adminSeedPassword}).\n";
 } else {
     echo "– Admin user already exists, skipping.\n";
 }

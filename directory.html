@@ -1,0 +1,131 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="HOSU public member directory — approved members who opted in to appear on the website.">
+    <title>Member Directory — HOSU</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <link rel="stylesheet" href="navbar.css?v=2026040404">
+    <link rel="stylesheet" href="donate-float.css?v=2026040404">
+    <link rel="stylesheet" href="shared-footer.css?v=2026040404">
+    <link rel="stylesheet" href="shared-login.css?v=2026040404">
+    <style>
+        :root {
+            --primary-color: #e63946;
+            --secondary-color: #0d4593;
+            --secondary-dark: #072a5e;
+            --text-color: #001848;
+            --text-light: #4a5568;
+            --gray-100: #f7fafc;
+            --gray-200: #edf2f7;
+            --gray-300: #e2e8f0;
+            --navbar-height: 90px;
+            --section-width: 92%;
+            --section-max-width: 1100px;
+        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { font-family: 'Inter', sans-serif; color: var(--text-color); background: var(--gray-100); line-height: 1.55; }
+        .page-wrap { padding-top: calc(var(--navbar-height) + 2rem); padding-bottom: 3rem; }
+        .container { width: var(--section-width); max-width: var(--section-max-width); margin: 0 auto; }
+        .page-hd { text-align: center; margin-bottom: 2rem; }
+        .page-hd h1 { font-size: clamp(1.6rem, 3vw, 2.2rem); color: var(--secondary-color); margin-bottom: 0.5rem; }
+        .page-hd p { color: var(--text-light); max-width: 640px; margin: 0 auto; font-size: 0.95rem; }
+        .dir-note { background: #e8f0fe; border: 1px solid #c7d7fa; border-radius: 10px; padding: 0.85rem 1rem; font-size: 0.82rem; color: #1e40af; margin-bottom: 1.5rem; }
+        .dir-toolbar { display: flex; gap: 0.75rem; flex-wrap: wrap; margin-bottom: 1.25rem; align-items: center; }
+        .dir-search { flex: 1; min-width: 200px; padding: 0.65rem 1rem; border: 1px solid var(--gray-300); border-radius: 8px; font-family: inherit; font-size: 0.9rem; }
+        .dir-count { font-size: 0.82rem; color: var(--text-light); }
+        .dir-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(260px, 1fr)); gap: 1rem; }
+        .dir-card { background: #fff; border-radius: 12px; padding: 1.1rem 1.15rem; box-shadow: 0 2px 8px rgba(0,0,0,0.04); border: 1px solid var(--gray-200); }
+        .dir-card h3 { font-size: 1rem; color: var(--secondary-color); margin-bottom: 0.25rem; }
+        .dir-card .cat { display: inline-block; font-size: 0.68rem; font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; background: var(--gray-100); color: var(--text-light); padding: 0.2rem 0.5rem; border-radius: 999px; margin-bottom: 0.5rem; }
+        .dir-card p { font-size: 0.85rem; color: var(--text-light); margin: 0.15rem 0; }
+        .dir-empty { text-align: center; padding: 3rem 1rem; color: var(--text-light); }
+        .dir-empty .big { font-size: 2.5rem; margin-bottom: 0.5rem; }
+        .cta-join { display: inline-flex; margin-top: 1rem; padding: 0.65rem 1.25rem; background: var(--secondary-color); color: #fff; border-radius: 8px; font-weight: 600; font-size: 0.88rem; text-decoration: none; }
+        .cta-join:hover { background: var(--secondary-dark); }
+    </style>
+</head>
+<body>
+    <nav class="navbar"></nav>
+
+    <main class="page-wrap">
+        <div class="container">
+            <header class="page-hd">
+                <h1>Member Directory</h1>
+                <p>Approved HOSU members who have chosen to appear publicly. Private contact details, documents, and payment information are never shown here.</p>
+            </header>
+
+            <div class="dir-note">
+                <i class="fas fa-shield-alt"></i>
+                Members control visibility from their <a href="portal.html" style="color:#1e40af;font-weight:600;">Member Portal</a>.
+                Only name, category, institution, country, and specialty are listed.
+            </div>
+
+            <div class="dir-toolbar">
+                <input type="search" id="dir-search" class="dir-search" placeholder="Search by name, institution, or specialty…" aria-label="Search directory">
+                <span class="dir-count" id="dir-count">Loading…</span>
+            </div>
+
+            <div class="dir-grid" id="dir-grid">
+                <div class="dir-empty" style="grid-column:1/-1;"><div class="big">👥</div>Loading directory…</div>
+            </div>
+        </div>
+    </main>
+
+    <footer class="site-footer"></footer>
+
+    <script>
+    var _dirMembers = [];
+    function esc(s) {
+        if (!s && s !== 0) return '';
+        return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+    }
+    function renderDirectory() {
+        var q = (document.getElementById('dir-search').value || '').toLowerCase().trim();
+        var list = _dirMembers.filter(function (m) {
+            if (!q) return true;
+            var hay = [m.full_name, m.institution, m.country, m.specialty, m.category_name, m.profession].join(' ').toLowerCase();
+            return hay.indexOf(q) >= 0;
+        });
+        document.getElementById('dir-count').textContent = list.length + ' member' + (list.length === 1 ? '' : 's') + ' listed';
+        var grid = document.getElementById('dir-grid');
+        if (!list.length) {
+            grid.innerHTML = '<div class="dir-empty" style="grid-column:1/-1;">'
+                + '<div class="big">👥</div>'
+                + '<p>' + (_dirMembers.length ? 'No members match your search.' : 'No members have opted into the public directory yet.') + '</p>'
+                + '<a href="membership.html" class="cta-join">Join Our Community</a></div>';
+            return;
+        }
+        grid.innerHTML = list.map(function (m) {
+            return '<article class="dir-card">'
+                + '<span class="cat">' + esc(m.category_name || m.profession || 'Member') + '</span>'
+                + '<h3>' + esc(m.full_name) + '</h3>'
+                + (m.institution ? '<p><i class="fas fa-hospital" style="width:1rem;color:var(--secondary-color);"></i> ' + esc(m.institution) + '</p>' : '')
+                + (m.country ? '<p><i class="fas fa-globe-africa" style="width:1rem;color:var(--secondary-color);"></i> ' + esc(m.country) + '</p>' : '')
+                + (m.specialty ? '<p><i class="fas fa-stethoscope" style="width:1rem;color:var(--secondary-color);"></i> ' + esc(m.specialty) + '</p>' : '')
+                + '</article>';
+        }).join('');
+    }
+    document.getElementById('dir-search').addEventListener('input', renderDirectory);
+    fetch('api.php?action=list_public_members')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (d.success) {
+                _dirMembers = d.members || [];
+                renderDirectory();
+            }
+        })
+        .catch(function () {
+            document.getElementById('dir-grid').innerHTML = '<div class="dir-empty" style="grid-column:1/-1;"><p>Could not load directory. Please try again later.</p></div>';
+        });
+    </script>
+    <script src="site_bootstrap.php"></script>
+    <script src="shared-components.js?v=2026061116"></script>
+    <script src="shared-login.js?v=2026040404"></script>
+    <script src="donate-float.js?v=2026061116"></script>
+</body>
+</html>

@@ -413,7 +413,7 @@ switch ($action) {
                 'role' => $user['role'],
             ],
             'csrf_token' => $_SESSION['csrf_token'],
-            'redirect' => $user['role'] === 'admin' ? 'admin.html' : 'index.html',
+            'redirect' => $user['role'] === 'admin' ? 'admin.html' : 'portal.html',
             'idle_timeout' => SESSION_IDLE_TIMEOUT,
             // Seed account detection: if this is the default "admin" gateway account,
             // the user must create their own personal admin account before proceeding.
@@ -941,6 +941,76 @@ switch ($action) {
             error_log('Auth create_admin_account: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['error' => 'Failed to create account. Please try again.']);
+        }
+        break;
+
+    case 'register_member_account':
+        try {
+            $username = trim($_POST['username'] ?? '');
+            $email    = trim($_POST['email'] ?? '');
+            $password = $_POST['password'] ?? '';
+            $confirm  = $_POST['password_confirm'] ?? '';
+
+            if (!$username || !$email || !$password) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Username, email and password are required.']);
+                break;
+            }
+            if (!filter_var($email, FILTER_VALIDATE_EMAIL)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Please enter a valid email address.']);
+                break;
+            }
+            if (strlen($password) < 8) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Password must be at least 8 characters.']);
+                break;
+            }
+            if ($password !== $confirm) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Passwords do not match.']);
+                break;
+            }
+
+            $dup = $pdo->prepare('SELECT id FROM users WHERE username = ? OR email = ? LIMIT 1');
+            $dup->execute([$username, $email]);
+            if ($dup->fetch()) {
+                http_response_code(409);
+                echo json_encode(['error' => 'Username or email is already registered. Try signing in.']);
+                break;
+            }
+
+            $hash = password_hash($password, PASSWORD_BCRYPT, ['cost' => 12]);
+            $pdo->prepare("INSERT INTO users (username, email, phone, password, role, must_change_password) VALUES (?, ?, '', ?, 'member', 0)")
+                ->execute([$username, $email, $hash]);
+            $userId = (int)$pdo->lastInsertId();
+
+            try {
+                $pdo->prepare('UPDATE members SET user_id = ? WHERE email = ? AND (user_id IS NULL OR user_id = 0)')
+                    ->execute([$userId, $email]);
+            } catch (Exception $e) { /* members table may lack user_id until migration */ }
+
+            session_regenerate_id(true);
+            $_SESSION['user_id'] = $userId;
+            $_SESSION['username'] = $username;
+            $_SESSION['user_role'] = 'member';
+            $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+            $_SESSION['last_activity'] = time();
+            $_SESSION['login_time'] = time();
+            $_SESSION['fingerprint'] = getSessionFingerprint();
+            $_SESSION['ip_address'] = $_SERVER['REMOTE_ADDR'] ?? '0.0.0.0';
+
+            echo json_encode([
+                'success' => true,
+                'message' => 'Account created. Complete your membership application or open your portal.',
+                'user' => ['username' => $username, 'role' => 'member'],
+                'csrf_token' => $_SESSION['csrf_token'],
+                'redirect' => 'portal.html',
+            ]);
+        } catch (PDOException $e) {
+            error_log('Auth register_member_account: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Could not create account. Please try again.']);
         }
         break;
 

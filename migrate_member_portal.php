@@ -2,19 +2,23 @@
 /**
  * HOSU Member Portal — Phase 1 migration
  *
- * Run once (CLI or browser). Idempotent — safe to re-run.
+ * Run once (CLI or browser). Idempotent — safe to re-run on live data.
  *
  *   php migrate_member_portal.php
+ *
+ * SAFETY: This script does NOT truncate, drop, or bulk-delete any existing rows.
+ * It only adds missing tables/columns/indexes and fills empty fields on existing
+ * members (membership_number, expiry_date, category_id, approval_status).
  *
  * What it does:
  *   1. members: link to users, add expiry_date, approval_status, category_id,
  *      public_profile, verified_at, membership_number, dues_paid_at, country,
  *      specialty, internal_notes.
- *   2. New table: membership_categories (16 categories from Improvement Plan).
+ *   2. New table: membership_categories (16 reference categories — inserted only if table is empty).
  *   3. New table: member_documents (uploads — license, CV, proof of training).
  *   4. New table: member_audit_notes (admin review comments).
  *   5. New table: renewal_reminders (track which reminders were sent).
- *   6. Backfill: membership_number, expiry_date from existing payments.
+ *   6. Backfill: membership_number, expiry_date from existing payments (NULL fields only).
  */
 
 require_once __DIR__ . '/db.php';
@@ -46,7 +50,8 @@ $isCli = php_sapi_name() === 'cli';
 if (!$isCli) header('Content-Type: text/plain; charset=utf-8');
 
 echo "HOSU Member Portal migration\n";
-echo "============================\n\n";
+echo "============================\n";
+echo "SAFE MODE: no tables truncated, no rows deleted.\n\n";
 
 // ─────────────────────────────────────────────────────────────────────
 // 1. membership_categories (the 16 categories from the Improvement Plan)
@@ -84,7 +89,7 @@ if ($count === 0) {
     ];
     $ins = $pdo->prepare("INSERT INTO membership_categories (slug, name, discipline, sort_order) VALUES (?,?,?,?)");
     foreach ($categories as $c) $ins->execute($c);
-    echo "[✓] seeded 16 membership categories\n";
+    echo "[✓] inserted 16 membership categories (table was empty)\n";
 } else {
     echo "[=] membership_categories already populated ($count rows)\n";
 }

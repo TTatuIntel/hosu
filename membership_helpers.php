@@ -68,6 +68,33 @@ if (!function_exists('hosuMembershipStatus')) {
     }
 }
 
+if (!function_exists('hosuStampMemberPaymentVerified')) {
+    /**
+     * After a payment is verified, stamp dues on the member row.
+     * Active status is set only when approval_status is already 'approved' (Plan §6).
+     */
+    function hosuStampMemberPaymentVerified(PDO $pdo, int $paymentId): void
+    {
+        $stmt = $pdo->prepare('SELECT id, member_id, payment_type, membership_period, membership_expires_at FROM payments WHERE id = ?');
+        $stmt->execute([$paymentId]);
+        $pay = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$pay) {
+            return;
+        }
+        if (($pay['payment_type'] ?? 'membership') === 'membership') {
+            $expiry = $pay['membership_expires_at']
+                ?: hosuMembershipExpiry($pay['membership_period'] ?? '1_year');
+            $pdo->prepare("UPDATE members
+                SET dues_paid_at = COALESCE(dues_paid_at, NOW()),
+                    expiry_date  = COALESCE(expiry_date, ?),
+                    status       = CASE WHEN approval_status = 'approved' THEN 'active' ELSE status END
+                WHERE id = ?")->execute([$expiry, $pay['member_id']]);
+        } else {
+            $pdo->prepare("UPDATE members SET status = 'active' WHERE id = ?")->execute([$pay['member_id']]);
+        }
+    }
+}
+
 if (!function_exists('hosuMembershipNumber')) {
     /**
      * Generate a stable membership number, e.g. HOSU-2026-0012.

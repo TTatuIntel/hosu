@@ -71,7 +71,8 @@
                 + '<input type="password" id="lfp-pass" placeholder="Enter password" autocomplete="current-password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid var(--gray-300,#d1d5db);border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
                 + '<button id="lfp-submit" onclick="doLogin()" style="width:100%;padding:0.5rem;background:var(--primary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Sign In</button>'
                 + '<div id="lfp-lockout" style="display:none;font-size:0.73rem;color:#92400e;background:#fef3c7;border-radius:6px;padding:0.4rem 0.6rem;margin-top:0.45rem;text-align:center;"></div>'
-                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="event.stopPropagation();showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>';
+                + '<div style="text-align:center;margin-top:0.45rem;"><a href="#" onclick="event.stopPropagation();showResetForm(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">Forgot Password?</a></div>'
+                + '<div style="text-align:center;margin-top:0.35rem;"><a href="#" onclick="event.stopPropagation();showSignupForm(event)" style="font-size:0.72rem;color:var(--text-light);text-decoration:none;">New member? <strong style="color:var(--secondary-color);">Create account</strong></a></div>';
         }
     }
 
@@ -231,6 +232,74 @@
         _inResetMode = false;
         var popup = document.getElementById('loginPopup');
         renderLoginPopup(popup);
+    };
+
+    window.showSignupForm = function (e) {
+        if (e) e.preventDefault();
+        _inResetMode = true;
+        var popup = document.getElementById('loginPopup');
+        popup.innerHTML =
+            '<button class="lfp-close" onclick="closeLoginPopup()">&times;</button>'
+            + '<h3>&#128100; Create Member Account</h3>'
+            + '<p style="font-size:0.73rem;color:var(--text-light);margin-bottom:0.65rem;">Use the same email as your membership application to link your profile automatically.</p>'
+            + '<div id="sup-msg" style="display:none;font-size:0.75rem;border-radius:5px;padding:0.35rem 0.6rem;margin-bottom:0.5rem;"></div>'
+            + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Username</label>'
+            + '<input type="text" id="sup-user" placeholder="Choose a username" autocomplete="username" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Email</label>'
+            + '<input type="email" id="sup-email" placeholder="your@email.com" autocomplete="email" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Password</label>'
+            + '<input type="password" id="sup-pass" placeholder="Min 8 characters" autocomplete="new-password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.4rem;font-family:inherit;">'
+            + '<label style="font-size:0.72rem;font-weight:600;display:block;margin-bottom:0.2rem;">Confirm Password</label>'
+            + '<input type="password" id="sup-pass2" placeholder="Re-enter password" autocomplete="new-password" style="width:100%;padding:0.45rem 0.65rem;border:1.5px solid #d1d5db;border-radius:6px;font-size:0.82rem;margin-bottom:0.65rem;font-family:inherit;">'
+            + '<button id="sup-submit" onclick="doSignup()" style="width:100%;padding:0.5rem;background:var(--secondary-color);color:white;border:none;border-radius:6px;font-weight:600;cursor:pointer;font-family:inherit;font-size:0.82rem;">Create Account</button>'
+            + '<div style="text-align:center;margin-top:0.6rem;"><a href="#" onclick="event.stopPropagation();backToLogin(event)" style="font-size:0.72rem;color:var(--secondary-color);font-weight:600;text-decoration:none;">&larr; Back to Login</a></div>';
+        setTimeout(function () {
+            var u = document.getElementById('sup-user');
+            if (u) u.focus();
+            var p2 = document.getElementById('sup-pass2');
+            if (p2) p2.addEventListener('keydown', function (ev) { if (ev.key === 'Enter') doSignup(); });
+        }, 50);
+    };
+
+    window.doSignup = function () {
+        var user = (document.getElementById('sup-user') || {}).value || '';
+        var email = (document.getElementById('sup-email') || {}).value || '';
+        var pass = (document.getElementById('sup-pass') || {}).value || '';
+        var pass2 = (document.getElementById('sup-pass2') || {}).value || '';
+        var msg = document.getElementById('sup-msg');
+        var btn = document.getElementById('sup-submit');
+        if (!user.trim() || !email.trim() || !pass) {
+            if (msg) { msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; msg.textContent = 'Please fill in all fields.'; }
+            return;
+        }
+        if (btn) { btn.disabled = true; btn.textContent = 'Creating\u2026'; }
+        var fd = new FormData();
+        fd.append('action', 'register_member_account');
+        fd.append('username', user.trim());
+        fd.append('email', email.trim());
+        fd.append('password', pass);
+        fd.append('password_confirm', pass2);
+        fetch('auth.php', { method: 'POST', body: fd, credentials: 'same-origin' })
+            .then(function (r) { return r.json(); })
+            .then(function (d) {
+                if (d.success) {
+                    _loginState = { loggedIn: true, user: d.user };
+                    _syncGlobalState();
+                    _storeCsrf(d);
+                    if (msg) { msg.style.display = 'block'; msg.style.background = '#f0fdf4'; msg.style.color = '#166534'; msg.textContent = d.message || 'Account created!'; }
+                    setTimeout(function () {
+                        if (d.redirect) window.location.href = d.redirect;
+                        else backToLogin();
+                    }, 800);
+                } else {
+                    if (msg) { msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; msg.textContent = d.error || 'Could not create account.'; }
+                    if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
+                }
+            })
+            .catch(function () {
+                if (msg) { msg.style.display = 'block'; msg.style.background = 'rgba(230,57,70,0.07)'; msg.style.color = 'var(--primary-color)'; msg.textContent = 'Connection error.'; }
+                if (btn) { btn.disabled = false; btn.textContent = 'Create Account'; }
+            });
     };
 
     function _rstMsg(text, isError) {

@@ -507,7 +507,7 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
         <!-- ===== MEMBERS ===== -->
         <div class="panel" id="panel-members">
             <div class="ph">
-                <div><h1>👥 Members</h1><p>Paid society members and their membership status.</p></div>
+                <div><h1>👥 Members</h1><p>Review applications, verify credentials, approve categories, and manage membership status (Improvement Plan §4.3).</p></div>
                 <div class="filter-toolbar">
                     <select id="mem-type-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Plans</option>
@@ -519,9 +519,11 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                     <select id="mem-status-filter" class="btn-sm select-sm-pad" onchange="filterMembers()">
                         <option value="">All Statuses</option>
                         <option value="active">✅ Active</option>
-                        <option value="pending">⏳ Pending</option>
+                        <option value="pending">⏳ Pending review</option>
+                        <option value="approved_unpaid">💳 Approved — unpaid</option>
+                        <option value="needs_correction">📝 Needs correction</option>
                         <option value="expired">⌛ Expired</option>
-                        <option value="rejected">❌ Rejected</option>
+                        <option value="suspended">⏸ Suspended</option>
                     </select>
                     <div class="search-wrap"><input type="text" id="mem-search" placeholder="Search members…" oninput="filterMembers()"></div>
                     <a href="api.php?action=export_csv" class="btn-primary btn-nodecor" id="csv-btn">📥 Export CSV</a>
@@ -530,7 +532,7 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
             <div class="card">
                 <div class="card-hd"><h2>Members (<span id="mem-count">0</span>)</h2></div>
                 <div class="card-body card-body-flush">
-                    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Profession</th><th>Type</th><th>Status</th><th>Joined</th><th>Expires</th><th>Actions</th></tr></thead>
+                    <table class="tbl"><thead><tr><th>#</th><th>Name</th><th>Email</th><th>Category</th><th>Plan</th><th>Status</th><th>Joined</th><th>Expires</th><th>Actions</th></tr></thead>
                     <tbody id="mem-body"><tr><td colspan="9" class="empty"><div class="big">👥</div>Loading members…</td></tr></tbody></table>
                 </div>
             </div>
@@ -2137,12 +2139,11 @@ function loadEvents(){
         }).catch(()=>{});
 }
 function loadMembers(){
+    if(!_memCategories.length)loadMemberCategories();
     fetch('api.php?action=list_members',{credentials:'same-origin'})
         .then(r=>r.json()).then(d=>{
             if(d.success){
-                var _allRows=d.members||[];
-                // Deduplicate members — keep first occurrence per member id
-                var _seen={};_members=_allRows.filter(function(r){if(_seen[r.id])return false;_seen[r.id]=true;return true;});
+                _members=d.members||[];
                 renderMembers();renderStats();renderOvMembers();
             }
         }).catch(()=>{});
@@ -2161,8 +2162,8 @@ function loadPayments(){
 function renderStats(){
     document.getElementById('s-ev').textContent=_events.length;
     document.getElementById('s-mem').textContent=_members.length;
-    document.getElementById('s-active').textContent=_members.filter(m=>m.status==='active').length;
-    document.getElementById('s-pend').textContent=_members.filter(m=>m.status==='pending').length;
+    document.getElementById('s-active').textContent=_members.filter(m=>(m.derived_status||m.status)==='active').length;
+    document.getElementById('s-pend').textContent=_members.filter(m=>['pending','approved_unpaid','needs_correction'].indexOf(m.derived_status||m.status)>=0).length;
     var col=_payments.filter(p=>p.payment_status==='verified').reduce((a,p)=>a+parseFloat(p.amount||0),0);
     document.getElementById('s-col').textContent=col.toLocaleString();
     document.getElementById('s-inv').textContent=_payments.filter(p=>p.source==='payments'&&!+p.invoice_sent).length;
@@ -3429,38 +3430,105 @@ function saveEvent(){
 
 /* -- MEMBERS TABLE -------------------------- */
 var _filteredMem=[];
+var _memCategories=[];
+function memStatusLabel(st){
+    var labels={active:'✅ Active',pending:'⏳ Pending review',approved_unpaid:'💳 Approved — unpaid',needs_correction:'📝 Needs correction',expired:'⌛ Expired',suspended:'⏸ Suspended',honorary:'🏅 Honorary',retired:'👤 Retired',rejected:'❌ Rejected'};
+    return labels[st]||st;
+}
+function memStatusTagClass(st){
+    if(st==='active')return 'active';
+    if(st==='expired'||st==='rejected')return 'rejected';
+    if(st==='needs_correction')return 'pending';
+    return st==='approved_unpaid'?'pending':(st||'pending');
+}
+function loadMemberCategories(){
+    fetch('api.php?action=list_membership_categories',{credentials:'same-origin'})
+        .then(r=>r.json()).then(d=>{if(d.success)_memCategories=d.categories||[];}).catch(()=>{});
+}
 function renderMembers(){
     var statFilter=document.getElementById('mem-status-filter').value;
     var typeFilter=document.getElementById('mem-type-filter').value;
     var base=_members;
-    if(statFilter) base=base.filter(m=>m.status===statFilter);
-    if(typeFilter) base=base.filter(m=>m.membership_type===typeFilter);
-    _filteredMem=filterArr(base,document.getElementById('mem-search').value,'full_name','email','profession');
+    if(statFilter) base=base.filter(m=>(m.derived_status||m.status)===statFilter);
+    if(typeFilter) base=base.filter(m=>m.membership_type===typeFilter||m.membership_period===typeFilter);
+    _filteredMem=filterArr(base,document.getElementById('mem-search').value,'full_name','email','profession','membership_number');
     document.getElementById('mem-count').textContent=_filteredMem.length;
     var html='';
     var _PLAN_LABELS={'1_year':'1 Year','2_years':'2 Years','3_years':'3 Years','lifetime':'5+ Yrs Premium'};
     if(!_filteredMem.length){html='<tr><td colspan="9" class="empty"><div class="big">👥</div>No members found.</td></tr>';}
     else _filteredMem.forEach((m,i)=>{
-        var planLabel=_PLAN_LABELS[m.membership_type]||_PLAN_LABELS[m.membership_period]||esc(m.membership_type);
+        var derived=m.derived_status||m.status||'pending';
+        var planKey=m.membership_period||m.membership_type;
+        var planLabel=_PLAN_LABELS[planKey]||esc(planKey);
         var typeLabel='<span class="tag tag-upcoming">'+planLabel+'</span>';
-        var expiresAt=m.membership_expires_at?((m.membership_period==='lifetime'||m.membership_type==='lifetime')?'<span style="color:#0d4593;font-weight:700;">Lifetime</span>':esc(m.membership_expires_at.substring(0,10))):'—';
+        var expRaw=m.expiry_date||m.membership_expires_at;
+        var expiresAt=expRaw?((planKey==='lifetime')?'<span style="color:#0d4593;font-weight:700;">Lifetime</span>':esc(String(expRaw).substring(0,10))):'—';
+        var catLabel=esc(m.category_name||m.profession||'—');
+        var memNum=m.membership_number?'<div style="font-size:.65rem;color:var(--text-light);">'+esc(m.membership_number)+'</div>':'';
         html+='<tr><td style="font-size:.7rem;color:var(--text-light);">'+(i+1)+'</td>'
-            +'<td style="font-weight:600;font-size:.82rem;">'+esc(m.full_name)+'</td>'
+            +'<td style="font-weight:600;font-size:.82rem;">'+esc(m.full_name)+memNum+'</td>'
             +'<td style="font-size:.78rem;">'+esc(m.email)+'</td>'
-            +'<td style="font-size:.76rem;">'+esc(m.profession||'—')+'</td>'
+            +'<td style="font-size:.76rem;">'+catLabel+'</td>'
             +'<td>'+typeLabel+'</td>'
-            +'<td><span class="tag tag-'+esc(m.status)+'">'+esc(m.status)+'</span></td>'
+            +'<td><span class="tag tag-'+esc(memStatusTagClass(derived))+'">'+esc(memStatusLabel(derived))+'</span></td>'
             +'<td style="font-size:.76rem;">'+esc(m.joined_date||'—')+'</td>'
             +'<td style="font-size:.76rem;">'+expiresAt+'</td>'
             +'<td style="white-space:nowrap;">'
-            +'<select class="btn-sm" style="padding:.28rem .5rem;font-size:.7rem;" onchange="updateMemberStatus('+m.id+',this.value)">'
-            +'<option value="">Change status…</option>'
-            +'<option value="active">✅ Approve / Active</option><option value="pending">⏳ Pending</option><option value="expired">⌛ Expired</option><option value="rejected">❌ Rejected</option>'
-            +'</select> '
+            +'<button class="btn-sm" onclick="reviewMember('+m.id+')" title="Review application">✏️</button> '
             +'<button class="btn-sm btn-icon-del" onclick="deleteMember('+m.id+')" title="Delete member permanently">🗑️</button>'
             +'</td></tr>';
     });
     document.getElementById('mem-body').innerHTML=html;
+}
+function reviewMember(id){
+    var m=_members.find(x=>String(x.id)===String(id));
+    if(!m)return;
+    var catOpts='<option value="">— Select category —</option>';
+    _memCategories.forEach(function(c){
+        catOpts+='<option value="'+c.id+'"'+(String(m.category_id)===String(c.id)?' selected':'')+'>'+esc(c.name)+'</option>';
+    });
+    var derived=m.derived_status||m.status||'pending';
+    var html='<div style="font-size:.85rem;line-height:1.5;">'
+        +'<p><strong>'+esc(m.full_name)+'</strong><br><span style="color:var(--text-light);">'+esc(m.email)+' · '+esc(m.phone||'—')+'</span></p>'
+        +'<p style="margin:.5rem 0;">Institution: <strong>'+esc(m.institution||'—')+'</strong><br>Status: <strong>'+esc(memStatusLabel(derived))+'</strong></p>'
+        +'<div class="ff" style="margin:.75rem 0;"><label>Membership category</label><select id="mem-review-cat" class="btn-sm select-sm-pad" style="width:100%;">'+catOpts+'</select></div>'
+        +'<div class="ff" style="margin:.5rem 0;"><label>Admin notes (internal)</label><textarea id="mem-review-notes" rows="2" style="width:100%;font-family:inherit;font-size:.8rem;padding:.4rem;border:1px solid var(--border);border-radius:6px;" placeholder="Optional notes for secretariat…"></textarea></div>'
+        +'<div style="display:flex;flex-wrap:wrap;gap:.35rem;margin-top:.75rem;">'
+        +'<button class="btn-primary" style="font-size:.72rem;padding:.35rem .7rem;" onclick="submitMemberApproval('+id+',\'approved\')">✅ Approve</button>'
+        +'<button class="btn-sm" onclick="submitMemberApproval('+id+',\'needs_correction\')">📝 Needs correction</button>'
+        +'<button class="btn-sm" onclick="submitMemberApproval('+id+',\'pending\')">⏳ Keep pending</button>'
+        +'<button class="btn-sm btn-icon-del" onclick="submitMemberApproval('+id+',\'rejected\')">❌ Reject</button>'
+        +'</div></div>';
+    if(!document.getElementById('mem-review-modal')){
+        var el=document.createElement('div');
+        el.id='mem-review-modal';
+        el.className='modal-backdrop';
+        el.innerHTML='<div class="modal-box" style="max-width:480px;"><div class="modal-hd"><h3>👤 Review Member</h3><button class="modal-close" onclick="closeModal(\'mem-review-modal\')">✕</button></div><div class="modal-body" id="mem-review-body"></div></div>';
+        document.body.appendChild(el);
+        el.addEventListener('click',function(e){if(e.target===el)closeModal('mem-review-modal');});
+    }
+    document.getElementById('mem-review-body').innerHTML=html;
+    openModal('mem-review-modal');
+}
+function submitMemberApproval(id,approval){
+    if(approval==='rejected'&&!confirm('Reject and remove this application?'))return;
+    var fd=new FormData();
+    fd.append('action','update_member_approval');
+    fd.append('id',id);
+    fd.append('approval_status',approval);
+    var cat=document.getElementById('mem-review-cat');
+    if(cat&&cat.value)fd.append('category_id',cat.value);
+    var notes=document.getElementById('mem-review-notes');
+    if(notes&&notes.value.trim())fd.append('internal_notes',notes.value.trim());
+    adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+        if(d.success){
+            toast(approval==='rejected'?'Application rejected.':'Member updated.','success');
+            closeModal('mem-review-modal');
+            loadMembers();
+        }else toast(d.error||'Failed.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Error.','error');
+    });
 }
 function filterMembers(){renderMembers();}
 function renderOvMembers(){

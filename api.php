@@ -63,6 +63,7 @@ $action = $_POST['action'] ?? $_GET['action'] ?? '';
 $publicReadActions = [
     'get_events', 'get_home_featured', 'get_home_spotlight', 'get_home_content', 'get_home_hero', 'get_homepage_extras', 'get_site_chrome',
     'get_posts', 'get_leaders', 'get_site_stats', 'get_publications', 'get_grants',
+    'get_about_stats', 'list_public_members', 'list_membership_categories',
 ];
 if ($_SERVER['REQUEST_METHOD'] !== 'GET' || !in_array($action, $publicReadActions, true)) {
     try {
@@ -1289,20 +1290,7 @@ HTML;
             $pdo->beginTransaction();
             $pdo->prepare("UPDATE payments SET status='verified', paid_at=NOW() WHERE id=?")->execute([$pay['id']]);
 
-            // For memberships: stamp dues_paid_at + expiry on the members row.
-            // Status flips to 'active' only after admin approval (Improvement Plan §5, §6).
-            // Existing approved members go straight to active here.
-            if (($pay['payment_type'] ?? 'membership') === 'membership') {
-                $expiry = $pay['membership_expires_at']
-                    ?: hosuMembershipExpiry($pay['membership_period'] ?? '1_year');
-                $pdo->prepare("UPDATE members
-                    SET dues_paid_at = NOW(),
-                        expiry_date  = COALESCE(expiry_date, ?),
-                        status       = CASE WHEN approval_status = 'approved' THEN 'active' ELSE status END
-                    WHERE id = ?")->execute([$expiry, $pay['member_id']]);
-            } else {
-                $pdo->prepare("UPDATE members SET status='active' WHERE id=?")->execute([$pay['member_id']]);
-            }
+            hosuStampMemberPaymentVerified($pdo, (int)$pay['id']);
             $pdo->commit();
 
             // Send receipt email
@@ -1322,17 +1310,112 @@ HTML;
         try {
             $stmt = $pdo->query("
                 SELECT m.id, m.full_name, m.email, m.phone, m.profession, m.institution,
-                    m.membership_type, m.status,
-                    DATE_FORMAT(m.created_at,'%d %b %Y') as joined_date,
-                    p.membership_period, p.membership_expires_at
+                    m.membership_type, m.status, m.approval_status, m.membership_number,
+                    m.expiry_date, m.dues_paid_at, m.public_profile, m.category_id,
+                    mc.name AS category_name,
+                    DATE_FORMAT(m.created_at,'%d %b %Y') AS joined_date,
+                    (SELECT p.membership_period FROM payments p
+                        WHERE p.member_id = m.id AND p.payment_type = 'membership'
+                        ORDER BY p.id DESC LIMIT 1) AS membership_period,
+                    (SELECT p.membership_expires_at FROM payments p
+                        WHERE p.member_id = m.id AND p.payment_type = 'membership'
+                        ORDER BY p.id DESC LIMIT 1) AS membership_expires_at,
+                    (SELECT p.status FROM payments p
+                        WHERE p.member_id = m.id AND p.payment_type = 'membership'
+                        ORDER BY p.id DESC LIMIT 1) AS payment_status
                 FROM members m
-                INNER JOIN payments p ON p.member_id = m.id
-                WHERE m.membership_type != 'event_registration'
-                  AND p.payment_type = 'membership'
-                  AND p.status = 'verified'
+                LEFT JOIN membership_categories mc ON mc.id = m.category_id
+                WHERE m.membership_type IN ('1_year','2_years','3_years','lifetime')
+                   OR m.membership_type = 'membership'
                 ORDER BY m.created_at DESC
             ");
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            foreach ($rows as &$row) {
+                $row['derived_status'] = hosuMembershipStatus($row);
+            }
+            unset($row);
+            echo json_encode(['success' => true, 'members' => $rows]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'list_membership_categories':
+        try {
+            $stmt = $pdo->query('SELECT id, slug, name, discipline, sort_order FROM membership_categories WHERE is_active = 1 ORDER BY sort_order, name');
+            echo json_encode(['success' => true, 'categories' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (PDOException $e) {
+            echo json_encode(['success' => true, 'categories' => []]);
+        }
+        break;
+
+    case 'list_public_members':
+        try {
+            hosuPublicJsonCache(60);
+            $stmt = $pdo->query("
+                SELECT m.full_name, m.institution, m.country, m.specialty, m.profession,
+                    mc.name AS category_name
+                FROM members m
+                LEFT JOIN membership_categories mc ON mc.id = m.category_id
+                WHERE m.public_profile = 1
+                  AND m.approval_status = 'approved'
+                  AND m.dues_paid_at IS NOT NULL
+                  AND (m.expiry_date IS NULL OR m.expiry_date >= CURDATE())
+                  AND m.status NOT IN ('suspended','rejected')
+                ORDER BY m.full_name ASC
+            ");
             echo json_encode(['success' => true, 'members' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'update_member_approval':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['id'] ?? 0);
+            $approval = $_POST['approval_status'] ?? '';
+            $allowed = ['pending', 'approved', 'needs_correction', 'rejected'];
+            if (!$id || !in_array($approval, $allowed, true)) {
+                http_response_code(400); echo json_encode(['error' => 'Invalid input']); break;
+            }
+            if ($approval === 'rejected') {
+                $pdo->prepare('DELETE FROM members WHERE id = ?')->execute([$id]);
+                auditLog($pdo, 'reject_member', 'member', (string)$id);
+                echo json_encode(['success' => true, 'deleted' => true]);
+                break;
+            }
+            $catId = (int)($_POST['category_id'] ?? 0);
+            $notes = trim($_POST['internal_notes'] ?? '');
+            $sets = ['approval_status = ?'];
+            $params = [$approval];
+            if ($catId > 0) {
+                $sets[] = 'category_id = ?';
+                $params[] = $catId;
+            }
+            if ($notes !== '') {
+                $sets[] = 'internal_notes = ?';
+                $params[] = $notes;
+            }
+            if ($approval === 'approved') {
+                $sets[] = "verified_at = COALESCE(verified_at, NOW())";
+                $sets[] = 'verified_by = ?';
+                $params[] = (int)$_SESSION['user_id'];
+                $sets[] = "status = CASE WHEN dues_paid_at IS NOT NULL AND (expiry_date IS NULL OR expiry_date >= CURDATE()) THEN 'active' ELSE status END";
+            }
+            $params[] = $id;
+            $pdo->prepare('UPDATE members SET ' . implode(', ', $sets) . ' WHERE id = ?')->execute($params);
+            auditLog($pdo, 'update_member_approval', 'member', (string)$id, $approval);
+            $memStmt = $pdo->prepare('SELECT full_name, email, status FROM members WHERE id = ?');
+            $memStmt->execute([$id]);
+            $memRow = $memStmt->fetch(PDO::FETCH_ASSOC);
+            if ($memRow && !empty($memRow['email'])) {
+                $notifyStatus = $approval === 'approved' ? ($memRow['status'] === 'active' ? 'active' : 'pending') : $approval;
+                sendMemberStatusEmail($memRow['email'], $memRow['full_name'], $notifyStatus);
+            }
+            echo json_encode(['success' => true]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -1396,21 +1479,19 @@ HTML;
             $id = (int)($_POST['payment_id'] ?? 0);
             if (!in_array($status, $allowed) || !$id) { http_response_code(400); echo json_encode(['error' => 'Invalid input']); break; }
             $pdo->prepare("UPDATE payments SET status=? WHERE id=?")->execute([$status, $id]);
-            // If verified, activate member and send receipt
             if ($status === 'verified') {
-                $pdo->prepare("UPDATE members m JOIN payments p ON p.member_id=m.id SET m.status='active' WHERE p.id=?")->execute([$id]);
-                // Fetch receipt token and send email
-                $payRow = $pdo->prepare("SELECT receipt_token FROM payments WHERE id=?");
+                $pdo->prepare("UPDATE payments SET paid_at = COALESCE(paid_at, NOW()) WHERE id = ?")->execute([$id]);
+                hosuStampMemberPaymentVerified($pdo, $id);
+                $payRow = $pdo->prepare('SELECT receipt_token FROM payments WHERE id=?');
                 $payRow->execute([$id]);
                 $pr = $payRow->fetch(PDO::FETCH_ASSOC);
                 if (!empty($pr['receipt_token'])) {
                     sendDonationReceiptEmail($pdo, $id);
-                    // Also send member active notification
-                    $memRow = $pdo->prepare("SELECT m.full_name, m.email FROM members m JOIN payments p ON p.member_id=m.id WHERE p.id=?");
+                    $memRow = $pdo->prepare('SELECT m.full_name, m.email, m.status FROM members m JOIN payments p ON p.member_id = m.id WHERE p.id = ?');
                     $memRow->execute([$id]);
                     $mr = $memRow->fetch(PDO::FETCH_ASSOC);
                     if ($mr && !empty($mr['email'])) {
-                        sendMemberStatusEmail($mr['email'], $mr['full_name'], 'active');
+                        sendMemberStatusEmail($mr['email'], $mr['full_name'], $mr['status'] === 'active' ? 'active' : 'pending');
                     }
                 }
             }
@@ -3266,14 +3347,30 @@ HTML;
     // ── About Page Stats — live from DB (Public) ──────────────────────
     case 'get_about_stats':
         try {
-            $memberCount = (int)$pdo->query("SELECT COUNT(*) FROM members WHERE membership_type != 'event_registration' AND status IN ('active','pending')")->fetchColumn();
-            $eventCount  = (int)$pdo->query("SELECT COUNT(*) FROM events")->fetchColumn();
-            $foundedYear = (int)$pdo->query("SELECT YEAR(MIN(created_at)) FROM members")->fetchColumn();
-            if (!$foundedYear || $foundedYear < 2015) $foundedYear = 2019;
+            hosuPublicJsonCache(60);
+            $custom = [];
+            try {
+                $customStmt = $pdo->query("SELECT stat_key, stat_value, stat_label FROM site_stats WHERE page = 'about' AND is_active = 1 ORDER BY sort_order");
+                foreach ($customStmt->fetchAll(PDO::FETCH_ASSOC) as $cs) {
+                    $custom[$cs['stat_key']] = $cs;
+                }
+            } catch (Exception $_e) {}
+
+            $activeMembers = (int)$pdo->query("SELECT COUNT(*) FROM members WHERE status = 'active' AND membership_type IN ('1_year','2_years','3_years','lifetime')")->fetchColumn();
+            $eventCount = (int)$pdo->query('SELECT COUNT(*) FROM events')->fetchColumn();
+            $foundedYear = (int)$pdo->query('SELECT YEAR(MIN(created_at)) FROM members')->fetchColumn();
+            if (!$foundedYear || $foundedYear < 2015) {
+                $foundedYear = 2019;
+            }
+
+            $membersVal = $custom['about_members']['stat_value'] ?? ($activeMembers > 0 ? (string)$activeMembers : '0');
+            $foundedVal = $custom['about_founded']['stat_value'] ?? (string)$foundedYear;
+            $eventsVal  = $custom['about_events']['stat_value'] ?? (string)$eventCount;
+
             echo json_encode(['success' => true, 'stats' => [
-                ['value' => ($memberCount > 0 ? $memberCount . '+' : '150+'), 'label' => 'Members'],
-                ['value' => (string)$foundedYear,                             'label' => 'Founded'],
-                ['value' => ($eventCount  > 0 ? $eventCount  . '+' : '50+'), 'label' => 'Events'],
+                ['value' => $membersVal, 'label' => $custom['about_members']['stat_label'] ?? 'Members'],
+                ['value' => $foundedVal, 'label' => $custom['about_founded']['stat_label'] ?? 'Founded'],
+                ['value' => $eventsVal,  'label' => $custom['about_events']['stat_label'] ?? 'Events'],
             ]]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
