@@ -1325,6 +1325,8 @@ body.density-compact .main{padding-top:.85rem;}
                             <small>One per line. Drive file or folder links OK.</small></div>
                         </div>
                         <div class="ff" style="margin-top:.65rem;"><label>Default Alt Text</label><input type="text" id="sc-hero-pool-image-alt" placeholder="Accessibility description for pool images"></div>
+                        <p id="hero-pool-upload-status" class="ev-past-date-hint" style="display:none;margin-top:.65rem;color:#1565c0;background:#e3f2fd;border:1px solid #90caf9;padding:.55rem .7rem;border-radius:6px;"></p>
+                        <p id="hero-pool-pending-banner" class="ev-past-date-hint" style="display:none;margin-top:.65rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;padding:.55rem .7rem;border-radius:6px;"></p>
                     </div>
                     <div style="margin-top:.85rem;">
                         <button type="button" class="btn-primary" id="sc-hero-img-settings-save-btn" onclick="saveHeroImageSettings()"><span id="sc-hero-img-settings-save-text">💾 Save Background Settings</span></button>
@@ -6034,6 +6036,7 @@ loadBlogPosts=function(){
 var _siteStats=[], _siteMedia=[], _spotlights=[], _heroSlides=[];
 
 function loadHeroSlides(){
+    if(_heroPoolUploading)return;
     adminJsonFetch('api.php?action=list_hero_slides').then(function(d){
         if(d.success){
             _heroSlides=d.slides||[];
@@ -6076,7 +6079,8 @@ function restoreDefaultHeroSlides(){
         if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Restore failed.','error');
     });
 }
-function applyHeroImageSettingsForm(settings){
+function applyHeroImageSettingsForm(settings,opts){
+    opts=opts||{};
     settings=settings||_heroImageSettings||{mode:'per_slide',pool:[],pool_alt:''};
     _heroImageSettings=settings;
     var mode=settings.mode==='global_pool'?'global_pool':'per_slide';
@@ -6084,10 +6088,17 @@ function applyHeroImageSettingsForm(settings){
     var globalPool=document.getElementById('hero-img-mode-global-pool');
     if(perSlide)perSlide.checked=mode==='per_slide';
     if(globalPool)globalPool.checked=mode==='global_pool';
+    var pendingKeep=(!opts.replacePending)?scGalleryItems('hero-pool').filter(function(x){return x._pending&&x._file;}):[];
     initScGallery('hero-pool',settings.pool||[]);
+    if(pendingKeep.length){
+        var items=scGalleryItems('hero-pool');
+        pendingKeep.forEach(function(p){items.push(p);});
+        renderScGallery('hero-pool');
+    }
     var altEl=document.getElementById('sc-hero-pool-image-alt');
     if(altEl)altEl.value=settings.pool_alt||'';
     updateHeroImageModePanels();
+    updateHeroPoolPendingBanner();
     var missing=parseInt(settings.pool_missing,10)||0;
     var warn=document.getElementById('hero-pool-missing-warn');
     var warnTxt=document.getElementById('hero-pool-missing-warn-text');
@@ -6099,6 +6110,42 @@ function applyHeroImageSettingsForm(settings){
             warn.style.display='none';
             if(warnTxt)warnTxt.textContent='';
         }
+    }
+}
+
+var _heroPoolUploading=false;
+
+function setHeroPoolUploadUi(loading,total,done){
+    var statusEl=document.getElementById('hero-pool-upload-status');
+    var fileInput=document.getElementById('sc-hero-pool-image-files');
+    var saveBtn=document.getElementById('sc-hero-img-settings-save-btn');
+    if(fileInput)fileInput.disabled=!!loading;
+    if(saveBtn)saveBtn.disabled=!!loading;
+    if(statusEl){
+        if(loading){
+            statusEl.style.display='block';
+            statusEl.textContent='⏳ Uploading photos to server… '+(done||0)+' / '+(total||'?')+' — please wait.';
+        }else{
+            statusEl.style.display='none';
+            statusEl.textContent='';
+        }
+    }
+}
+
+function updateHeroPoolPendingBanner(){
+    var banner=document.getElementById('hero-pool-pending-banner');
+    if(!banner)return;
+    var pending=scGalleryPendingFiles('hero-pool').length;
+    if(_heroPoolUploading){
+        banner.style.display='none';
+        return;
+    }
+    if(pending>0){
+        banner.style.display='block';
+        banner.textContent='⚠ '+pending+' photo(s) not saved yet — they will upload automatically when you browse, or click “Save Background Settings”.';
+    }else{
+        banner.style.display='none';
+        banner.textContent='';
     }
 }
 
@@ -6190,17 +6237,19 @@ function buildHeroPoolSettingsFormData(mode,skipUploads){
     else scGalleryPendingFiles('hero-pool').forEach(function(f){fd.append('poolImageFiles[]',f);});
     return fd;
 }
-function uploadHeroPoolFilesInBatches(files){
+function uploadHeroPoolFilesInBatches(files,onProgress){
     if(!files.length)return Promise.resolve(null);
     var poolAlt=document.getElementById('sc-hero-pool-image-alt').value.trim();
-    var batchSize=6;
+    var batchSize=8;
     var idx=0;
     var lastSettings=null;
-    var totalAdded=0;
+    onProgress=onProgress||function(){};
     function nextBatch(){
         if(idx>=files.length)return Promise.resolve(lastSettings);
         var batch=files.slice(idx,idx+batchSize);
-        idx+=batchSize;
+        var batchStart=idx;
+        idx+=batch.length;
+        onProgress(Math.min(idx,files.length),files.length);
         var fd=new FormData();
         fd.append('action','append_hero_pool_images');
         fd.append('pool_alt',poolAlt);
@@ -6212,12 +6261,12 @@ function uploadHeroPoolFilesInBatches(files){
                 throw new Error(err);
             }
             lastSettings=d.image_settings||lastSettings;
-            totalAdded+=d.added||batch.length;
             return nextBatch();
         });
     }
     return nextBatch().then(function(settings){
         if(!settings)throw new Error('Photo upload failed — nothing was saved to the server.');
+        onProgress(files.length,files.length);
         return settings;
     });
 }
@@ -6236,20 +6285,20 @@ function saveHeroImageSettings(){
     var pendingFiles=[];
     flushScGalleryUrlsBeforeSave('hero-pool').then(function(){
         pendingFiles=scGalleryPendingFiles('hero-pool').slice();
-        // Small/medium batches: save metadata + files in one request (most reliable).
-        if(pendingFiles.length>0&&pendingFiles.length<=15){
-            return adminJsonFetch('api.php',{method:'POST',body:buildHeroPoolSettingsFormData(mode,false)});
-        }
-        // Large batch: save metadata first, then upload files in chunks.
-        if(!pendingFiles.length){
-            return adminJsonFetch('api.php',{method:'POST',body:buildHeroPoolSettingsFormData(mode,true)});
-        }
-        return adminJsonFetch('api.php',{method:'POST',body:buildHeroPoolSettingsFormData(mode,true)}).then(function(d){
-            if(!d||!d.success)return d;
-            return uploadHeroPoolFilesInBatches(pendingFiles).then(function(extraSettings){
-                d.image_settings=extraSettings;
-                return d;
+        var uploadChain=Promise.resolve(null);
+        if(pendingFiles.length){
+            _heroPoolUploading=true;
+            setHeroPoolUploadUi(true,pendingFiles.length,0);
+            uploadChain=uploadHeroPoolFilesInBatches(pendingFiles,setHeroPoolUploadUi).then(function(uploadedSettings){
+                applyHeroImageSettingsForm(uploadedSettings,{replacePending:true});
+                return uploadedSettings;
+            }).finally(function(){
+                _heroPoolUploading=false;
+                setHeroPoolUploadUi(false);
             });
+        }
+        return uploadChain.then(function(){
+            return adminJsonFetch('api.php',{method:'POST',body:buildHeroPoolSettingsFormData(ensureHeroPoolModeForSave(),true)});
         });
     }).then(function(d){
         if(!d||!d.success){
@@ -6265,9 +6314,10 @@ function saveHeroImageSettings(){
             :(poolN===1?'✅ Saved — 1 hero photo active.':'Hero background settings saved.');
         toast(msg,'success');
         bumpHomeRevision();
-        applyHeroImageSettingsForm(d.image_settings||null);
+        applyHeroImageSettingsForm(d.image_settings||null,{replacePending:true});
         revokeScGalleryBlobs('hero-pool');
         initScGallery('hero-pool',(d.image_settings&&d.image_settings.pool)||[]);
+        updateHeroPoolPendingBanner();
     }).catch(function(err){
         if(err&&err.message!=='auth'&&err.message!=='csrf')toast(err.message||'Network error — photos may not have saved.','error');
     }).finally(function(){
@@ -6416,18 +6466,45 @@ function previewScGalleryUrls(section,force){
 
 function addScGalleryFiles(section,fileList){
     if(!fileList||!fileList.length)return;
+    if(section==='hero-pool'){
+        var gp=document.getElementById('hero-img-mode-global-pool');
+        if(gp)gp.checked=true;
+        updateHeroImageModePanels();
+        if(_heroPoolUploading){
+            toast('Upload already in progress — please wait.','info');
+            return;
+        }
+        var files=Array.from(fileList);
+        _heroPoolUploading=true;
+        setHeroPoolUploadUi(true,files.length,0);
+        uploadHeroPoolFilesInBatches(files,setHeroPoolUploadUi).then(function(settings){
+            applyHeroImageSettingsForm(settings,{replacePending:true});
+            bumpHomeRevision();
+            toast('✅ '+files.length+' photo(s) uploaded and saved to the pool.','success');
+        }).catch(function(err){
+            var items=scGalleryItems('hero-pool');
+            files.forEach(function(f){
+                var blob=URL.createObjectURL(f);
+                items.push({url:blob,alt:'',_pending:true,_file:f,_blob:blob});
+            });
+            renderScGallery('hero-pool');
+            updateHeroPoolPendingBanner();
+            toast((err&&err.message)?err.message:'Upload failed — click Save Background Settings to retry.','error');
+        }).finally(function(){
+            _heroPoolUploading=false;
+            setHeroPoolUploadUi(false);
+            var input=document.getElementById('sc-hero-pool-image-files');
+            if(input)input.value='';
+        });
+        return;
+    }
     var items=scGalleryItems(section);
     Array.from(fileList).forEach(function(f){
         var blob=URL.createObjectURL(f);
         items.push({url:blob,alt:'',_pending:true,_file:f,_blob:blob});
     });
     renderScGallery(section);
-    if(section==='hero-pool'){
-        var gp=document.getElementById('hero-img-mode-global-pool');
-        if(gp)gp.checked=true;
-        updateHeroImageModePanels();
-    }
-    toast(Array.from(fileList).length+' image(s) added — click “Save Background Settings” to upload.','success');
+    toast(Array.from(fileList).length+' image(s) added — save to upload.','success');
 }
 
 function addScGalleryUrls(section,expandDrive){
