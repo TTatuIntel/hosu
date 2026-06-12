@@ -376,7 +376,9 @@ $pdo->exec("
 ");
 echo "✓ Table 'site_stats' created.\n";
 
-// Site Media — admin-uploaded images / content
+// Site Media — durable image/document library for the whole site.
+// Pages can pull a permanent image by usage_key so changing other content
+// (event titles, blog posts, etc.) never wipes the visual.
 $pdo->exec("
     CREATE TABLE IF NOT EXISTS site_media (
         id          INT AUTO_INCREMENT PRIMARY KEY,
@@ -386,10 +388,25 @@ $pdo->exec("
         file_type   VARCHAR(50)  NOT NULL DEFAULT 'image',
         file_size   INT          NOT NULL DEFAULT 0,
         category    VARCHAR(80)  NOT NULL DEFAULT 'general',
+        usage_key   VARCHAR(80)  DEFAULT NULL,
+        alt_text    VARCHAR(255) NOT NULL DEFAULT '',
+        is_active   TINYINT(1)   NOT NULL DEFAULT 1,
         uploaded_by INT          DEFAULT NULL,
-        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-    ) ENGINE=InnoDB DEFAULT CHARSET=utf8
+        created_at  TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_site_media_usage (usage_key),
+        INDEX idx_site_media_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
 ");
+// Upgrade older installs in place — safe to ignore failures (column already exists).
+foreach ([
+    "ALTER TABLE site_media ADD COLUMN usage_key VARCHAR(80) DEFAULT NULL",
+    "ALTER TABLE site_media ADD COLUMN alt_text VARCHAR(255) NOT NULL DEFAULT ''",
+    "ALTER TABLE site_media ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1",
+    "ALTER TABLE site_media ADD INDEX idx_site_media_usage (usage_key)",
+    "ALTER TABLE site_media ADD INDEX idx_site_media_category (category)",
+] as $alter) {
+    try { $pdo->exec($alter); } catch (PDOException $e) { /* already exists */ }
+}
 echo "✓ Table 'site_media' created.\n";
 
 // Audit logs table

@@ -42,6 +42,43 @@ function hosuPublicJsonCache(int $seconds = 30): void
     header('Cache-Control: public, max-age=' . $seconds);
 }
 
+/**
+ * Ensure the site_media table and the durable-slot columns exist.
+ * Safe to call repeatedly — uses IF NOT EXISTS / try-catch on each ALTER so old
+ * installs upgrade in place without losing rows.
+ */
+function ensureSiteMediaSchema(PDO $pdo): void
+{
+    static $done = false;
+    if ($done) return;
+    $pdo->exec("CREATE TABLE IF NOT EXISTS site_media (
+        id INT AUTO_INCREMENT PRIMARY KEY,
+        title VARCHAR(255) NOT NULL DEFAULT '',
+        description TEXT DEFAULT NULL,
+        file_path VARCHAR(500) NOT NULL,
+        file_type VARCHAR(50) NOT NULL DEFAULT 'image',
+        file_size INT NOT NULL DEFAULT 0,
+        category VARCHAR(80) NOT NULL DEFAULT 'general',
+        usage_key VARCHAR(80) DEFAULT NULL,
+        alt_text VARCHAR(255) NOT NULL DEFAULT '',
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        uploaded_by INT DEFAULT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        INDEX idx_site_media_usage (usage_key),
+        INDEX idx_site_media_category (category)
+    ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4");
+    foreach ([
+        "ALTER TABLE site_media ADD COLUMN usage_key VARCHAR(80) DEFAULT NULL",
+        "ALTER TABLE site_media ADD COLUMN alt_text VARCHAR(255) NOT NULL DEFAULT ''",
+        "ALTER TABLE site_media ADD COLUMN is_active TINYINT(1) NOT NULL DEFAULT 1",
+        "ALTER TABLE site_media ADD INDEX idx_site_media_usage (usage_key)",
+        "ALTER TABLE site_media ADD INDEX idx_site_media_category (category)",
+    ] as $sql) {
+        try { $pdo->exec($sql); } catch (PDOException $e) { /* already exists */ }
+    }
+    $done = true;
+}
+
 // Server-side idle timeout check for API calls
 define('API_SESSION_IDLE_TIMEOUT', 900);
 if (!empty($_SESSION['user_id']) && !empty($_SESSION['last_activity'])) {
@@ -3931,11 +3968,7 @@ HTML;
             http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
         }
         try {
-            $pdo->exec("CREATE TABLE IF NOT EXISTS site_media (
-                id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL DEFAULT '', description TEXT DEFAULT '',
-                file_path VARCHAR(500) NOT NULL, file_type VARCHAR(50) NOT NULL DEFAULT 'image', file_size INT NOT NULL DEFAULT 0,
-                category VARCHAR(80) NOT NULL DEFAULT 'general', uploaded_by INT DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+            ensureSiteMediaSchema($pdo);
             $cat = trim($_GET['category'] ?? '');
             if ($cat) {
                 $stmt = $pdo->prepare("SELECT * FROM site_media WHERE category=? ORDER BY created_at DESC");
@@ -3949,48 +3982,96 @@ HTML;
         }
         break;
 
+    // ── Site Media — fetch a single permanent image by usage_key (public) ──
+    case 'get_site_media_by_key':
+        try {
+            ensureSiteMediaSchema($pdo);
+            $key = preg_replace('/[^a-z0-9_-]/', '', strtolower(trim($_GET['key'] ?? '')));
+            if ($key === '') { echo json_encode(['success' => true, 'media' => null]); break; }
+            $stmt = $pdo->prepare("SELECT id, title, description, file_path, file_type, alt_text, usage_key, category
+                                   FROM site_media WHERE usage_key=? AND is_active=1
+                                   ORDER BY created_at DESC LIMIT 1");
+            $stmt->execute([$key]);
+            $row = $stmt->fetch(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'media' => $row ?: null]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
     // ── Site Media — upload (admin) ───────────────────────────────────
     case 'upload_site_media':
         if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
             http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
         }
         try {
-            $pdo->exec("CREATE TABLE IF NOT EXISTS site_media (
-                id INT AUTO_INCREMENT PRIMARY KEY, title VARCHAR(255) NOT NULL DEFAULT '', description TEXT DEFAULT '',
-                file_path VARCHAR(500) NOT NULL, file_type VARCHAR(50) NOT NULL DEFAULT 'image', file_size INT NOT NULL DEFAULT 0,
-                category VARCHAR(80) NOT NULL DEFAULT 'general', uploaded_by INT DEFAULT NULL, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-            ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+            ensureSiteMediaSchema($pdo);
 
-            if (!isset($_FILES['file']) || $_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+            if (!isset($_FILES['file'])) {
                 http_response_code(400); echo json_encode(['error' => 'No file uploaded']); break;
             }
-            $file = $_FILES['file'];
-            $allowedTypes = ['image/jpeg','image/png','image/webp','image/gif','application/pdf'];
-            $ftype = mime_content_type($file['tmp_name']);
-            if (!in_array($ftype, $allowedTypes)) {
-                http_response_code(400); echo json_encode(['error' => 'File type not allowed. Use JPG, PNG, WebP, GIF or PDF.']); break;
+            if ($_FILES['file']['error'] !== UPLOAD_ERR_OK) {
+                $uploadErrors = [
+                    UPLOAD_ERR_INI_SIZE   => 'File exceeds server upload_max_filesize.',
+                    UPLOAD_ERR_FORM_SIZE  => 'File exceeds form MAX_FILE_SIZE.',
+                    UPLOAD_ERR_PARTIAL    => 'File was only partially uploaded.',
+                    UPLOAD_ERR_NO_FILE    => 'No file was uploaded.',
+                    UPLOAD_ERR_NO_TMP_DIR => 'Server missing temporary folder.',
+                    UPLOAD_ERR_CANT_WRITE => 'Server failed to write file to disk.',
+                    UPLOAD_ERR_EXTENSION  => 'A PHP extension stopped the upload.',
+                ];
+                $msg = $uploadErrors[$_FILES['file']['error']] ?? 'Upload failed.';
+                http_response_code(400); echo json_encode(['error' => $msg]); break;
             }
-            if ($file['size'] > 10 * 1024 * 1024) {
-                http_response_code(400); echo json_encode(['error' => 'File must be under 10 MB']); break;
-            }
+
             $category = preg_replace('/[^a-z0-9_-]/', '', strtolower(trim($_POST['category'] ?? 'general')));
+            if ($category === '') $category = 'general';
             $uploadDir = 'uploads/' . $category . '/';
-            if (!is_dir($uploadDir)) mkdir($uploadDir, 0755, true);
-            $ext = pathinfo($file['name'], PATHINFO_EXTENSION);
-            $safeExt = preg_replace('/[^a-z0-9]/', '', strtolower($ext));
-            $filename = uniqid('media_') . '.' . ($safeExt ?: 'jpg');
-            $targetPath = $uploadDir . $filename;
-            if (!move_uploaded_file($file['tmp_name'], $targetPath)) {
-                http_response_code(500); echo json_encode(['error' => 'Failed to save file']); break;
+
+            // secureUpload handles JPG/PNG/WebP/GIF/SVG plus HEIC/AVIF/TIFF/BMP from phones
+            // (Imagick converts those to JPG), strips metadata, and downscales large photos.
+            $savedPath = secureUpload($_FILES['file'], $uploadDir, true, 12 * 1024 * 1024);
+            if ($savedPath === false) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Could not save file. Check the file type (JPG, PNG, WebP, GIF, SVG, HEIC, PDF) and that it is under 12 MB.']);
+                break;
             }
-            $title = trim($_POST['title'] ?? pathinfo($file['name'], PATHINFO_FILENAME));
+
+            $finfo = @finfo_open(FILEINFO_MIME_TYPE);
+            $ftype = $finfo ? @finfo_file($finfo, $savedPath) : '';
+            if ($finfo) finfo_close($finfo);
+            $fileType = ($ftype && str_starts_with($ftype, 'image/')) ? 'image' : 'document';
+
+            $title       = trim($_POST['title'] ?? pathinfo($_FILES['file']['name'], PATHINFO_FILENAME));
             $description = trim($_POST['description'] ?? '');
-            $fileType = str_starts_with($ftype, 'image/') ? 'image' : 'document';
-            $stmt = $pdo->prepare("INSERT INTO site_media (title, description, file_path, file_type, file_size, category, uploaded_by) VALUES (?,?,?,?,?,?,?)");
-            $stmt->execute([$title, $description, $targetPath, $fileType, $file['size'], $category, $_SESSION['user_id']]);
-            echo json_encode(['success' => true, 'id' => $pdo->lastInsertId(), 'file_path' => $targetPath]);
+            $altText     = trim($_POST['alt_text'] ?? '');
+            $usageKey    = preg_replace('/[^a-z0-9_-]/', '', strtolower(trim($_POST['usage_key'] ?? '')));
+            if ($usageKey === '') $usageKey = null;
+            $fileSize    = is_file($savedPath) ? filesize($savedPath) : (int)$_FILES['file']['size'];
+
+            // If a usage_key is supplied, retire any previous active image in that slot.
+            // The old file row stays in the table (so links elsewhere don't break) but is
+            // marked inactive so get_site_media_by_key returns the latest one.
+            if ($usageKey !== null) {
+                $pdo->prepare("UPDATE site_media SET is_active=0 WHERE usage_key=? AND is_active=1")
+                    ->execute([$usageKey]);
+            }
+
+            $stmt = $pdo->prepare("INSERT INTO site_media
+                (title, description, file_path, file_type, file_size, category, usage_key, alt_text, is_active, uploaded_by)
+                VALUES (?,?,?,?,?,?,?,?,1,?)");
+            $stmt->execute([$title, $description, $savedPath, $fileType, $fileSize, $category, $usageKey, $altText, $_SESSION['user_id']]);
+            echo json_encode([
+                'success'   => true,
+                'id'        => $pdo->lastInsertId(),
+                'file_path' => $savedPath,
+                'usage_key' => $usageKey,
+            ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        } catch (Throwable $e) {
+            error_log('upload_site_media: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
         break;
 
@@ -4006,7 +4087,7 @@ HTML;
             $stmt->execute([$id]);
             $row = $stmt->fetch(PDO::FETCH_ASSOC);
             if ($row && !empty($row['file_path']) && file_exists($row['file_path'])) {
-                unlink($row['file_path']);
+                @unlink($row['file_path']);
             }
             $pdo->prepare("DELETE FROM site_media WHERE id=?")->execute([$id]);
             echo json_encode(['success' => true]);

@@ -1980,8 +1980,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
         <div class="modal-body">
             <div class="ff"><label>Title</label><input type="text" id="sc-media-title" placeholder="Image title (optional)"></div>
             <div class="ff"><label>Description</label><textarea id="sc-media-desc" rows="2" placeholder="Brief description (optional)"></textarea></div>
+            <div class="ff"><label>Alt text</label><input type="text" id="sc-media-alt" placeholder="Describe the image for screen readers (optional)"></div>
             <div class="ff"><label>Category</label>
                 <select id="sc-media-category"><option value="general">General</option><option value="hero">Hero / Banners</option><option value="events">Events</option><option value="gallery">Gallery</option></select>
+            </div>
+            <div class="ff">
+                <label>Usage key <small style="color:var(--text-light);font-weight:400;">— optional, lowercase letters/numbers/underscore</small></label>
+                <input type="text" id="sc-media-usage-key" placeholder="e.g. hero_main, about_banner, footer_logo" pattern="[a-z0-9_-]*">
+                <div style="font-size:.7rem;color:var(--text-light);margin-top:.25rem;">Pages that reference this key keep showing the latest image, even when other content is edited.</div>
             </div>
             <div class="ff">
                 <label>File(s) <span>*</span></label>
@@ -7186,9 +7192,12 @@ function renderMediaGrid(){
     if(!list.length){grid.innerHTML='<div class="empty" style="grid-column:1/-1;text-align:center;padding:2rem;"><div class="big">🖼️</div>No media uploaded yet.</div>';return;}
     grid.innerHTML=list.map(function(m){
         var isImg=m.file_type==='image';
-        return '<div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--bg);">'
-            +(isImg?'<img src="'+esc(m.file_path)+'" alt="'+esc(m.title)+'" style="width:100%;height:120px;object-fit:cover;display:block;">':'<div style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📄</div>')
-            +'<div style="padding:.4rem .5rem;"><div style="font-size:.72rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.title||'Untitled')+'</div>'
+        var altTxt=m.alt_text||m.title||'';
+        var usageBadge=m.usage_key?'<span title="Usage key" style="background:var(--brand,#0a6);color:#fff;border-radius:6px;padding:1px 5px;font-size:.55rem;margin-left:.25rem;">🔑 '+esc(m.usage_key)+'</span>':'';
+        var inactive=(String(m.is_active)==='0')?' opacity:.55;':'';
+        return '<div style="position:relative;border-radius:10px;overflow:hidden;border:1px solid var(--border);background:var(--bg);'+inactive+'">'
+            +(isImg?'<img src="'+esc(m.file_path)+'" alt="'+esc(altTxt)+'" style="width:100%;height:120px;object-fit:cover;display:block;">':'<div style="height:120px;display:flex;align-items:center;justify-content:center;font-size:2rem;">📄</div>')
+            +'<div style="padding:.4rem .5rem;"><div style="font-size:.72rem;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;">'+esc(m.title||'Untitled')+usageBadge+'</div>'
             +'<div style="font-size:.6rem;color:var(--text-light);display:flex;justify-content:space-between;align-items:center;margin-top:.2rem;"><span>'+esc(m.category)+'</span>'
             +'<div><button class="btn-sm" title="Copy path" onclick="copyMediaPath(\''+esc(m.file_path)+'\')">📋</button> <button class="btn-sm btn-icon-del" onclick="deleteMedia('+m.id+')" title="Delete media">🗑️</button></div>'
             +'</div></div></div>';
@@ -7202,6 +7211,8 @@ function copyMediaPath(path){
 function openMediaUpload(){
     document.getElementById('sc-media-title').value='';
     document.getElementById('sc-media-desc').value='';
+    document.getElementById('sc-media-alt').value='';
+    document.getElementById('sc-media-usage-key').value='';
     document.getElementById('sc-media-category').value='general';
     document.getElementById('sc-media-files').value='';
     document.getElementById('sc-media-preview').innerHTML='';
@@ -7224,23 +7235,33 @@ function previewMediaFiles(input){
 function removeMediaFile(i){_mediaFilesToUpload.splice(i,1);var inp=document.getElementById('sc-media-files');var dt=new DataTransfer();_mediaFilesToUpload.forEach(f=>dt.items.add(f));inp.files=dt.files;previewMediaFiles(inp);}
 function uploadMedia(){
     if(!_mediaFilesToUpload.length){toast('Please select at least one file.','error');return;}
-    document.getElementById('sc-media-upload-text').textContent='? Uploading...';
+    document.getElementById('sc-media-upload-text').textContent='⏳ Uploading...';
     var title=document.getElementById('sc-media-title').value.trim();
     var desc=document.getElementById('sc-media-desc').value.trim();
+    var alt=document.getElementById('sc-media-alt').value.trim();
+    var usageKey=document.getElementById('sc-media-usage-key').value.trim().toLowerCase().replace(/[^a-z0-9_-]/g,'');
     var cat=document.getElementById('sc-media-category').value;
-    var uploads=_mediaFilesToUpload.map(function(f){
+    // Usage keys are single-slot — only attach to the first file when batching.
+    var uploads=_mediaFilesToUpload.map(function(f,idx){
         var fd=new FormData();fd.append('action','upload_site_media');fd.append('file',f);
-        fd.append('title',title||f.name.replace(/\.[^.]+$/,''));fd.append('description',desc);fd.append('category',cat);
-        return fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'}).then(r=>r.json());
+        fd.append('title',title||f.name.replace(/\.[^.]+$/,''));
+        fd.append('description',desc);fd.append('alt_text',alt);fd.append('category',cat);
+        if(usageKey && idx===0) fd.append('usage_key',usageKey);
+        return fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'}).then(r=>r.json()).catch(function(){return {success:false,error:'Network error'};});
     });
     Promise.all(uploads).then(function(results){
-        var ok=results.filter(r=>r.success).length;
+        var ok=results.filter(r=>r&&r.success).length;
         var fail=results.length-ok;
         document.getElementById('sc-media-upload-text').textContent='📤 Upload';
-        if(ok)toast(ok+' file(s) uploaded'+(fail?' ('+fail+' failed)':'')+'!','success');
-        else toast('Upload failed: '+(results[0].error||'Unknown error'),'error');
-        closeModal('media-upload-modal');loadSiteMedia();
-    }).catch(()=>{document.getElementById('sc-media-upload-text').textContent='📤 Upload';toast('Upload error.','error');});
+        if(ok){
+            toast(ok+' file(s) uploaded'+(fail?' ('+fail+' failed)':'')+'!','success');
+            closeModal('media-upload-modal');
+        } else {
+            var firstErr=(results.find(function(r){return r&&r.error;})||{}).error||'Unknown error';
+            toast('Upload failed: '+firstErr,'error');
+        }
+        loadSiteMedia();
+    }).catch(function(){document.getElementById('sc-media-upload-text').textContent='📤 Upload';toast('Upload error.','error');});
 }
 function deleteMedia(id){
     if(!confirm('Delete this media file?'))return;
