@@ -54,10 +54,7 @@ try {
         ];
     } else {
         $spotlight = fetchHomeSpotlightPayload($pdo);
-        $heroImages = loadHeroImageSettings($pdo);
-        if (count($heroImages['pool']) > 0) {
-            $heroImages['mode'] = 'global_pool';
-        }
+        $heroImages = resolvePublicHeroImages($pdo);
         $payload = [
             'success' => true,
             'page' => 'home',
@@ -67,9 +64,10 @@ try {
             'ongoing_settings' => $spotlight['ongoing_settings'] ?? defaultOngoingNowSettings(),
             'ongoing_mode' => $spotlight['ongoing_mode'] ?? 'empty',
             'featured' => fetchHomeFeaturedPayload($pdo),
-            'slides' => loadHomepageHeroSlides($pdo, true),
+            'slides' => filterReachableHeroSlides(loadHomepageHeroSlides($pdo, true)),
             'image_mode' => $heroImages['mode'],
             'pool_images' => $heroImages['pool'],
+            'pool_missing' => $heroImages['pool_missing'],
             'homepage_extras' => fetchHomepageExtrasPayload($pdo),
         ];
     }

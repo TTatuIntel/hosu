@@ -1304,6 +1304,7 @@ body.density-compact .main{padding-top:.85rem;}
                     </div>
                     <div id="hero-pool-panel" style="display:none;">
                         <p class="sc-gallery-hint">Add photos to the shared pool. They <strong>shuffle automatically</strong> on the homepage every few seconds while visitors read the hero text. Use uploads, image links, or Google Drive file/folder links.</p>
+                        <p id="hero-pool-missing-warn" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;color:#b45309;"></p>
                         <p id="hero-pool-mode-hint" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;">You have photos in the pool — select <strong>Shared random pool</strong> above (or just save; we enable it automatically).</p>
                         <div id="sc-hero-pool-images-wrap" style="margin-bottom:.75rem;">
                             <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Pool gallery <span id="sc-hero-pool-images-count"></span></div>
@@ -3167,9 +3168,14 @@ function startAdminLiveRefresh(){
         var panel=document.querySelector('.panel.active');
         if(!panel)return;
         var panelId=panel.id||'';
-        if(panelId==='panel-events'){
-            loadRegCounts();
+        if(panelId==='panel-overview'){
+            // Refresh underlying datasets so dashboard counters stay current
+            loadEvents();loadMembers();loadPayments();loadAuditLogs();
+        }else if(panelId==='panel-events'){
+            loadEvents();loadRegCounts();
             if(document.getElementById('reg-modal').classList.contains('open'))refreshRegModalQuietly(false);
+        }else if(panelId==='panel-members'){
+            loadMembers();
         }else if(panelId==='panel-homepage'){
             loadHeroSlides();
             loadOngoingNowPanel();
@@ -3177,7 +3183,7 @@ function startAdminLiveRefresh(){
         }else if(panelId==='panel-payments'){
             loadPayments();
         }
-    },20000);
+    },15000);
 }
 
 function loadEvents(){
@@ -6067,6 +6073,17 @@ function applyHeroImageSettingsForm(settings){
     var altEl=document.getElementById('sc-hero-pool-image-alt');
     if(altEl)altEl.value=settings.pool_alt||'';
     updateHeroImageModePanels();
+    var missing=parseInt(settings.pool_missing,10)||0;
+    var warn=document.getElementById('hero-pool-missing-warn');
+    if(warn){
+        if(missing>0){
+            warn.style.display='block';
+            warn.textContent='⚠ '+missing+' photo(s) in the pool are missing from the server (404). Re-upload them or paste Google Drive image links, then save again.';
+        }else{
+            warn.style.display='none';
+            warn.textContent='';
+        }
+    }
 }
 function updateHeroImageModePanels(){
     var mode=document.querySelector('input[name="hero-img-mode"]:checked');

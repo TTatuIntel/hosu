@@ -52,6 +52,11 @@ function optimizeUploadedImage(string $path): bool
         return false;
     }
 
+    // SVGs are sanitized at upload time; no re-encode pass.
+    if ($info['mime'] === 'image/svg+xml') {
+        return true;
+    }
+
     $img = @imagecreatefromstring((string) file_get_contents($path));
     if (!$img) {
         return false;
@@ -81,15 +86,35 @@ function optimizeUploadedImage(string $path): bool
 }
 
 define('UPLOAD_ALLOWED_IMAGES', [
-    'image/jpeg' => 'jpg',
-    'image/png'  => 'png',
-    'image/gif'  => 'gif',
-    'image/webp' => 'webp',
+    'image/jpeg'    => 'jpg',
+    'image/png'     => 'png',
+    'image/gif'     => 'gif',
+    'image/webp'    => 'webp',
+    'image/svg+xml' => 'svg',
 ]);
 
 define('UPLOAD_ALLOWED_DOCS', [
     'application/pdf' => 'pdf',
 ]);
+
+/**
+ * Sanitize SVG markup — remove scripts, event handlers, and external references
+ * that could be used for XSS. SVGs are XML so GD cannot re-encode them.
+ */
+function sanitizeSvgContent(string $svg): string
+{
+    // Strip <script> blocks (including malformed)
+    $svg = preg_replace('#<script\b[^>]*>.*?</script\s*>#is', '', $svg);
+    $svg = preg_replace('#<script\b[^>]*/?>#is', '', $svg);
+    // Strip on* event handlers
+    $svg = preg_replace('#\son[a-z]+\s*=\s*"[^"]*"#i', '', $svg);
+    $svg = preg_replace("#\son[a-z]+\s*=\s*'[^']*'#i", '', $svg);
+    // Strip javascript: URLs
+    $svg = preg_replace('#(href|xlink:href)\s*=\s*"\s*javascript:[^"]*"#i', '', $svg);
+    // Strip <foreignObject> which can embed HTML
+    $svg = preg_replace('#<foreignObject\b[^>]*>.*?</foreignObject\s*>#is', '', $svg);
+    return $svg;
+}
 
 /**
  * Securely handle an uploaded file.
@@ -123,7 +148,16 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
     $safeName = bin2hex(random_bytes(16)) . '.' . $ext;
     $targetPath = rtrim($destDir, '/') . '/' . $safeName;
 
-    // For images: re-encode to strip metadata and any embedded payloads
+    // SVG: sanitize XML (no GD re-encode possible)
+    if ($mime === 'image/svg+xml') {
+        $svg = file_get_contents($file['tmp_name']);
+        if ($svg === false) return false;
+        $svg = sanitizeSvgContent($svg);
+        if (file_put_contents($targetPath, $svg) === false) return false;
+        return $targetPath;
+    }
+
+    // For raster images: re-encode to strip metadata and any embedded payloads
     if (isset(UPLOAD_ALLOWED_IMAGES[$mime])) {
         $img = @imagecreatefromstring(file_get_contents($file['tmp_name']));
         if (!$img) return false;

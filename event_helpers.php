@@ -3196,6 +3196,120 @@ function defaultHeroImageSettings(): array
     ];
 }
 
+/** True when a stored hero image path can be loaded (local file on disk or remote/drive URL). */
+function heroStoredImageExists(string $url): bool
+{
+    $url = trim(str_replace('\\', '/', $url));
+    if ($url === '') {
+        return false;
+    }
+    if (preg_match('#^https?://#i', $url)) {
+        return true;
+    }
+    if (stripos($url, 'drive_image.php') !== false) {
+        return true;
+    }
+    if (stripos($url, 'drive.google.com') !== false || stripos($url, 'docs.google.com') !== false) {
+        return true;
+    }
+    $relative = ltrim($url, '/');
+    return is_file(__DIR__ . '/' . $relative);
+}
+
+/** Drop pool/slide entries whose local upload file is missing from the server. */
+function filterReachableHeroImages(array $items): array
+{
+    return array_values(array_filter($items, function ($img) {
+        if (isDriveFolderUrl($img['url'] ?? '')) {
+            return false;
+        }
+        $check = trim((string)($img['url'] ?? $img['display_url'] ?? ''));
+        return $check !== '' && heroStoredImageExists($check);
+    }));
+}
+
+/** When uploaded pool files are missing, reuse featured-event Drive gallery photos. */
+function buildHeroPoolFallbackFromFeatured(PDO $pdo): array
+{
+    $pool = [];
+    try {
+        $featured = fetchHomeFeaturedPayload($pdo);
+        foreach ($featured['events'] ?? [] as $ev) {
+            foreach ($ev['hero_media'] ?? [] as $m) {
+                if (($m['type'] ?? 'image') !== 'image') {
+                    continue;
+                }
+                $url = trim((string)($m['url'] ?? ''));
+                if ($url === '') {
+                    continue;
+                }
+                $pool[] = [
+                    'url' => $url,
+                    'alt' => trim((string)($ev['title'] ?? '')),
+                ];
+            }
+        }
+    } catch (Throwable $e) {
+        /* non-fatal */
+    }
+    return normalizeHeroPoolImages($pool);
+}
+
+/** Public homepage hero backgrounds: skip missing uploads, fall back to featured Drive gallery. */
+function resolvePublicHeroImages(PDO $pdo): array
+{
+    $heroImages = loadHeroImageSettings($pdo);
+    $rawCount = count($heroImages['pool']);
+    $pool = filterReachableHeroImages(normalizeHeroPoolImages($heroImages['pool']));
+    $mode = $heroImages['mode'];
+    $missing = max(0, $rawCount - count($pool));
+
+    if (count($pool) === 0 && $rawCount > 0) {
+        $fallback = buildHeroPoolFallbackFromFeatured($pdo);
+        if (!empty($fallback)) {
+            $pool = $fallback;
+            $mode = 'global_pool';
+        } else {
+            $mode = 'per_slide';
+        }
+    } elseif (count($pool) > 0) {
+        $mode = 'global_pool';
+    } elseif (count($pool) === 0) {
+        $mode = 'per_slide';
+    }
+
+    return [
+        'mode' => $mode,
+        'pool' => $pool,
+        'pool_count' => count($pool),
+        'pool_missing' => $missing,
+    ];
+}
+
+function filterReachableHeroSlides(array $slides): array
+{
+    foreach ($slides as &$slide) {
+        if (empty($slide['images'])) {
+            continue;
+        }
+        $slide['images'] = filterReachableHeroImages($slide['images']);
+        foreach ($slide['images'] as &$heroImg) {
+            if (isDriveFolderUrl($heroImg['url'] ?? '')) {
+                continue;
+            }
+            $heroImg['display_url'] = spotlightDisplayUrl($heroImg['url'] ?? '');
+        }
+        unset($heroImg);
+        if (!empty($slide['images'])) {
+            $slide['image_path'] = $slide['images'][0]['display_url'] ?: $slide['images'][0]['url'];
+        } else {
+            $slide['image_path'] = '';
+        }
+    }
+    unset($slide);
+    return $slides;
+}
+
 function normalizeHeroPoolImages(array $items): array
 {
     $items = expandHeroSlideImages(dedupeSlideImages($items));

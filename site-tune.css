@@ -1,0 +1,148 @@
+/* ─────────────────────────────────────────────────────────────────
+   site-tune.css
+   Site-wide visual normalizer. Loaded LAST so it wins specificity ties.
+   Goals:
+     1. Slightly compact typography across all public pages.
+     2. Make every image render correctly regardless of source format
+        (jpg / png / webp / gif / svg) and aspect ratio, wherever the
+        admin chooses to place it.
+   To disable: remove the <link> tag pointing at this file.
+   ───────────────────────────────────────────────────────────────── */
+
+/* ── 1. Typography compaction ─────────────────────────────────── */
+
+:root {
+    /* Browser default is 16px. Step down ~6% across the cascade. */
+    font-size: 15px;
+}
+
+body {
+    line-height: 1.55;
+}
+
+/* Hero text — was clamp(1.5rem, 3vw, 2rem) */
+.hero-dynamic-title,
+.home-section__title {
+    font-size: clamp(1.25rem, 2.5vw, 1.75rem) !important;
+    letter-spacing: -0.015em;
+}
+
+.home-section__title span {
+    font-size: 0.72rem !important;
+}
+
+.hero-dynamic-body,
+.home-section__lead,
+.home-card__body,
+.home-card__excerpt {
+    font-size: 0.92rem;
+    line-height: 1.5;
+}
+
+.home-card__title {
+    font-size: 0.98rem !important;
+}
+
+.home-section {
+    padding: 2.5rem 1rem !important;
+}
+
+/* Buttons — reduce visual weight */
+.btn,
+button.btn,
+a.btn,
+.hero-dynamic-cta,
+.home-card__cta {
+    font-size: 0.88rem;
+    padding: 0.55rem 1.1rem;
+}
+
+/* Generic headings outside the home-section namespace */
+h1 { font-size: clamp(1.5rem, 3vw, 2rem); }
+h2 { font-size: clamp(1.25rem, 2.4vw, 1.6rem); }
+h3 { font-size: clamp(1.05rem, 2vw, 1.3rem); }
+h4 { font-size: 1rem; }
+h5, h6 { font-size: 0.92rem; }
+
+p, li, td, th, label, input, textarea, select {
+    font-size: 0.95rem;
+}
+
+/* Navbar tightening */
+.navbar a,
+.navbar .nav-link,
+.navbar button {
+    font-size: 0.9rem;
+}
+
+/* Footer tightening */
+footer, footer * {
+    font-size: 0.88rem;
+}
+
+/* ── 2. Universal image rendering ────────────────────────────────
+   Any uploaded image should display gracefully regardless of format
+   or aspect ratio. We DO NOT touch images inside .navbar (logo) or
+   .no-fit (escape hatch) so admin keeps fine control. */
+
+img:not(.no-fit):not(.navbar img):not([data-raw]) {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+/* Hero slide image containers — fill the slot, crop excess */
+.hero-dynamic-media img,
+.hero-image-wrap img,
+.hero-slide img,
+.hero-slide__media img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    display: block;
+}
+
+/* Cards / spotlights / event tiles — uniform aspect */
+.home-card img,
+.home-card__media img,
+.spotlight-card img,
+.event-card img,
+.post-card img,
+.partner-logo img {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+}
+
+/* Partner & logo blocks usually want contain, not cover */
+.partner-logo img,
+.partners-grid img,
+.sponsors img,
+.logo-grid img {
+    object-fit: contain !important;
+    background: #fff;
+    padding: 6px;
+}
+
+/* SVGs in inline contexts — keep crisp, allow fluid sizing */
+img[src$=".svg"],
+img[src*=".svg?"] {
+    image-rendering: auto;
+}
+
+/* Background-image hero slots — guarantee cover */
+.hero-dynamic-bg,
+.hero-bg,
+[data-bg] {
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+}
+
+/* Broken-image graceful degradation */
+img {
+    background: #f1f5f9;
+    color: transparent;
+}

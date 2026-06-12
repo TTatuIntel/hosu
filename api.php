@@ -3062,17 +3062,15 @@ HTML;
         try {
             hosuPublicJsonCache(30);
             migrateEventSchema($pdo);
-            $slides = loadHomepageHeroSlides($pdo, true);
-            $heroImages = loadHeroImageSettings($pdo);
-            if (count($heroImages['pool']) > 0) {
-                $heroImages['mode'] = 'global_pool';
-            }
+            $slides = filterReachableHeroSlides(loadHomepageHeroSlides($pdo, true));
+            $heroImages = resolvePublicHeroImages($pdo);
             echo json_encode([
                 'success' => true,
                 'slides' => $slides,
                 'image_mode' => $heroImages['mode'],
                 'pool_images' => $heroImages['pool'],
-                'pool_count' => count($heroImages['pool']),
+                'pool_count' => $heroImages['pool_count'],
+                'pool_missing' => $heroImages['pool_missing'],
             ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -3094,6 +3092,8 @@ HTML;
                 return normalizeHeroSlideRowWithPersist($pdo, $row);
             }, $rows);
             $heroImages = loadHeroImageSettings($pdo);
+            $reachablePool = filterReachableHeroImages(normalizeHeroPoolImages($heroImages['pool']));
+            $heroImages['pool_missing'] = max(0, count($heroImages['pool']) - count($reachablePool));
             echo json_encode([
                 'success' => true,
                 'slides' => $slides,
