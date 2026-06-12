@@ -5528,7 +5528,7 @@ function renderBlogTable(){
     var tb=document.getElementById('bp-body');
     if(!list.length){tb.innerHTML='<tr><td colspan="6" class="empty"><div class="big">📝</div>No posts found.</td></tr>';return;}
     tb.innerHTML=list.map(function(p){
-        var img=p.image||'uploads/default-blog.jpg';
+        var img=p.image||'';
         return '<tr>'
         +'<td><img src="'+img.replace(/\\\\/g,'/')+'" class="ev-thumb" alt=""></td>'
         +'<td><div class="ev-name" title="'+p.title+'">'+p.title+'</div><div class="ev-id">ID: '+p.id+'</div></td>'

@@ -257,16 +257,6 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS committee_members (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 echo "[✓] table committee_members\n";
 
-$cnt = (int)$pdo->query("SELECT COUNT(*) FROM committees")->fetchColumn();
-if ($cnt === 0) {
-    $pdo->exec("INSERT INTO committees (slug, name, description, discipline, sort_order) VALUES
-        ('breast-cancer','Breast Cancer Working Group','Clinical, research and advocacy work on breast cancer in Uganda.','medical-oncology',1),
-        ('pediatric-oncology','Pediatric Oncology Group','Care pathways, training and family support for children with cancer.','pediatric',2),
-        ('hematology','Hematology Group','Sickle cell, leukemia, lymphoma and benign hematology in Uganda.','hematology',3),
-        ('palliative-care','Palliative Care Group','Symptom control, dignity in care, community palliation.','palliative',4)");
-    echo "[✓] seeded 4 default working groups\n";
-}
-
 // ─────────────────────────────────────────────────────────────────────
 // 6c. cpd_entries (Phase 3 — CPD points accrual)
 // ─────────────────────────────────────────────────────────────────────
@@ -283,6 +273,16 @@ $pdo->exec("CREATE TABLE IF NOT EXISTS cpd_entries (
     CONSTRAINT fk_cpd_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
 echo "[✓] table cpd_entries\n";
+
+$cnt = (int)$pdo->query("SELECT COUNT(*) FROM committees")->fetchColumn();
+if ($cnt === 0) {
+    $pdo->exec("INSERT INTO committees (slug, name, description, discipline, sort_order) VALUES
+        ('breast-cancer','Breast Cancer Working Group','Clinical, research and advocacy work on breast cancer in Uganda.','medical-oncology',1),
+        ('pediatric-oncology','Pediatric Oncology Group','Care pathways, training and family support for children with cancer.','pediatric',2),
+        ('hematology','Hematology Group','Sickle cell, leukemia, lymphoma and benign hematology in Uganda.','hematology',3),
+        ('palliative-care','Palliative Care Group','Symptom control, dignity in care, community palliation.','palliative',4)");
+    echo "[✓] seeded 4 default working groups\n";
+}
 
 // ─────────────────────────────────────────────────────────────────────
 // 7. site_stats: live counter for active members (read by About page)

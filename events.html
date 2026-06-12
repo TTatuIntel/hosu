@@ -1579,7 +1579,7 @@ footer {
             title: 'Events & Conferences',
             desc: overviewDesc,
             pills: ['&#127891; Conferences', '&#128104;&#8205;&#128300; Workshops', '&#128187; Webinars'],
-            image: 'img/IMG_8005.jpg',
+            image: '',
             statusBadge: '',
             statusCls: '',
             pulse: false,
@@ -1648,7 +1648,11 @@ footer {
             var bgDiv = document.createElement('div');
             bgDiv.className = 'hero-background' + (b === 0 ? ' active' : '');
             bgDiv.id = 'heroBg' + b;
-            bgDiv.style.backgroundImage = "url('" + heroSlides[b].image + "')";
+            if (heroSlides[b].image) {
+                bgDiv.style.backgroundImage = "url('" + heroSlides[b].image + "')";
+            } else {
+                bgDiv.style.background = 'linear-gradient(145deg, #1d4e89, #0d4593)';
+            }
             imgContainer.appendChild(bgDiv);
         }
 

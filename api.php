@@ -131,7 +131,6 @@ function ensureCommitteeTables(PDO $pdo): void {
             CONSTRAINT fk_cm_committee FOREIGN KEY (committee_id) REFERENCES committees(id) ON DELETE CASCADE,
             CONSTRAINT fk_cm_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
         ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
-        // Seed a couple of common groups on first install only
         $cnt = (int)$pdo->query("SELECT COUNT(*) FROM committees")->fetchColumn();
         if ($cnt === 0) {
             $pdo->exec("INSERT INTO committees (slug, name, description, discipline, sort_order) VALUES
@@ -535,14 +534,14 @@ case 'create_post':
     }
     try {
         // Handle post image upload (secure)
-        $imagePath = 'uploads/default-blog.jpg';
+        $imagePath = '';
         if (isset($_FILES['image'])) {
             $uploaded = secureUpload($_FILES['image'], 'uploads/posts/');
             if ($uploaded) $imagePath = $uploaded;
         }
 
         // Handle avatar upload (secure)
-        $avatarPath = 'uploads/default-avatar.jpg';
+        $avatarPath = '';
         if (isset($_FILES['avatar'])) {
             $uploaded = secureUpload($_FILES['avatar'], 'uploads/avatars/');
             if ($uploaded) $avatarPath = $uploaded;

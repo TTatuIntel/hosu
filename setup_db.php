@@ -180,8 +180,8 @@ $pdo->exec("
         content       TEXT         NOT NULL,
         category      VARCHAR(50)  NOT NULL DEFAULT 'General',
         author        VARCHAR(100) NOT NULL DEFAULT 'Anonymous',
-        image         VARCHAR(255) DEFAULT 'uploads/default-blog.jpg',
-        avatar        VARCHAR(255) DEFAULT 'uploads/default-avatar.jpg',
+        image         VARCHAR(255) DEFAULT '',
+        avatar        VARCHAR(255) DEFAULT '',
         comment_count INT          NOT NULL DEFAULT 0,
         created_at    TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
     ) ENGINE=InnoDB DEFAULT CHARSET=utf8

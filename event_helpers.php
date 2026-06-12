@@ -2841,18 +2841,8 @@ function defaultHomepagePartners(): array
 {
     return [
         'title' => 'Our Partners',
-        'items' => [
-            ['name' => 'Uganda Cancer Institute', 'logo' => 'img/uci.png', 'css_class' => 'partner-logo--uci'],
-            ['name' => 'Adonis Healthcare', 'logo' => 'img/ado.png', 'css_class' => ''],
-            ['name' => 'Aga Khan University Hospital', 'logo' => 'img/Agakhan.png', 'css_class' => ''],
-            ['name' => 'Future Healthcare', 'logo' => 'img/future.png', 'css_class' => ''],
-            ['name' => 'Hetero', 'logo' => 'img/hetero.png', 'css_class' => ''],
-            ['name' => 'Metropolis', 'logo' => 'img/metro.png', 'css_class' => ''],
-            ['name' => 'MSN', 'logo' => 'img/msn.png', 'css_class' => ''],
-            ['name' => 'Mulago National Referral Hospital', 'logo' => 'img/mulago.png', 'css_class' => 'partner-logo--mulago'],
-            ['name' => 'Nsambya Hospital', 'logo' => 'img/nsambya.png', 'css_class' => ''],
-            ['name' => 'OncoPharm', 'logo' => 'img/onco.png', 'css_class' => 'partner-logo--onco'],
-        ],
+        'visible' => true,
+        'items' => [],
     ];
 }
 
@@ -2899,11 +2889,14 @@ function fetchHomepageExtrasPayload(PDO $pdo): array
 {
     $partners = loadHomepageSetting($pdo, 'partners', defaultHomepagePartners());
     $cta = loadHomepageSetting($pdo, 'cta', defaultHomepageCta());
-    if (empty($partners['items'])) {
-        $partners = defaultHomepagePartners();
+    if (!isset($partners['items']) || !is_array($partners['items'])) {
+        $partners['items'] = [];
     }
-    if (empty($cta['title'])) {
-        $cta = defaultHomepageCta();
+    if (!array_key_exists('visible', $partners)) {
+        $partners['visible'] = !empty($partners['items']);
+    }
+    if (!array_key_exists('visible', $cta)) {
+        $cta['visible'] = !empty($cta['title']) || !empty($cta['body']);
     }
     return [
         'partners' => $partners,
@@ -3140,5 +3133,68 @@ function fetchHomepageAdminOverview(PDO $pdo): array
             ],
         ],
     ];
+}
+
+/**
+ * Remove all public-facing content so admins can reload links, images, and copy fresh.
+ * Preserves user accounts, members, payments, and membership category reference data.
+ */
+function clearPublicContent(PDO $pdo): array
+{
+    migrateEventSchema($pdo);
+    $cleared = [];
+
+    $tables = [
+        'event_live_content',
+        'event_images',
+        'event_media',
+        'event_registrants',
+        'events',
+        'comments',
+        'posts',
+        'grant_applications',
+        'grants_opportunities',
+        'publications',
+        'homepage_spotlights',
+        'homepage_hero_slides',
+        'leaders',
+        'site_media',
+        'cpd_entries',
+        'committee_members',
+        'committees',
+        'audit_logs',
+    ];
+
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
+    foreach ($tables as $table) {
+        try {
+            $before = (int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn();
+            $pdo->exec("DELETE FROM `$table`");
+            $cleared[$table] = $before;
+        } catch (Exception $e) {
+            $cleared[$table] = 'skip: ' . $e->getMessage();
+        }
+    }
+    $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
+
+    try {
+        $cleared['homepage_settings'] = (int) $pdo->exec('DELETE FROM homepage_settings');
+    } catch (Exception $e) {
+        $cleared['homepage_settings'] = 'skip: ' . $e->getMessage();
+    }
+
+    try {
+        $cleared['site_stats'] = (int) $pdo->exec('DELETE FROM site_stats');
+        $pdo->exec("INSERT INTO site_stats (stat_key, stat_value, stat_label, page, sort_order, is_active)
+            VALUES ('live_active_members', '0', 'Active Members', 'about', 0, 1)
+            ON DUPLICATE KEY UPDATE stat_value = '0'");
+    } catch (Exception $e) {
+        $cleared['site_stats'] = 'skip: ' . $e->getMessage();
+    }
+
+    saveHomepageSetting($pdo, 'partners', defaultHomepagePartners());
+    saveHomepageSetting($pdo, 'cta', defaultHomepageCta());
+
+    return $cleared;
 }
 

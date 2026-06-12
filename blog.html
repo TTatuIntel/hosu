@@ -97,9 +97,9 @@
             opacity: 0; transform: scale(1.05);
         }
         .hero-background.active { opacity: 1; transform: scale(1); }
-        .hero-background.bg-1 { background-image: url('img/IMG_7787.jpg'); }
-        .hero-background.bg-2 { background-image: url('img/IMG_7770.jpg'); }
-        .hero-background.bg-3 { background-image: url('img/IMG_7776.jpg'); }
+        .hero-background.bg-1 { background: linear-gradient(145deg, #1d4e89, #0d4593); }
+        .hero-background.bg-2 { background: linear-gradient(145deg, #0d4593, #2a6cb8); }
+        .hero-background.bg-3 { background: linear-gradient(145deg, #164a7a, #1d4e89); }
 
         .hero-pills { display: flex; gap: 0.3rem; margin-bottom: 0.35rem; flex-wrap: wrap; }
         .hero-pill { background: rgba(255,255,255,0.85); color: var(--secondary-color); font-size: 0.68rem; font-weight: 600; padding: 0.25rem 0.5rem; border-radius: 12px; border: 1px solid rgba(13,69,147,0.1); display: inline-flex; align-items: center; gap: 0.2rem; }
@@ -184,6 +184,7 @@
         }
         .blog-card:hover { transform: translateX(2px); box-shadow: var(--shadow-sm); }
         .blog-card-img { width: 120px; min-width: 120px; height: 82px; position: relative; overflow: hidden; flex-shrink: 0; }
+        .blog-card-img--empty { background: linear-gradient(145deg, #1d4e89, #0d4593); }
         .blog-card-img img { width: 100%; height: 100%; object-fit: cover; transition: transform 0.3s ease; }
         .blog-card:hover .blog-card-img img { transform: scale(1.05); }
         .blog-card-body { padding: 0.4rem 0.7rem; flex-grow: 1; display: flex; flex-direction: column; justify-content: center; min-width: 0; }
@@ -223,7 +224,9 @@
             box-shadow: 0 20px 60px rgba(0,0,0,0.2);
         }
         .article-detail-hero { position: relative; height: 200px; overflow: hidden; flex-shrink: 0; border-radius: 14px 14px 0 0; }
+        .article-detail-hero--empty { background: linear-gradient(145deg, #1d4e89, #0d4593); }
         .article-detail-hero img { width: 100%; height: 100%; object-fit: cover; }
+        .meta-author-icon { display: inline-flex; align-items: center; justify-content: center; width: 1.25rem; height: 1.25rem; border-radius: 50%; background: rgba(13,69,147,0.12); color: var(--secondary-color); font-size: 0.7rem; flex-shrink: 0; }
         .article-detail-hero .hero-gradient { position: absolute; bottom: 0; left: 0; right: 0; height: 80px; background: linear-gradient(transparent, rgba(0,0,0,0.5)); }
         .article-detail-hero .close-article {
             position: absolute; top: 0.6rem; right: 0.6rem;
@@ -688,16 +691,20 @@
             var pageItems = posts.slice(start, start + POSTS_PER_PAGE);
 
             grid.innerHTML = pageItems.map(function(p) {
-                var img = fixPath(p.image) || 'uploads/default-blog.jpg';
-                var avatar = fixPath(p.avatar) || 'uploads/default-avatar.jpg';
+                var img = fixPath(p.image) || '';
+                var avatar = fixPath(p.avatar) || '';
                 return '<div class="blog-card" data-id="' + p.id + '">'
-                    + '<div class="blog-card-img"><img src="' + esc(img) + '" alt="' + esc(p.title) + '" loading="lazy"></div>'
+                    + (img
+                        ? '<div class="blog-card-img"><img src="' + esc(img) + '" alt="' + esc(p.title) + '" loading="lazy"></div>'
+                        : '<div class="blog-card-img blog-card-img--empty" aria-hidden="true"></div>')
                     + '<div class="blog-card-body">'
                     + '<span class="blog-card-cat">' + esc(p.category) + '</span>'
                     + '<h3>' + esc(p.title) + '</h3>'
                     + '<p class="card-excerpt">' + esc(truncate(p.content, 110)) + '</p>'
                     + '<div class="blog-card-meta">'
-                    + '<div class="meta-author"><img src="' + esc(avatar) + '" alt=""><span>' + esc(p.author) + '</span></div>'
+                    + '<div class="meta-author">'
+                    + (avatar ? '<img src="' + esc(avatar) + '" alt="">' : '<span class="meta-author-icon" aria-hidden="true">✍</span>')
+                    + '<span>' + esc(p.author) + '</span></div>'
                     + '<span class="blog-card-comment"><i class="far fa-comment"></i> ' + (p.comment_count || 0) + '</span>'
                     + '<span class="meta-date">' + (p.formatted_date || '') + '</span>'
                     + '</div></div></div>';
@@ -744,8 +751,8 @@
             var p = allPosts.find(function(x) { return String(x.id) === String(id); });
             if (!p) return;
             _currentArticleId = p.id;
-            var img = fixPath(p.image) || 'uploads/default-blog.jpg';
-            var avatar = fixPath(p.avatar) || 'uploads/default-avatar.jpg';
+            var img = fixPath(p.image) || '';
+            var avatar = fixPath(p.avatar) || '';
 
             // Convert plain text content to paragraphs
             var bodyContent = (p.content || '').split(/\n\n+/).map(function(para) {
@@ -775,8 +782,8 @@
             }
 
             document.getElementById('articleDetail').innerHTML =
-                '<div class="article-detail-hero">'
-                + '<img src="' + esc(img) + '" alt="' + esc(p.title) + '">'
+                '<div class="article-detail-hero' + (img ? '' : ' article-detail-hero--empty') + '">'
+                + (img ? '<img src="' + esc(img) + '" alt="' + esc(p.title) + '">' : '')
                 + '<div class="hero-gradient"></div>'
                 + '<button class="close-article" onclick="closeArticleOverlay()">&times;</button>'
                 + '</div>'
@@ -785,7 +792,7 @@
                 + '<span class="detail-cat">' + esc(p.category) + '</span>'
                 + '<h1>' + esc(p.title) + '</h1>'
                 + '<div class="detail-meta">'
-                + '<img src="' + esc(avatar) + '" alt="' + esc(p.author) + '">'
+                + (avatar ? '<img src="' + esc(avatar) + '" alt="' + esc(p.author) + '">' : '<span class="meta-author-icon" aria-hidden="true">✍</span>')
                 + '<span><span class="author-name">' + esc(p.author) + '</span></span>'
                 + '<span><i class="far fa-calendar" style="margin-right:3px"></i>' + (p.formatted_date || '') + '</span>'
                 + '</div>'
