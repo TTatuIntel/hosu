@@ -1269,6 +1269,7 @@ body.density-compact .main{padding-top:.85rem;}
                 <div class="card-hd"><h2>🖼 Hero Carousel (<span id="sc-hero-count">0</span> slides)</h2>
                     <div class="filter-toolbar">
                         <button class="btn-primary" onclick="openHeroSlideModal()">+ Add Hero Slide</button>
+                        <button class="btn-sm" onclick="restoreDefaultHeroSlides()" title="Load standard HOSU slides if the carousel is empty">↺ Restore Defaults</button>
                         <a href="index.html#home" target="_blank" class="btn-sm btn-nodecor">Preview Hero →</a>
                     </div>
                 </div>
@@ -1283,7 +1284,7 @@ body.density-compact .main{padding-top:.85rem;}
                     <div class="aef-grid grid-2cols" style="margin-bottom:.85rem;">
                         <label class="hero-img-mode-opt" style="display:flex;gap:.6rem;align-items:flex-start;padding:.75rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
                             <input type="radio" name="hero-img-mode" id="hero-img-mode-per-slide" value="per_slide" checked style="margin-top:.2rem;">
-                            <span><strong>Per slide</strong><br><small style="color:var(--text-light);">Assign images inside each slide (edit slide → Slide Images). A random image from that slide&apos;s gallery shows when its text is active.</small></span>
+                            <span><strong>Per slide</strong><br><small style="color:var(--text-light);">Assign images inside each slide (edit slide → Slide Images). They rotate automatically every few seconds while that slide is active.</small></span>
                         </label>
                         <label class="hero-img-mode-opt" style="display:flex;gap:.6rem;align-items:flex-start;padding:.75rem;border:1px solid var(--border);border-radius:8px;cursor:pointer;">
                             <input type="radio" name="hero-img-mode" id="hero-img-mode-global-pool" value="global_pool" style="margin-top:.2rem;">
@@ -1791,7 +1792,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div id="sc-hero-images-wrap" style="margin-bottom:.75rem;">
                         <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Rotation gallery <span id="sc-hero-images-count"></span> <small style="font-weight:400;">— order left→right is play order</small></div>
                         <div id="sc-hero-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
-                        <p class="sc-gallery-rotate-note" id="sc-hero-images-rotate-note" style="display:none;">🔄 These images cycle on the homepage while this slide is active.</p>
+                        <p class="sc-gallery-rotate-note" id="sc-hero-images-rotate-note" style="display:none;">🔄 These images rotate automatically on the homepage every few seconds while this slide is showing.</p>
                     </div>
                     <div class="sc-gallery-add">
                         <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-image-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple><small>JPG, PNG, WebP, GIF · select multiple files</small></div>
@@ -2312,10 +2313,14 @@ textarea.ld-input{resize:vertical;min-height:100px;}
         <div class="modal-hd"><h3 id="reg-modal-title">👥 Registrants</h3><button class="modal-close" onclick="closeModal('reg-modal')">✕</button></div>
         <div class="modal-body">
             <div id="reg-modal-stats" class="reg-stats-row"></div>
-            <div class="reg-search-wrap"><input type="text" id="reg-search" class="reg-search-input" placeholder="Search registrants…" oninput="filterRegModal()"></div>
+            <div class="reg-search-wrap" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
+                <input type="text" id="reg-search" class="reg-search-input" placeholder="Search registrants…" oninput="filterRegModal()" style="flex:1;min-width:180px;">
+                <button type="button" class="btn-sm" onclick="exportRegistrantsCsv()">📥 Export CSV</button>
+                <button type="button" class="btn-sm" onclick="refreshRegModalQuietly(true)" title="Refresh list">🔄 Refresh</button>
+            </div>
             <div class="overflow-auto">
-                <table class="tbl"><thead><tr><th>#</th><th>Name / Email</th><th>Phone</th><th>Institution</th><th>Payment</th><th>Date</th><th>Actions</th></tr></thead>
-                <tbody id="reg-modal-body"><tr><td colspan="7" class="empty">Loading…</td></tr></tbody></table>
+                <table class="tbl"><thead><tr><th>#</th><th>Name / Email</th><th>Phone</th><th>Institution</th><th>Payment</th><th>Attendance</th><th>Registered</th><th>Actions</th></tr></thead>
+                <tbody id="reg-modal-body"><tr><td colspan="8" class="empty">Loading…</td></tr></tbody></table>
             </div>
             <div id="reg-modal-empty">
                 <div class="empty-icon">📋</div>
@@ -3116,7 +3121,28 @@ function updateHpTabCounts(){
 }
 
 /* -- LOAD ALL ------------------------------- */
-function loadAll(){loadEvents();loadMembers();loadPayments();loadPublications();loadGrants();loadLeaders();loadBlogPosts();loadSiteStats();loadSiteMedia();loadHeroSlides();loadOngoingNowPanel();loadSpotlights();loadHomepageOverview();loadAuditLogs();}
+function loadAll(){loadEvents();loadMembers();loadPayments();loadPublications();loadGrants();loadLeaders();loadBlogPosts();loadSiteStats();loadSiteMedia();loadHeroSlides();loadOngoingNowPanel();loadSpotlights();loadHomepageOverview();loadAuditLogs();startAdminLiveRefresh();}
+
+var _adminLiveTimer=null;
+function startAdminLiveRefresh(){
+    if(_adminLiveTimer)return;
+    _adminLiveTimer=setInterval(function(){
+        if(document.hidden)return;
+        var panel=document.querySelector('.panel.active');
+        if(!panel)return;
+        var panelId=panel.id||'';
+        if(panelId==='panel-events'){
+            loadRegCounts();
+            if(document.getElementById('reg-modal').classList.contains('open'))refreshRegModalQuietly(false);
+        }else if(panelId==='panel-homepage'){
+            loadHeroSlides();
+            loadOngoingNowPanel();
+            loadHomepageOverview();
+        }else if(panelId==='panel-payments'){
+            loadPayments();
+        }
+    },20000);
+}
 
 function loadEvents(){
     fetch('api.php?action=list_events_admin',{credentials:'same-origin'})
@@ -3280,31 +3306,49 @@ function loadRegCounts(){
         }).catch(()=>{});
 }
 
-var _regModalData=[], _regModalEventId='';
+var _regModalData=[], _regModalEventId='', _regModalPollTimer=null;
 function viewRegistrants(eventId){
     _regModalEventId=eventId;
     var ev=_events.find(e=>e.id===eventId);
     var isFree=ev&&(ev.is_free===undefined?true:!!parseInt(ev.is_free));
     var priceLbl=isFree?'<span class="tag tag-free tag-free-sm">🆓 Free</span>'
         :'<span class="tag tag-paid tag-paid-sm">💰 UGX '+Number(ev&&ev.event_fee||0).toLocaleString()+'</span>';
-    document.getElementById('reg-modal-title').innerHTML='👥 Registrants — '+(ev?esc(ev.title):esc(eventId))+' '+priceLbl;
-    document.getElementById('reg-modal-body').innerHTML='<tr><td colspan="7" class="empty">⏳ Loading…</td></tr>';
+    document.getElementById('reg-modal-title').innerHTML='👥 Registrants &amp; Attendance — '+(ev?esc(ev.title):esc(eventId))+' '+priceLbl;
+    document.getElementById('reg-modal-body').innerHTML='<tr><td colspan="8" class="empty">⏳ Loading…</td></tr>';
     document.getElementById('reg-modal-stats').innerHTML='';
     document.getElementById('reg-modal-empty').style.display='none';
     document.getElementById('reg-search').value='';
     openModal('reg-modal');
-
-    fetch('api.php?action=get_event_registrants&event_id='+encodeURIComponent(eventId),{credentials:'same-origin'})
+    refreshRegModalQuietly(true);
+    startRegModalPoll();
+}
+function startRegModalPoll(){
+    stopRegModalPoll();
+    _regModalPollTimer=setInterval(function(){
+        if(document.hidden||!document.getElementById('reg-modal').classList.contains('open'))return;
+        refreshRegModalQuietly(false);
+    },15000);
+}
+function stopRegModalPoll(){
+    if(_regModalPollTimer){clearInterval(_regModalPollTimer);_regModalPollTimer=null;}
+}
+function refreshRegModalQuietly(showErrors){
+    if(!_regModalEventId)return Promise.resolve();
+    var ev=_events.find(e=>e.id===_regModalEventId);
+    var isFree=ev&&(ev.is_free===undefined?true:!!parseInt(ev.is_free));
+    return fetch('api.php?action=get_event_registrants&event_id='+encodeURIComponent(_regModalEventId),{credentials:'same-origin'})
         .then(r=>r.json()).then(d=>{
-            if(!d.success){toast(d.error||'Failed to load registrants.','error');return;}
+            if(!d.success){if(showErrors)toast(d.error||'Failed to load registrants.','error');return;}
             _regModalData=d.registrants||[];
             var st=d.stats||{};
-            var statsHtml='<div class="reg-sc"><div class="s-val">'+st.total+'</div><div class="s-lbl">Total Registered</div></div>'
-                +'<div class="reg-sc"><div class="s-val green">'+st.verified+'</div><div class="s-lbl">Confirmed</div></div>';
-            if(!isFree) statsHtml+='<div class="reg-sc"><div class="s-val blue">UGX '+parseFloat(st.revenue||0).toLocaleString()+'</div><div class="s-lbl">Revenue Collected</div></div>';
+            var statsHtml='<div class="reg-sc"><div class="s-val">'+st.total+'</div><div class="s-lbl">Registered</div></div>'
+                +'<div class="reg-sc"><div class="s-val green">'+st.verified+'</div><div class="s-lbl">Confirmed Pay</div></div>'
+                +'<div class="reg-sc"><div class="s-val" style="color:#1565c0;">'+(st.attended||0)+'</div><div class="s-lbl">Attended</div></div>';
+            if(!isFree) statsHtml+='<div class="reg-sc"><div class="s-val blue">UGX '+parseFloat(st.revenue||0).toLocaleString()+'</div><div class="s-lbl">Revenue</div></div>';
             document.getElementById('reg-modal-stats').innerHTML=statsHtml;
             renderRegModal();
-        }).catch(()=>toast('Connection error.','error'));
+            loadRegCounts();
+        }).catch(function(){if(showErrors)toast('Connection error.','error');});
 }
 function renderRegModal(){
     var search=document.getElementById('reg-search').value.toLowerCase();
@@ -3320,10 +3364,17 @@ function renderRegModal(){
         var isPaid=parseFloat(r.amount||0)>0;
         var payBadge='<span class="tag tag-'+esc(r.payment_status)+'">'+esc(r.payment_status)+'</span>';
         var amtStr=isPaid?'<div class="reg-amt-paid">UGX '+parseFloat(r.amount).toLocaleString()+'</div>':'<div class="reg-amt-free">🆓 Free</div>';
-        var receiptLink=r.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(r.receipt_token)+'" target="_blank">🧾 Receipt</a>':'';
+        var receiptLink=r.receipt_token?'<a class="btn-sm" href="receipt.php?token='+esc(r.receipt_token)+'" target="_blank">🧾</a>':'';
         var verifyBtn='';
-        if(isPaid&&r.payment_status!=='verified') verifyBtn='<button class="btn-green btn-sm" onclick="verifyRegistrant('+r.id+',\'verified\')">✅ Verify Payment</button>';
-        if(isPaid&&r.payment_status==='pending') verifyBtn+=' <button class="btn-danger btn-sm" onclick="verifyRegistrant('+r.id+',\'rejected\')">❌ Reject</button>';
+        if(isPaid&&r.payment_status!=='verified') verifyBtn='<button class="btn-green btn-sm" onclick="verifyRegistrant('+r.id+',\'verified\')">✅ Pay</button>';
+        if(isPaid&&r.payment_status==='pending') verifyBtn+=' <button class="btn-danger btn-sm" onclick="verifyRegistrant('+r.id+',\'rejected\')">❌</button>';
+        var attended=!!(r.qr_scanned==1||r.qr_scanned===true||r.qr_scanned==='1');
+        var attendBadge=attended
+            ?'<span class="tag" style="background:#e8f5e9;color:#2e7d32;">✅ Attended</span><div class="reg-sub">'+esc(r.attended_date||'')+'</div>'
+            :'<span class="tag" style="background:#fff3e0;color:#e65100;">⏳ Not yet</span>';
+        var attendBtn=attended
+            ?'<button class="btn-sm" onclick="toggleRegistrantAttendance('+r.id+',0)" title="Undo attendance">↩️</button>'
+            :'<button class="btn-green btn-sm" onclick="toggleRegistrantAttendance('+r.id+',1)" title="Mark as attended">✓ Check in</button>';
         var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteRegistrant('+r.id+')" title="Remove registrant">🗑️</button>';
         html+='<tr>'
             +'<td class="reg-sub col-num">'+(i+1)+'</td>'
@@ -3331,12 +3382,31 @@ function renderRegModal(){
             +'<td class="reg-sub">'+esc(r.phone||'—')+'</td>'
             +'<td class="reg-sub col-inst">'+esc(r.institution||'—')+'</td>'
             +'<td>'+payBadge+amtStr+'</td>'
+            +'<td>'+attendBadge+'</td>'
             +'<td class="reg-sub col-date">'+esc(r.registered_date||'—')+'</td>'
-            +'<td class="col-actions">'+receiptLink+verifyBtn+' '+deleteBtn+'</td></tr>';
+            +'<td class="col-actions">'+attendBtn+' '+receiptLink+verifyBtn+' '+deleteBtn+'</td></tr>';
     });
     document.getElementById('reg-modal-body').innerHTML=html;
 }
 function filterRegModal(){renderRegModal();}
+function toggleRegistrantAttendance(regId,attended){
+    var fd=new FormData();
+    fd.append('action','mark_registrant_attendance');
+    fd.append('registrant_id',regId);
+    fd.append('attended',attended?'1':'0');
+    adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+        if(d.success){
+            toast(attended?'Marked as attended.':'Attendance cleared.','success');
+            refreshRegModalQuietly(false);
+        }else toast(d.error||'Failed.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Update failed.','error');
+    });
+}
+function exportRegistrantsCsv(){
+    if(!_regModalEventId){toast('No event selected.','error');return;}
+    window.open('api.php?action=export_event_registrants&event_id='+encodeURIComponent(_regModalEventId),'_blank');
+}
 function verifyRegistrant(regId,status){
     var fd=new FormData();fd.append('action','verify_registrant');fd.append('registrant_id',regId);fd.append('status',status);
     fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'})
@@ -4935,7 +5005,10 @@ function markInvSent(payId){
 
 /* -- HELPERS -------------------------------- */
 function openModal(id){document.getElementById(id).classList.add('open');}
-function closeModal(id){document.getElementById(id).classList.remove('open');}
+function closeModal(id){
+    document.getElementById(id).classList.remove('open');
+    if(id==='reg-modal')stopRegModalPoll();
+}
 document.querySelectorAll('.modal-backdrop').forEach(m=>{m.addEventListener('click',function(e){if(e.target===this)this.classList.remove('open');});});
 document.addEventListener('keydown',function(e){
     if(e.key!=='Escape')return;
@@ -5894,11 +5967,28 @@ function loadHeroSlides(){
     adminJsonFetch('api.php?action=list_hero_slides').then(function(d){
         if(d.success){
             _heroSlides=d.slides||[];
+            window._heroSlides=_heroSlides;
             renderHeroSlideTable();
             applyHeroImageSettingsForm(d.image_settings||null);
         }
         else toast(d.error||'Could not load hero slides.','error');
     }).catch(function(err){if(err&&err.message!=='auth')toast('Failed to load hero slides.','error');});
+}
+function restoreDefaultHeroSlides(){
+    if(!confirm('Restore the standard HOSU hero slides? Existing slides stay unless the carousel is empty or all hidden.'))return;
+    adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','restore_hero_slides');return fd;})()}).then(function(d){
+        if(d.success){
+            _heroSlides=d.slides||[];
+            window._heroSlides=_heroSlides;
+            renderHeroSlideTable();
+            if(d.image_settings)applyHeroImageSettingsForm(d.image_settings);
+            bumpHomeRevision();
+            toast(d.restored?'Default hero slides restored ('+d.count+' slides).':'Hero slides refreshed ('+d.count+' slides).','success');
+            loadHomepageOverview();
+        }else toast(d.error||'Restore failed.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Restore failed.','error');
+    });
 }
 function applyHeroImageSettingsForm(settings){
     settings=settings||_heroImageSettings||{mode:'per_slide',pool:[],pool_alt:''};

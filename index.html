@@ -3324,6 +3324,7 @@ var HeroSlideshow = (function() {
     var heroBgs = [];
     var heroDots = [];
     var heroTimer = null;
+    var heroMediaTimer = null;
     var heroMediaIndex = 0;
     var heroLastMediaBySlide = {};
     var heroLastPoolMediaIndex = -1;
@@ -3430,7 +3431,42 @@ var HeroSlideshow = (function() {
         });
     }
 
-    /** One random gallery image per slide turn — no rotation while the slide stays active. */
+    function getHeroMediaInterval() {
+        var ms = window.HOSU_HERO_MEDIA_INTERVAL;
+        return (typeof ms === 'number' && ms >= 2500) ? ms : 5000;
+    }
+
+    function stopMediaRotation() {
+        if (heroMediaTimer) {
+            clearInterval(heroMediaTimer);
+            heroMediaTimer = null;
+        }
+    }
+
+    function advanceHeroMedia(slideIndex) {
+        var slideBgs = getBgsForSlide(slideIndex);
+        if (slideBgs.length <= 1) return;
+        var current = isGlobalHeroPool() ? heroLastPoolMediaIndex : heroLastMediaBySlide[slideIndex];
+        if (current === undefined || current < 0) current = 0;
+        var next = (current + 1) % slideBgs.length;
+        showHeroMedia(slideIndex, next);
+        if (isGlobalHeroPool()) {
+            heroLastPoolMediaIndex = next;
+        } else {
+            heroLastMediaBySlide[slideIndex] = next;
+        }
+    }
+
+    function startMediaRotation(slideIndex) {
+        stopMediaRotation();
+        var slideBgs = getBgsForSlide(slideIndex);
+        if (slideBgs.length <= 1) return;
+        heroMediaTimer = setInterval(function () {
+            advanceHeroMedia(slideIndex);
+        }, getHeroMediaInterval());
+    }
+
+    /** Pick a starting image, then cycle through the gallery while this slide stays active. */
     function showRandomHeroMedia(slideIndex) {
         var slideBgs = getBgsForSlide(slideIndex);
         if (!slideBgs.length) return;
@@ -3448,6 +3484,7 @@ var HeroSlideshow = (function() {
         if (!isGlobalHeroPool()) {
             heroLastMediaBySlide[slideIndex] = mediaIndex;
         }
+        startMediaRotation(slideIndex);
     }
 
     function showHeroMedia(slideIndex, mediaIndex) {
@@ -3577,6 +3614,7 @@ var HeroSlideshow = (function() {
 
     function stopTimer() {
         if (heroTimer) clearInterval(heroTimer);
+        stopMediaRotation();
     }
 
     function addSlide(slideHtml, bgClass) {
@@ -3635,8 +3673,8 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061202"></script>
-<script src="home-refresh.js?v=2026061202"></script>
+<script src="home-hero.js?v=2026061227"></script>
+<script src="home-refresh.js?v=2026061227"></script>
 <script>
 
 // Hero popup content — populated by home-hero.js from admin slides

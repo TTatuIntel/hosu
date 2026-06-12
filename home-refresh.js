@@ -38,8 +38,8 @@
         if (window.HOSU_EXTRAS && typeof window.HOSU_EXTRAS.refreshQuietly === 'function') {
             tasks.push(window.HOSU_EXTRAS.refreshQuietly(!!force));
         }
-        if (window.HOSU_SPOTLIGHT) {
-            if (force && typeof window.HOSU_SPOTLIGHT.reload === 'function') {
+        if (window.HOSU_SPOTLIGHT && typeof window.HOSU_SPOTLIGHT.reload === 'function') {
+            if (force) {
                 tasks.push(window.HOSU_SPOTLIGHT.reload());
             }
         }
@@ -49,6 +49,11 @@
 
     function tick(force) {
         if (!force && document.hidden) return;
+        var now = readRevs();
+        if (revsChanged(now, _lastRevs)) {
+            _lastRevs = now;
+            force = true;
+        }
         refreshAll(!!force);
     }
 

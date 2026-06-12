@@ -734,12 +734,20 @@ case 'create_post':
         try {
             $eventId = trim($_GET['event_id'] ?? $_POST['event_id'] ?? '');
             if (!$eventId) { http_response_code(400); echo json_encode(['error' => 'event_id required']); break; }
+            foreach (['qr_scanned TINYINT(1) NOT NULL DEFAULT 0', 'scanned_at TIMESTAMP NULL DEFAULT NULL'] as $colDef) {
+                $colName = explode(' ', $colDef)[0];
+                try { $pdo->exec("ALTER TABLE event_registrants ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (Exception $_e) {}
+            }
             $stmt = $pdo->prepare("
                 SELECT id, event_id, full_name, email, phone, profession, institution,
                        amount, currency, payment_method, transaction_ref,
                        status, payment_status,
                        receipt_number, receipt_token,
-                       DATE_FORMAT(registered_at,'%d %b %Y') as registered_date
+                       qr_scanned,
+                       DATE_FORMAT(registered_at,'%d %b %Y %H:%i') as registered_date,
+                       DATE_FORMAT(registered_at,'%Y-%m-%d %H:%i:%s') as registered_at_iso,
+                       DATE_FORMAT(scanned_at,'%d %b %Y %H:%i') as attended_date,
+                       DATE_FORMAT(scanned_at,'%Y-%m-%d %H:%i:%s') as scanned_at_iso
                 FROM event_registrants
                 WHERE event_id = ?
                 ORDER BY registered_at DESC
@@ -747,10 +755,10 @@ case 'create_post':
             $stmt->execute([$eventId]);
             $registrants = $stmt->fetchAll(PDO::FETCH_ASSOC);
 
-            // Summary stats
             $countStmt = $pdo->prepare("
                 SELECT COUNT(*) as total,
                        SUM(CASE WHEN payment_status='verified' THEN 1 ELSE 0 END) as verified,
+                       SUM(CASE WHEN qr_scanned=1 THEN 1 ELSE 0 END) as attended,
                        SUM(amount) as revenue
                 FROM event_registrants WHERE event_id=?
             ");
@@ -763,9 +771,80 @@ case 'create_post':
                 'stats' => [
                     'total' => (int)($stats['total'] ?? 0),
                     'verified' => (int)($stats['verified'] ?? 0),
+                    'attended' => (int)($stats['attended'] ?? 0),
                     'revenue' => (float)($stats['revenue'] ?? 0)
                 ]
             ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'mark_registrant_attendance':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int)($_POST['registrant_id'] ?? 0);
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid registrant']); break; }
+            $attended = !empty($_POST['attended']) && $_POST['attended'] !== '0' ? 1 : 0;
+            foreach (['qr_scanned TINYINT(1) NOT NULL DEFAULT 0', 'scanned_at TIMESTAMP NULL DEFAULT NULL'] as $colDef) {
+                $colName = explode(' ', $colDef)[0];
+                try { $pdo->exec("ALTER TABLE event_registrants ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (Exception $_e) {}
+            }
+            $pdo->prepare(
+                'UPDATE event_registrants SET qr_scanned = ?, scanned_at = ' . ($attended ? 'NOW()' : 'NULL') . ' WHERE id = ?'
+            )->execute([$attended, $id]);
+            auditLog($pdo, 'mark_registrant_attendance', 'event_registrant', (string)$id, $attended ? 'attended' : 'not_attended');
+            echo json_encode(['success' => true, 'attended' => (bool)$attended]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'export_event_registrants':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $eventId = trim($_GET['event_id'] ?? $_POST['event_id'] ?? '');
+            if (!$eventId) { http_response_code(400); echo json_encode(['error' => 'event_id required']); break; }
+            $evStmt = $pdo->prepare('SELECT title, date FROM events WHERE id = ? LIMIT 1');
+            $evStmt->execute([$eventId]);
+            $evRow = $evStmt->fetch(PDO::FETCH_ASSOC) ?: ['title' => $eventId, 'date' => ''];
+            $stmt = $pdo->prepare("
+                SELECT full_name, email, phone, profession, institution,
+                       amount, payment_method, payment_status, receipt_number,
+                       qr_scanned, registered_at, scanned_at
+                FROM event_registrants WHERE event_id = ? ORDER BY registered_at ASC
+            ");
+            $stmt->execute([$eventId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            header('Content-Type: text/csv; charset=utf-8');
+            header('Content-Disposition: attachment; filename="event-registrants-' . preg_replace('/[^a-z0-9_-]+/i', '-', $eventId) . '.csv"');
+            $out = fopen('php://output', 'w');
+            fputcsv($out, ['Event', $evRow['title'] ?? $eventId]);
+            fputcsv($out, ['Event Date', $evRow['date'] ?? '']);
+            fputcsv($out, []);
+            fputcsv($out, ['Name', 'Email', 'Phone', 'Profession', 'Institution', 'Amount (UGX)', 'Payment Method', 'Payment Status', 'Receipt #', 'Attended', 'Registered At', 'Checked In At']);
+            foreach ($rows as $r) {
+                fputcsv($out, [
+                    $r['full_name'] ?? '',
+                    $r['email'] ?? '',
+                    $r['phone'] ?? '',
+                    $r['profession'] ?? '',
+                    $r['institution'] ?? '',
+                    $r['amount'] ?? 0,
+                    $r['payment_method'] ?? '',
+                    $r['payment_status'] ?? '',
+                    $r['receipt_number'] ?? '',
+                    !empty($r['qr_scanned']) ? 'Yes' : 'No',
+                    $r['registered_at'] ?? '',
+                    $r['scanned_at'] ?? '',
+                ]);
+            }
+            fclose($out);
+            exit;
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -3097,7 +3176,7 @@ HTML;
             }
             auditLog($pdo, 'save_hero_slide', 'hero_slide', (string)$id, $title);
             $row = $pdo->query('SELECT * FROM homepage_hero_slides WHERE id = ' . (int)$id)->fetch(PDO::FETCH_ASSOC);
-            echo json_encode(['success' => true, 'id' => $id, 'slide' => $row ? normalizeHeroSlideRow($row) : null]);
+            echo json_encode(['success' => true, 'id' => $id, 'slide' => $row ? normalizeHeroSlideRowWithPersist($pdo, $row) : null]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -3134,6 +3213,31 @@ HTML;
             if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
             $pdo->prepare('UPDATE homepage_hero_slides SET is_active = ? WHERE id = ?')->execute([$active, $id]);
             echo json_encode(['success' => true]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'restore_hero_slides':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            $restored = restoreHeroSlidesIfMissing($pdo);
+            $rows = $pdo->query('SELECT * FROM homepage_hero_slides ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
+            $slides = array_map(function ($row) use ($pdo) {
+                return normalizeHeroSlideRowWithPersist($pdo, $row);
+            }, $rows);
+            $heroImages = loadHeroImageSettings($pdo);
+            auditLog($pdo, 'restore_hero_slides', 'hero_slides', 'all', $restored ? 'restored' : 'refreshed');
+            echo json_encode([
+                'success' => true,
+                'restored' => $restored,
+                'slides' => $slides,
+                'image_settings' => $heroImages,
+                'count' => count($slides),
+            ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
