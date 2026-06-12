@@ -7,8 +7,8 @@ require_once __DIR__ . '/env.php';
 function hosu_connect_pdo(): ?PDO
 {
     $dbname   = getenv('DB_NAME') ?: 'hosu_blog';
-    $username = getenv('DB_USER') ?: 'root';
-    $password = getenv('DB_PASS') ?: '';
+    $username = getenv('DB_USER') ?: 'hosu_user';
+    $password = getenv('DB_PASS') !== false ? (string) getenv('DB_PASS') : '';
     $configuredHost = getenv('DB_HOST') ?: 'localhost';
 
     $hosts = array_values(array_unique(array_filter([

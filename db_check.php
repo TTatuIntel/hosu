@@ -18,7 +18,7 @@ require_once __DIR__ . '/env.php';
 
 $host   = getenv('DB_HOST') ?: 'localhost';
 $dbname = getenv('DB_NAME') ?: 'hosu_blog';
-$user   = getenv('DB_USER') ?: 'root';
+$user   = getenv('DB_USER') ?: 'hosu_user';
 $pass   = getenv('DB_PASS') ?: '';
 
 header('Content-Type: text/html; charset=utf-8');
@@ -229,8 +229,8 @@ DB_USER=PREFIX_hosu_user
 DB_PASS=YourStrongPassword
 
 # PesaPal v3 (production)
-PESAPAL_CONSUMER_KEY=lk7lFpodKnEq9mJyjwOBrr/9Ot/Lofof
-PESAPAL_CONSUMER_SECRET=3JZdXlVouyKIbGu1pdg71cwwi4c=
+PESAPAL_CONSUMER_KEY=your_pesapal_consumer_key
+PESAPAL_CONSUMER_SECRET=your_pesapal_consumer_secret
 PESAPAL_ENV=production
 
 # App
