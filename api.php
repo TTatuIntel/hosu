@@ -3154,6 +3154,14 @@ HTML;
             $mode = trim($_POST['image_mode'] ?? 'per_slide');
             $poolAlt = trim($_POST['pool_alt'] ?? '');
             $skipUploads = !empty($_POST['skip_uploads']) && $_POST['skip_uploads'] !== '0';
+            $poolDir = __DIR__ . '/uploads/hero/pool';
+            if (!$skipUploads || !empty($_FILES)) {
+                if (!is_dir($poolDir) && !@mkdir($poolDir, 0755, true)) {
+                    http_response_code(500);
+                    echo json_encode(['error' => 'Cannot create uploads/hero/pool on the server — check folder permissions.']);
+                    break;
+                }
+            }
             if ($skipUploads) {
                 $pool = normalizeHeroPoolImages(parsePostedSlideImages($_POST['pool_images_json'] ?? '[]', $poolAlt));
                 $pool = appendSlideImageUrlsFromText(trim($_POST['pool_image_urls'] ?? ''), $pool, $poolAlt);
@@ -3186,6 +3194,17 @@ HTML;
                 http_response_code(405); echo json_encode(['error' => 'POST required']); break;
             }
             $poolAlt = trim($_POST['pool_alt'] ?? '');
+            $poolDir = __DIR__ . '/uploads/hero/pool';
+            if (!is_dir($poolDir) && !@mkdir($poolDir, 0755, true)) {
+                http_response_code(500);
+                echo json_encode(['error' => 'Cannot create uploads/hero/pool on the server — check folder permissions.']);
+                break;
+            }
+            if (!is_writable($poolDir)) {
+                http_response_code(500);
+                echo json_encode(['error' => 'uploads/hero/pool is not writable on the server — photos cannot be saved.']);
+                break;
+            }
             $uploads = collectPostedHeroPoolUploads($poolAlt);
             if (empty($uploads)) {
                 http_response_code(400);

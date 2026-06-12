@@ -1307,7 +1307,7 @@ body.density-compact .main{padding-top:.85rem;}
                         </label>
                     </div>
                     <div id="hero-pool-panel" style="display:none;">
-                        <p class="sc-gallery-hint">Add photos to the shared pool. They <strong>shuffle automatically</strong> on the homepage every few seconds while visitors read the hero text. Use uploads, image links, or Google Drive file/folder links.</p>
+                        <p class="sc-gallery-hint">Add photos to the shared pool. They <strong>shuffle automatically</strong> on the homepage. <strong>Browse from your computer</strong> — photos upload to the server immediately (watch for the green “Stored” badge).</p>
                         <div id="hero-pool-missing-warn" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;padding:.55rem .7rem;border-radius:6px;align-items:center;gap:.75rem;flex-wrap:wrap;">
                             <span id="hero-pool-missing-warn-text" style="flex:1;min-width:240px;"></span>
                             <button type="button" class="btn-sm" id="hero-pool-missing-clean-btn" onclick="cleanMissingHeroPoolImages()" style="background:#b45309;color:#fff;border:0;">🧹 Remove all missing</button>
@@ -6315,8 +6315,6 @@ function saveHeroImageSettings(){
         toast(msg,'success');
         bumpHomeRevision();
         applyHeroImageSettingsForm(d.image_settings||null,{replacePending:true});
-        revokeScGalleryBlobs('hero-pool');
-        initScGallery('hero-pool',(d.image_settings&&d.image_settings.pool)||[]);
         updateHeroPoolPendingBanner();
     }).catch(function(err){
         if(err&&err.message!=='auth'&&err.message!=='csrf')toast(err.message||'Network error — photos may not have saved.','error');
