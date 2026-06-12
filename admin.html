@@ -1805,10 +1805,10 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div id="sc-hero-images-wrap" style="margin-bottom:.75rem;">
                         <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Rotation gallery <span id="sc-hero-images-count"></span> <small style="font-weight:400;">— order left→right is play order</small></div>
                         <div id="sc-hero-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
-                        <p class="sc-gallery-rotate-note" id="sc-hero-images-rotate-note" style="display:none;">🔄 These images rotate automatically on the homepage every few seconds while this slide is showing.</p>
+                        <p class="sc-gallery-rotate-note" id="sc-hero-images-rotate-note" style="display:none;">🔀 Images shuffle and change each time this slide comes back into view — never repeats the previous one until the pool is exhausted.</p>
                     </div>
                     <div class="sc-gallery-add">
-                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-image-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple><small>JPG, PNG, WebP, GIF · select multiple files</small></div>
+                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-image-files" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml" multiple><small>JPG, PNG, WebP, GIF, SVG · select multiple files</small></div>
                         <div class="ff" style="margin:0;"><label>🔗 Image URL(s)</label><textarea id="sc-hero-image-urls" rows="3" placeholder="img/photo.jpg&#10;https://drive.google.com/file/d/…/view&#10;https://drive.google.com/drive/folders/…" oninput="previewScGalleryUrls('hero')"></textarea>
                         <button type="button" class="btn-sm" style="margin-top:.35rem;" onclick="addScGalleryUrls('hero',true)">➕ Add URLs to gallery</button>
                         <div id="sc-hero-url-preview" class="ev-drive-preview" style="display:none;margin-top:.4rem;"></div>
@@ -3169,8 +3169,10 @@ function startAdminLiveRefresh(){
         if(!panel)return;
         var panelId=panel.id||'';
         if(panelId==='panel-overview'){
-            // Refresh underlying datasets so dashboard counters stay current
-            loadEvents();loadMembers();loadPayments();loadAuditLogs();
+            // Refresh every dataset that drives a sidebar/tab badge so counters stay current
+            loadEvents();loadMembers();loadPayments();
+            loadPublications();loadGrants();loadLeaders();loadBlogPosts();
+            loadHeroSlides();loadSpotlights();loadAuditLogs();
         }else if(panelId==='panel-events'){
             loadEvents();loadRegCounts();
             if(document.getElementById('reg-modal').classList.contains('open'))refreshRegModalQuietly(false);
@@ -6535,6 +6537,7 @@ function saveHeroSlide(){
     adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
         if(d.success){
             toast(editId?'Hero slide updated.':'Hero slide added.','success');
+            if(d.warning){toast(d.warning,'error');}
             bumpHomeRevision();
             if(d.slide){
                 document.getElementById('sc-hero-edit-id').value=d.slide.id;

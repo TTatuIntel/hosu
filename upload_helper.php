@@ -4,9 +4,9 @@
  * Validates type, size, and re-encodes images to strip metadata/payloads.
  */
 
-define('UPLOAD_MAX_SIZE', 5 * 1024 * 1024); // 5 MB
-define('UPLOAD_IMAGE_MAX_WIDTH', 1200);
-define('UPLOAD_IMAGE_MAX_HEIGHT', 900);
+define('UPLOAD_MAX_SIZE', 12 * 1024 * 1024); // 12 MB — modern phone photos are 4–10 MB
+define('UPLOAD_IMAGE_MAX_WIDTH', 1600);
+define('UPLOAD_IMAGE_MAX_HEIGHT', 1200);
 define('UPLOAD_IMAGE_JPEG_QUALITY', 85);
 define('UPLOAD_IMAGE_WEBP_QUALITY', 85);
 
@@ -127,8 +127,14 @@ function sanitizeSvgContent(string $svg): string
  */
 function secureUpload(array $file, string $destDir, bool $allowDocs = false, int $maxSize = UPLOAD_MAX_SIZE)
 {
-    if ($file['error'] !== UPLOAD_ERR_OK) return false;
-    if ($file['size'] > $maxSize) return false;
+    if ($file['error'] !== UPLOAD_ERR_OK) {
+        error_log('secureUpload: upload error code ' . $file['error'] . ' for ' . ($file['name'] ?? '?'));
+        return false;
+    }
+    if ($file['size'] > $maxSize) {
+        error_log('secureUpload: file too large (' . $file['size'] . ' > ' . $maxSize . ') for ' . ($file['name'] ?? '?'));
+        return false;
+    }
 
     // Detect real MIME type from file content
     $finfo = finfo_open(FILEINFO_MIME_TYPE);
@@ -138,7 +144,10 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
     $allowed = UPLOAD_ALLOWED_IMAGES;
     if ($allowDocs) $allowed = array_merge($allowed, UPLOAD_ALLOWED_DOCS);
 
-    if (!isset($allowed[$mime])) return false;
+    if (!isset($allowed[$mime])) {
+        error_log('secureUpload: disallowed mime "' . $mime . '" for ' . ($file['name'] ?? '?'));
+        return false;
+    }
 
     // Create directory if needed
     if (!is_dir($destDir)) mkdir($destDir, 0755, true);
@@ -157,29 +166,48 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
         return $targetPath;
     }
 
-    // For raster images: re-encode to strip metadata and any embedded payloads
+    // For raster images: try to re-encode (strips metadata + downscales).
+    // If GD can't decode (HEIC, AVIF, very large files), fall back to moving the
+    // original so the upload still succeeds — admin sees their image either way.
     if (isset(UPLOAD_ALLOWED_IMAGES[$mime])) {
-        $img = @imagecreatefromstring(file_get_contents($file['tmp_name']));
-        if (!$img) return false;
+        $raw = @file_get_contents($file['tmp_name']);
+        $img = $raw !== false ? @imagecreatefromstring($raw) : false;
+
+        if (!$img) {
+            error_log('secureUpload: GD decode failed for ' . ($file['name'] ?? '?') . ' (mime=' . $mime . '); falling back to raw move.');
+            if (!@move_uploaded_file($file['tmp_name'], $targetPath)) {
+                // move_uploaded_file fails if called twice or in some sapi contexts; try copy.
+                if (!@copy($file['tmp_name'], $targetPath)) return false;
+            }
+            return $targetPath;
+        }
 
         imagesavealpha($img, true);
         $img = downscaleImageResource($img);
 
+        $encoded = false;
         switch ($ext) {
             case 'png':
-                imagepng($img, $targetPath, 9);
+                $encoded = imagepng($img, $targetPath, 9);
                 break;
             case 'gif':
-                imagegif($img, $targetPath);
+                $encoded = imagegif($img, $targetPath);
                 break;
             case 'webp':
-                imagewebp($img, $targetPath, UPLOAD_IMAGE_WEBP_QUALITY);
+                $encoded = imagewebp($img, $targetPath, UPLOAD_IMAGE_WEBP_QUALITY);
                 break;
             default:
-                imagejpeg($img, $targetPath, UPLOAD_IMAGE_JPEG_QUALITY);
+                $encoded = imagejpeg($img, $targetPath, UPLOAD_IMAGE_JPEG_QUALITY);
                 break;
         }
         imagedestroy($img);
+
+        if (!$encoded || !is_file($targetPath) || filesize($targetPath) === 0) {
+            error_log('secureUpload: re-encode failed for ' . ($file['name'] ?? '?') . '; falling back to raw move.');
+            if (!@move_uploaded_file($file['tmp_name'], $targetPath)) {
+                if (!@copy($file['tmp_name'], $targetPath)) return false;
+            }
+        }
     } else {
         // For PDFs: move without re-encoding but verify it starts with %PDF
         $header = file_get_contents($file['tmp_name'], false, null, 0, 5);

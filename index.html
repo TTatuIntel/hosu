@@ -3375,6 +3375,47 @@ var HeroSlideshow = (function() {
     var heroMediaIndex = 0;
     var heroLastMediaBySlide = {};
     var heroLastPoolMediaIndex = -1;
+    // Shuffled-queue state — one queue per slide, plus one for the global pool.
+    // Each queue is an array of remaining indices into getBgsForSlide(slideIndex).
+    var heroShuffleQueueBySlide = {};
+    var heroShufflePoolQueue = [];
+
+    function shuffleInPlace(arr) {
+        for (var i = arr.length - 1; i > 0; i--) {
+            var j = Math.floor(Math.random() * (i + 1));
+            var tmp = arr[i]; arr[i] = arr[j]; arr[j] = tmp;
+        }
+        return arr;
+    }
+
+    /** Draw the next image index for this slide from its shuffled queue.
+     *  Refills + reshuffles when empty, ensuring the just-shown index
+     *  doesn't immediately repeat across the seam. */
+    function nextShuffledMediaIndex(slideIndex) {
+        var slideBgs = getBgsForSlide(slideIndex);
+        var n = slideBgs.length;
+        if (n <= 1) return 0;
+
+        var pool = isGlobalHeroPool();
+        var queue = pool ? heroShufflePoolQueue : (heroShuffleQueueBySlide[slideIndex] || []);
+        var lastShown = pool ? heroLastPoolMediaIndex : (heroLastMediaBySlide[slideIndex]);
+
+        if (!queue.length) {
+            queue = [];
+            for (var i = 0; i < n; i++) queue.push(i);
+            shuffleInPlace(queue);
+            // Avoid showing the same image twice in a row at the seam.
+            if (queue.length > 1 && queue[0] === lastShown) {
+                var swap = 1 + Math.floor(Math.random() * (queue.length - 1));
+                var t = queue[0]; queue[0] = queue[swap]; queue[swap] = t;
+            }
+        }
+
+        var next = queue.shift();
+        if (pool) heroShufflePoolQueue = queue;
+        else heroShuffleQueueBySlide[slideIndex] = queue;
+        return next;
+    }
 
     function isGlobalHeroPool() {
         return window.HOSU_HERO_IMAGE_MODE === 'global_pool';
@@ -3561,35 +3602,25 @@ var HeroSlideshow = (function() {
         }
     }
 
-    function startMediaRotation(slideIndex) {
+    function startMediaRotation() {
+        // Intentional no-op: images now change only when the text slide changes,
+        // drawn from a shuffled queue. This eliminates mid-slide image flipping
+        // that previously felt repetitive.
         stopMediaRotation();
-        var slideBgs = getBgsForSlide(slideIndex);
-        if (slideBgs.length <= 1) return;
-        heroMediaTimer = setInterval(function () {
-            if (!heroSlides.length) return;
-            advanceHeroMedia(heroIndex);
-        }, getHeroMediaInterval());
     }
 
-    /** Pick a starting image, then cycle through the gallery while this slide stays active. */
+    /** Pick the next image from this slide's shuffled queue.
+     *  Called every time a slide becomes active. */
     function showRandomHeroMedia(slideIndex) {
         var slideBgs = getBgsForSlide(slideIndex);
         if (!slideBgs.length) return;
-        var mediaIndex = 0;
-        if (slideBgs.length > 1) {
-            if (isGlobalHeroPool()) {
-                mediaIndex = pickRandomMediaIndex(slideIndex, heroLastPoolMediaIndex);
-                heroLastPoolMediaIndex = mediaIndex;
-            } else {
-                mediaIndex = pickRandomMediaIndex(slideIndex, heroLastMediaBySlide[slideIndex]);
-                heroLastMediaBySlide[slideIndex] = mediaIndex;
-            }
-        }
+        var mediaIndex = slideBgs.length > 1 ? nextShuffledMediaIndex(slideIndex) : 0;
         showHeroMedia(slideIndex, mediaIndex);
-        if (!isGlobalHeroPool()) {
+        if (isGlobalHeroPool()) {
+            heroLastPoolMediaIndex = mediaIndex;
+        } else {
             heroLastMediaBySlide[slideIndex] = mediaIndex;
         }
-        startMediaRotation(slideIndex);
     }
 
     function pickShowableBackground(slideBgs, preferredIndex) {
@@ -3667,6 +3698,8 @@ var HeroSlideshow = (function() {
     function init() {
         heroLastMediaBySlide = {};
         heroLastPoolMediaIndex = -1;
+        heroShuffleQueueBySlide = {};
+        heroShufflePoolQueue = [];
         refreshDom();
         cacheDefaultCtaHtml();
         activateAt(0);

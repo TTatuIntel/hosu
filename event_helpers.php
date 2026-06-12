@@ -380,9 +380,17 @@ function collectPostedSlideImages(string $imagesJsonField, string $urlsField, st
         }
     }
 
+    $GLOBALS['__upload_attempted'] = 0;
+    $GLOBALS['__upload_accepted']  = 0;
+    $GLOBALS['__upload_rejected_names'] = [];
+
     if (!empty($_FILES['imageFiles']) && is_array($_FILES['imageFiles']['name'])) {
         foreach ($_FILES['imageFiles']['name'] as $i => $name) {
-            if (($_FILES['imageFiles']['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            $err = $_FILES['imageFiles']['error'][$i] ?? UPLOAD_ERR_NO_FILE;
+            if ($err === UPLOAD_ERR_NO_FILE) continue;
+            $GLOBALS['__upload_attempted']++;
+            if ($err !== UPLOAD_ERR_OK) {
+                $GLOBALS['__upload_rejected_names'][] = $name . ' (php err ' . $err . ')';
                 continue;
             }
             $file = [
@@ -395,6 +403,9 @@ function collectPostedSlideImages(string $imagesJsonField, string $urlsField, st
             $up = secureUpload($file, $uploadDir, false, $maxBytes);
             if ($up) {
                 $items[] = ['url' => $up, 'alt' => $defaultAlt];
+                $GLOBALS['__upload_accepted']++;
+            } else {
+                $GLOBALS['__upload_rejected_names'][] = $name;
             }
         }
     }

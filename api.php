@@ -3219,7 +3219,17 @@ HTML;
             }
             auditLog($pdo, 'save_hero_slide', 'hero_slide', (string)$id, $title);
             $row = $pdo->query('SELECT * FROM homepage_hero_slides WHERE id = ' . (int)$id)->fetch(PDO::FETCH_ASSOC);
-            echo json_encode(['success' => true, 'id' => $id, 'slide' => $row ? normalizeHeroSlideRowWithPersist($pdo, $row) : null]);
+            $resp = ['success' => true, 'id' => $id, 'slide' => $row ? normalizeHeroSlideRowWithPersist($pdo, $row) : null];
+            $attempted = $GLOBALS['__upload_attempted'] ?? 0;
+            $accepted  = $GLOBALS['__upload_accepted'] ?? 0;
+            if ($attempted > $accepted) {
+                $rejectedCount = $attempted - $accepted;
+                $names = $GLOBALS['__upload_rejected_names'] ?? [];
+                $resp['warning'] = $rejectedCount . ' of ' . $attempted . ' image upload(s) were rejected'
+                    . (count($names) ? ': ' . implode(', ', array_slice($names, 0, 3)) : '')
+                    . '. Check that files are under 12 MB and JPG/PNG/WebP/GIF/SVG.';
+            }
+            echo json_encode($resp);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
