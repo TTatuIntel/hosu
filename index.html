@@ -260,7 +260,9 @@ section {
     gap: 3%;
     justify-content: space-between;
     align-items: center;
-    min-height: 380px;
+    /* Taller minimum so portrait hero photos display in full — head, shoulders
+       and torso all visible without bleeding into navbar or partners strip. */
+    min-height: 520px;
 }
 
 .hero-content {
@@ -476,14 +478,18 @@ section {
     top: 50%;
     transform: translateY(-50%);
     width: 58%;
-    aspect-ratio: 4/3;
+    /* Image box hugs the hero's content height — no bleed into navbar or
+       partners strip below.  object-fit: contain on the inner <img>
+       guarantees nothing is cropped regardless of aspect ratio. */
+    height: 100%;
+    max-height: 100%;
     overflow: hidden;
     border-radius: 0;
     box-shadow: none;
     animation: fadeIn 1s ease-out 0.3s forwards;
     opacity: 0;
     z-index: 0;
-    max-height: 420px;
+    background: var(--gray-100);
 }
 
 /* Soft left-edge blend only — full overlays hid hero photos */
@@ -578,7 +584,9 @@ section {
     inset: 0;
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    /* contain (not cover) guarantees no photo is cropped — full subject
+       always visible. Centred so portraits and landscapes both look balanced. */
+    object-fit: contain;
     object-position: center;
     z-index: 1;
     display: block;
@@ -2051,7 +2059,8 @@ footer {
     }
     
     .hero-image-container {
-        max-height: 400px;
+        height: 100%;
+        max-height: 100%;
     }
 
     :root {
@@ -2062,15 +2071,18 @@ footer {
 @media (max-width: 992px) {
     .hero-container {
         gap: 2rem;
+        min-height: auto;
     }
-    
+
     .hero-image-container {
         position: relative;
         right: auto;
         top: auto;
         transform: none;
         width: 100%;
-        max-height: 350px;
+        height: auto;
+        aspect-ratio: 16 / 10;
+        max-height: 480px;
     }
 
     #home-ongoing.hero--spotlight .hero-image-container {
@@ -2194,10 +2206,11 @@ footer {
         transform: none;
         width: 100%;
         max-width: 550px;
-        aspect-ratio: 16/9;
+        height: auto;
+        aspect-ratio: 4 / 3;
         margin: 1rem auto 0;
         border-radius: 0;
-        max-height: none;
+        max-height: 60vh;
     }
 
     .section-title {
