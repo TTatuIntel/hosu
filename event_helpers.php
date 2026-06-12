@@ -2827,8 +2827,9 @@ function loadHomepageHeroSlides(PDO $pdo, bool $activeOnly = true, bool $attempt
     }
 
     if (empty($out) && $activeOnly && $attemptRestore) {
-        restoreHeroSlidesIfMissing($pdo);
-        return loadHomepageHeroSlides($pdo, true, false);
+        // Do not auto-write default hero slides into the database on page render.
+        // The live site should preserve only existing data and show defaults in memory only.
+        return heroSlidesFromDefaultSeed();
     }
 
     if (empty($out) && $activeOnly) {
