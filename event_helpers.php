@@ -3222,33 +3222,52 @@ function saveHeroImageSettings(PDO $pdo, string $mode, array $pool, string $pool
     return loadHeroImageSettings($pdo);
 }
 
-function collectPostedHeroPoolImages(string $defaultAlt = ''): array
+function collectPostedHeroPoolUploads(string $defaultAlt = '', string $filesKey = 'poolImageFiles'): array
 {
     require_once __DIR__ . '/upload_helper.php';
 
-    $items = parsePostedSlideImages($_POST['pool_images_json'] ?? '[]', $defaultAlt);
-    $items = appendSlideImageUrlsFromText(trim($_POST['pool_image_urls'] ?? ''), $items, $defaultAlt);
+    $items = [];
+    if (empty($_FILES[$filesKey]) || !is_array($_FILES[$filesKey]['name'])) {
+        return $items;
+    }
 
-    if (!empty($_FILES['poolImageFiles']) && is_array($_FILES['poolImageFiles']['name'])) {
-        foreach ($_FILES['poolImageFiles']['name'] as $i => $name) {
-            if (($_FILES['poolImageFiles']['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
-                continue;
-            }
-            $file = [
-                'name' => $_FILES['poolImageFiles']['name'][$i],
-                'type' => $_FILES['poolImageFiles']['type'][$i],
-                'tmp_name' => $_FILES['poolImageFiles']['tmp_name'][$i],
-                'error' => $_FILES['poolImageFiles']['error'][$i],
-                'size' => $_FILES['poolImageFiles']['size'][$i],
-            ];
-            $up = secureUpload($file, 'uploads/hero/pool/', false, 8000000);
-            if ($up) {
-                $items[] = ['url' => $up, 'alt' => $defaultAlt];
-            }
+    foreach ($_FILES[$filesKey]['name'] as $i => $name) {
+        if (($_FILES[$filesKey]['error'][$i] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+            continue;
+        }
+        $file = [
+            'name' => $_FILES[$filesKey]['name'][$i],
+            'type' => $_FILES[$filesKey]['type'][$i],
+            'tmp_name' => $_FILES[$filesKey]['tmp_name'][$i],
+            'error' => $_FILES[$filesKey]['error'][$i],
+            'size' => $_FILES[$filesKey]['size'][$i],
+        ];
+        $up = secureUpload($file, 'uploads/hero/pool/', false, 8000000);
+        if ($up) {
+            $items[] = ['url' => $up, 'alt' => $defaultAlt];
         }
     }
 
     return normalizeHeroPoolImages($items);
+}
+
+function collectPostedHeroPoolImages(string $defaultAlt = ''): array
+{
+    $items = parsePostedSlideImages($_POST['pool_images_json'] ?? '[]', $defaultAlt);
+    $items = appendSlideImageUrlsFromText(trim($_POST['pool_image_urls'] ?? ''), $items, $defaultAlt);
+    $items = array_merge($items, collectPostedHeroPoolUploads($defaultAlt));
+
+    return normalizeHeroPoolImages($items);
+}
+
+function appendHeroPoolImages(PDO $pdo, array $newImages, string $defaultAlt = ''): array
+{
+    $settings = loadHeroImageSettings($pdo);
+    $merged = normalizeHeroPoolImages(array_merge($settings['pool'], $newImages));
+    if ($defaultAlt !== '' && empty($settings['pool_alt'])) {
+        $settings['pool_alt'] = $defaultAlt;
+    }
+    return saveHeroImageSettings($pdo, $settings['mode'], $merged, $settings['pool_alt']);
 }
 
 function defaultHomepagePartners(): array

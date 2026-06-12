@@ -79,7 +79,11 @@ if ($_SERVER['REQUEST_METHOD'] !== 'GET' || !in_array($action, $publicReadAction
 $csrfExemptActions = ['register_event', 'submit_membership', 'add_comment', 'apply_grant', 'pre_register', 'cancel_pending_payment'];
 if ($_SERVER['REQUEST_METHOD'] === 'POST' && !in_array($action, $csrfExemptActions)) {
     if (!empty($_SESSION['user_id'])) {
-        $csrfToken = $_POST['csrf_token'] ?? $_SERVER['HTTP_X_CSRF_TOKEN'] ?? '';
+        $csrfToken = trim((string) (
+            $_POST['csrf_token']
+            ?? $_SERVER['HTTP_X_CSRF_TOKEN']
+            ?? ''
+        ));
         if (empty($_SESSION['csrf_token']) || !hash_equals($_SESSION['csrf_token'], $csrfToken)) {
             http_response_code(403);
             echo json_encode(['error' => 'Invalid or missing CSRF token', 'csrf_error' => true]);
@@ -3103,10 +3107,40 @@ HTML;
             }
             $mode = trim($_POST['image_mode'] ?? 'per_slide');
             $poolAlt = trim($_POST['pool_alt'] ?? '');
-            $pool = collectPostedHeroPoolImages($poolAlt);
+            $skipUploads = !empty($_POST['skip_uploads']) && $_POST['skip_uploads'] !== '0';
+            if ($skipUploads) {
+                $pool = normalizeHeroPoolImages(parsePostedSlideImages($_POST['pool_images_json'] ?? '[]', $poolAlt));
+                $pool = appendSlideImageUrlsFromText(trim($_POST['pool_image_urls'] ?? ''), $pool, $poolAlt);
+            } else {
+                $pool = collectPostedHeroPoolImages($poolAlt);
+            }
             $settings = saveHeroImageSettings($pdo, $mode, $pool, $poolAlt);
             auditLog($pdo, 'save_hero_image_settings', 'hero_images', 'settings', $settings['mode']);
             echo json_encode(['success' => true, 'image_settings' => $settings]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'append_hero_pool_images':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $poolAlt = trim($_POST['pool_alt'] ?? '');
+            $uploads = collectPostedHeroPoolUploads($poolAlt);
+            if (empty($uploads)) {
+                http_response_code(400);
+                echo json_encode(['error' => 'No images uploaded']);
+                break;
+            }
+            $settings = appendHeroPoolImages($pdo, $uploads, $poolAlt);
+            auditLog($pdo, 'append_hero_pool_images', 'hero_images', 'pool', count($uploads) . ' image(s)');
+            echo json_encode(['success' => true, 'image_settings' => $settings, 'added' => count($uploads)]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }

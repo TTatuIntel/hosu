@@ -465,7 +465,8 @@ switch ($action) {
                 'success'  => true,
                 'alive'    => true,
                 'username' => $_SESSION['username'] ?? 'Admin',
-                'role'     => $_SESSION['user_role'] ?? 'member'
+                'role'     => $_SESSION['user_role'] ?? 'member',
+                'csrf_token' => generateCsrfToken(),
             ]);
         } else {
             http_response_code(401);

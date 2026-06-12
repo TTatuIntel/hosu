@@ -2494,27 +2494,36 @@ var _members=[], _events=[], _payments=[], _hasEvImg=false, _editingEvId=null, _
 /* -- AUTO-INJECT CSRF TOKEN INTO ALL POST REQUESTS -- */
 (function(){
     var _origFetch = window.fetch;
+    function setCsrfHeader(opts){
+        if(!window._hosuCsrfToken)return;
+        if(!opts.headers){
+            opts.headers={'X-CSRF-Token':window._hosuCsrfToken};
+            return;
+        }
+        if(opts.headers instanceof Headers){
+            if(!opts.headers.has('X-CSRF-Token'))opts.headers.set('X-CSRF-Token',window._hosuCsrfToken);
+        } else if(!opts.headers['X-CSRF-Token']&&!opts.headers['x-csrf-token']){
+            opts.headers['X-CSRF-Token']=window._hosuCsrfToken;
+        }
+    }
     function injectCsrf(opts){
         if(opts.body instanceof FormData){
-            if(window._hosuCsrfToken && !opts.body.has('csrf_token')){
-                opts.body.append('csrf_token', window._hosuCsrfToken);
-            }
-        } else if(typeof opts.body==='string'){
-            if(!opts.headers){opts.headers={};}
             if(window._hosuCsrfToken){
-                if(opts.headers instanceof Headers){
-                    if(!opts.headers.has('X-CSRF-Token'))opts.headers.set('X-CSRF-Token',window._hosuCsrfToken);
-                } else if(!opts.headers['X-CSRF-Token']&&!opts.headers['x-csrf-token']){
-                    opts.headers['X-CSRF-Token']=window._hosuCsrfToken;
-                }
+                if(opts.body.has('csrf_token'))opts.body.delete('csrf_token');
+                opts.body.append('csrf_token',window._hosuCsrfToken);
             }
+            setCsrfHeader(opts);
+        } else if(typeof opts.body==='string'){
+            setCsrfHeader(opts);
+        } else if(opts.method&&opts.method.toUpperCase()==='POST'){
+            setCsrfHeader(opts);
         }
     }
     window.fetch = function(url, opts){
         opts = opts || {};
         if(opts.method && opts.method.toUpperCase()==='POST'){
             if(!window._hosuCsrfToken){
-                return adminEnsureCsrf().then(function(){
+                return adminRefreshCsrf().then(function(){
                     injectCsrf(opts);
                     return _origFetch.call(this, url, opts);
                 }.bind(this));
@@ -2525,14 +2534,22 @@ var _members=[], _events=[], _payments=[], _hasEvImg=false, _editingEvId=null, _
     };
 })();
 
-function adminEnsureCsrf(){
-    if(window._hosuCsrfToken)return Promise.resolve(window._hosuCsrfToken);
+function adminRefreshCsrf(){
     return fetch('auth.php?action=check_session',{credentials:'same-origin'})
         .then(function(r){return r.json();})
         .then(function(d){
-            if(d.csrf_token)window._hosuCsrfToken=d.csrf_token;
-            return window._hosuCsrfToken;
+            if(d&&d.csrf_token){
+                window._hosuCsrfToken=d.csrf_token;
+                return window._hosuCsrfToken;
+            }
+            window._hosuCsrfToken=null;
+            return null;
         });
+}
+
+function adminEnsureCsrf(){
+    if(window._hosuCsrfToken)return Promise.resolve(window._hosuCsrfToken);
+    return adminRefreshCsrf();
 }
 
 /* -- AUTH ----------------------------------- */
@@ -2596,7 +2613,10 @@ function startSecurityMonitor(){
     _heartbeatTimer = setInterval(function(){
         fetch('auth.php?action=heartbeat',{credentials:'same-origin'})
             .then(function(r){return r.json();})
-            .then(function(d){if(d.expired) forceLogout('Session expired');})
+            .then(function(d){
+                if(d.expired) forceLogout('Session expired');
+                else if(d.csrf_token) window._hosuCsrfToken=d.csrf_token;
+            })
             .catch(function(){});
     }, 120000);
     // Detect tab visibility changes (pause/resume heartbeat)
@@ -2709,7 +2729,10 @@ function onVisChange(){
                         _heartbeatTimer = setInterval(function(){
                             fetch('auth.php?action=heartbeat',{credentials:'same-origin'})
                                 .then(function(r){return r.json();})
-                                .then(function(d){if(d.expired) forceLogout('Session expired');})
+                                .then(function(d){
+                                    if(d.expired) forceLogout('Session expired');
+                                    else if(d.csrf_token) window._hosuCsrfToken=d.csrf_token;
+                                })
                                 .catch(function(){});
                         }, 120000);
                     }
@@ -5015,13 +5038,26 @@ document.addEventListener('keydown',function(e){
     document.querySelectorAll('.modal-backdrop.open').forEach(function(m){m.classList.remove('open');});
 });
 
-function adminJsonFetch(url,options){
+function adminJsonFetch(url,options,csrfRetry){
+    csrfRetry=csrfRetry||0;
     return adminEnsureCsrf().then(function(){
         return fetch(url,Object.assign({credentials:'same-origin'},options||{}));
     }).then(function(r){
         if(r.status===401){toast('Session expired — please log in again.','error');throw new Error('auth');}
         return r.json().then(function(d){
-            if(r.status===403&&d&&d.csrf_error){toast('Session token expired — refresh the page (F5) and try again.','error');throw new Error('csrf');}
+            if(r.status===403&&d&&d.csrf_error){
+                if(csrfRetry<1){
+                    return adminRefreshCsrf().then(function(){
+                        var opts=options||{};
+                        if(opts.body instanceof FormData){
+                            if(opts.body.has('csrf_token'))opts.body.delete('csrf_token');
+                        }
+                        return adminJsonFetch(url,opts,csrfRetry+1);
+                    });
+                }
+                toast('Could not verify save token — please try once more.','error');
+                throw new Error('csrf');
+            }
             if(!r.ok&&d&&d.error)throw new Error(d.error);
             return d;
         });
@@ -6015,6 +6051,39 @@ function bindHeroImageModeRadios(){
         radio.addEventListener('change',updateHeroImageModePanels);
     });
 }
+function buildHeroPoolSettingsFormData(mode,skipUploads){
+    var fd=new FormData();
+    fd.append('action','save_hero_image_settings');
+    fd.append('image_mode',mode);
+    fd.append('pool_alt',document.getElementById('sc-hero-pool-image-alt').value.trim());
+    fd.append('pool_images_json',JSON.stringify(scGallerySavedPayload('hero-pool')));
+    var poolUrls=document.getElementById('sc-hero-pool-image-urls').value.trim();
+    if(poolUrls)fd.append('pool_image_urls',poolUrls);
+    if(skipUploads)fd.append('skip_uploads','1');
+    else scGalleryPendingFiles('hero-pool').forEach(function(f){fd.append('poolImageFiles[]',f);});
+    return fd;
+}
+function uploadHeroPoolFilesInBatches(files){
+    if(!files.length)return Promise.resolve(null);
+    var poolAlt=document.getElementById('sc-hero-pool-image-alt').value.trim();
+    var batchSize=6;
+    var idx=0;
+    var lastSettings=null;
+    function nextBatch(){
+        if(idx>=files.length)return Promise.resolve(lastSettings);
+        var batch=files.slice(idx,idx+batchSize);
+        idx+=batchSize;
+        var fd=new FormData();
+        fd.append('action','append_hero_pool_images');
+        fd.append('pool_alt',poolAlt);
+        batch.forEach(function(f){fd.append('poolImageFiles[]',f);});
+        return adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+            if(d&&d.success)lastSettings=d.image_settings||lastSettings;
+            return nextBatch();
+        });
+    }
+    return nextBatch();
+}
 function saveHeroImageSettings(){
     var modeEl=document.querySelector('input[name="hero-img-mode"]:checked');
     var mode=modeEl&&modeEl.value==='global_pool'?'global_pool':'per_slide';
@@ -6026,21 +6095,24 @@ function saveHeroImageSettings(){
         }
     }
     setSaveBtnLoading('sc-hero-img-settings-save-btn','sc-hero-img-settings-save-text',true,'💾 Save Background Settings');
+    var pendingFiles=[];
     flushScGalleryUrlsBeforeSave('hero-pool').then(function(){
-        var fd=new FormData();
-        fd.append('action','save_hero_image_settings');
-        fd.append('image_mode',mode);
-        fd.append('pool_alt',document.getElementById('sc-hero-pool-image-alt').value.trim());
-        fd.append('pool_images_json',JSON.stringify(scGallerySavedPayload('hero-pool')));
-        var poolUrls=document.getElementById('sc-hero-pool-image-urls').value.trim();
-        if(poolUrls)fd.append('pool_image_urls',poolUrls);
-        scGalleryPendingFiles('hero-pool').forEach(function(f){fd.append('poolImageFiles[]',f);});
-        return adminJsonFetch('api.php',{method:'POST',body:fd});
+        pendingFiles=scGalleryPendingFiles('hero-pool').slice();
+        return adminJsonFetch('api.php',{method:'POST',body:buildHeroPoolSettingsFormData(mode,true)});
+    }).then(function(d){
+        if(!d||!d.success)return d;
+        if(!pendingFiles.length)return d;
+        return uploadHeroPoolFilesInBatches(pendingFiles).then(function(extraSettings){
+            if(extraSettings)d.image_settings=extraSettings;
+            return d;
+        });
     }).then(function(d){
         if(d&&d.success){
             toast('Hero background settings saved.','success');
             bumpHomeRevision();
             applyHeroImageSettingsForm(d.image_settings||null);
+            revokeScGalleryBlobs('hero-pool');
+            initScGallery('hero-pool',(d.image_settings&&d.image_settings.pool)||[]);
         }else if(d)toast(d.error||'Failed to save background settings.','error');
     }).catch(function(err){
         if(err&&err.message!=='auth'&&err.message!=='csrf')toast(err.message||'Network error.','error');
