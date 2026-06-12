@@ -114,6 +114,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .sc-gallery-add{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.65rem;}
 @media(max-width:720px){.sc-gallery-add{grid-template-columns:1fr;}}
 .sc-gallery-order{position:absolute;top:2px;left:2px;background:rgba(13,69,147,.88);color:#fff;font-size:.55rem;font-weight:700;padding:2px 6px;border-radius:10px;z-index:2;}
+.sc-gal-missing{border-color:#b45309 !important;background:repeating-linear-gradient(45deg,#fff7ed,#fff7ed 6px,#fed7aa 6px,#fed7aa 12px) !important;}
+.sc-gal-missing .sc-gal-missing-tag{display:inline-block !important;}
 .sc-gallery-rotate-note{font-size:.68rem;color:#1565c0;margin-top:.35rem;}
 .ev-modal-tabs{display:flex;gap:.35rem;flex-wrap:wrap;margin:.75rem 0 1rem;border-bottom:2px solid var(--border);padding-bottom:.5rem;}
 .ev-tab{padding:.45rem .85rem;font-size:.75rem;font-weight:600;border:none;background:transparent;color:var(--text-light);border-radius:8px 8px 0 0;cursor:pointer;font-family:inherit;}
@@ -1304,14 +1306,17 @@ body.density-compact .main{padding-top:.85rem;}
                     </div>
                     <div id="hero-pool-panel" style="display:none;">
                         <p class="sc-gallery-hint">Add photos to the shared pool. They <strong>shuffle automatically</strong> on the homepage every few seconds while visitors read the hero text. Use uploads, image links, or Google Drive file/folder links.</p>
-                        <p id="hero-pool-missing-warn" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;color:#b45309;"></p>
+                        <div id="hero-pool-missing-warn" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;color:#b45309;background:#fff7ed;border:1px solid #fed7aa;padding:.55rem .7rem;border-radius:6px;align-items:center;gap:.75rem;flex-wrap:wrap;">
+                            <span id="hero-pool-missing-warn-text" style="flex:1;min-width:240px;"></span>
+                            <button type="button" class="btn-sm" id="hero-pool-missing-clean-btn" onclick="cleanMissingHeroPoolImages()" style="background:#b45309;color:#fff;border:0;">🧹 Remove all missing</button>
+                        </div>
                         <p id="hero-pool-mode-hint" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;">You have photos in the pool — select <strong>Shared random pool</strong> above (or just save; we enable it automatically).</p>
                         <div id="sc-hero-pool-images-wrap" style="margin-bottom:.75rem;">
                             <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Pool gallery <span id="sc-hero-pool-images-count"></span></div>
                             <div id="sc-hero-pool-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
                         </div>
                         <div class="sc-gallery-add">
-                            <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-pool-image-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple><small>JPG, PNG, WebP, GIF · select multiple files</small></div>
+                            <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-pool-image-files" accept="image/*" multiple><small>Any image format: JPG, PNG, WebP, GIF, SVG, HEIC, AVIF, BMP, TIFF · select multiple files</small></div>
                             <div class="ff" style="margin:0;"><label>🔗 Image URL(s)</label><textarea id="sc-hero-pool-image-urls" rows="3" placeholder="img/photo.jpg&#10;https://drive.google.com/file/d/…/view" oninput="previewScGalleryUrls('hero-pool')"></textarea>
                             <button type="button" class="btn-sm" style="margin-top:.35rem;" onclick="addScGalleryUrls('hero-pool',true)">➕ Add URLs to pool</button>
                             <div id="sc-hero-pool-url-preview" class="ev-drive-preview" style="display:none;margin-top:.4rem;"></div>
@@ -1607,14 +1612,14 @@ body.density-compact .main{padding-top:.85rem;}
                 <div class="ff full"><label>Content <span>*</span></label><textarea id="bp-content" rows="8" placeholder="Write your article here..."></textarea></div>
                 <div class="ff"><label>Post Image</label>
                     <div class="upload-zone upload-zone-compact" id="bp-upload">
-                        <input type="file" id="bp-img-file" accept="image/jpeg,image/png,image/webp,image/gif">
-                        <div class="upload-inner"><span class="upload-icon">📷</span><p class="upload-text"><strong>Post image</strong><br><span class="upload-hint">JPG, PNG, WebP</span></p></div>
+                        <input type="file" id="bp-img-file" accept="image/*">
+                        <div class="upload-inner"><span class="upload-icon">📷</span><p class="upload-text"><strong>Post image</strong><br><span class="upload-hint">Any image format</span></p></div>
                     </div>
                     <div class="img-pre" id="bp-img-pre"><img id="bp-img-thumb"><span class="img-pre-rm" onclick="clearBlogImg()">❌ Remove</span></div>
                 </div>
                 <div class="ff"><label>Author Avatar</label>
                     <div class="upload-zone upload-zone-compact" id="bp-avatar-upload">
-                        <input type="file" id="bp-avatar-file" accept="image/jpeg,image/png,image/webp,image/gif">
+                        <input type="file" id="bp-avatar-file" accept="image/*">
                         <div class="upload-inner"><span class="upload-icon">📷</span><p class="upload-text"><strong>Avatar</strong><br><span class="upload-hint">Square image</span></p></div>
                     </div>
                     <div class="img-pre" id="bp-avatar-pre"><img id="bp-avatar-thumb"><span class="img-pre-rm" onclick="clearBlogAvatar()">❌ Remove</span></div>
@@ -1699,9 +1704,9 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <div class="ld-upload-drop" id="ld-upload-drop" onclick="document.getElementById('ld-photo-file').click()">
                             <div class="ld-upload-icon">📷</div>
                             <div class="ld-upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-                            <div class="ld-upload-hint">JPG, PNG or WebP (max 5 MB)</div>
+                            <div class="ld-upload-hint">Any image format (max 12 MB)</div>
                         </div>
-                        <input type="file" id="ld-photo-file" accept="image/jpeg,image/png,image/webp" class="hidden" onchange="handleLeaderPhoto(this)">
+                        <input type="file" id="ld-photo-file" accept="image/*" class="hidden" onchange="handleLeaderPhoto(this)">
                         <div class="ld-or-divider">— or paste URL —</div>
                         <input type="text" id="ld-photo" class="ld-input" placeholder="https://example.com/photo.jpg" oninput="previewLeaderPhotoUrl(this.value)">
                     </div>
@@ -1808,7 +1813,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <p class="sc-gallery-rotate-note" id="sc-hero-images-rotate-note" style="display:none;">🔀 Images shuffle and change each time this slide comes back into view — never repeats the previous one until the pool is exhausted.</p>
                     </div>
                     <div class="sc-gallery-add">
-                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-image-files" accept="image/jpeg,image/png,image/webp,image/gif,image/svg+xml" multiple><small>JPG, PNG, WebP, GIF, SVG · select multiple files</small></div>
+                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-hero-image-files" accept="image/*" multiple><small>Any image format: JPG, PNG, WebP, GIF, SVG, HEIC, AVIF, BMP, TIFF · select multiple files</small></div>
                         <div class="ff" style="margin:0;"><label>🔗 Image URL(s)</label><textarea id="sc-hero-image-urls" rows="3" placeholder="img/photo.jpg&#10;https://drive.google.com/file/d/…/view&#10;https://drive.google.com/drive/folders/…" oninput="previewScGalleryUrls('hero')"></textarea>
                         <button type="button" class="btn-sm" style="margin-top:.35rem;" onclick="addScGalleryUrls('hero',true)">➕ Add URLs to gallery</button>
                         <div id="sc-hero-url-preview" class="ev-drive-preview" style="display:none;margin-top:.4rem;"></div>
@@ -1898,7 +1903,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <p class="sc-gallery-rotate-note" id="sc-spotlight-images-rotate-note" style="display:none;">🔄 Images cycle automatically when this spotlight is active.</p>
                     </div>
                     <div class="sc-gallery-add">
-                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-spotlight-image-files" accept="image/jpeg,image/png,image/webp,image/gif" multiple><small>Multiple files OK</small></div>
+                        <div class="ff" style="margin:0;"><label>📤 Upload images</label><input type="file" id="sc-spotlight-image-files" accept="image/*" multiple><small>Any image format — multiple files OK</small></div>
                         <div class="ff" style="margin:0;"><label>🔗 Image URL(s)</label><textarea id="sc-spotlight-image-urls" rows="3" placeholder="uploads/spotlights/banner.webp&#10;https://drive.google.com/…" oninput="previewScGalleryUrls('spotlight')"></textarea>
                         <button type="button" class="btn-sm" style="margin-top:.35rem;" onclick="addScGalleryUrls('spotlight',true)">➕ Add URLs to gallery</button>
                         <div id="sc-spotlight-url-preview" class="ev-drive-preview" style="display:none;margin-top:.4rem;"></div>
@@ -1985,7 +1990,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="upload-card-text"><strong>Click to upload</strong> or drag & drop</div>
                     <div class="upload-card-note">JPG, PNG, WebP, GIF, PDF · max 10 MB each</div>
                 </div>
-                <input type="file" id="sc-media-files" multiple accept="image/jpeg,image/png,image/webp,image/gif,application/pdf" class="hidden" onchange="previewMediaFiles(this)">
+                <input type="file" id="sc-media-files" multiple accept="image/*,application/pdf" class="hidden" onchange="previewMediaFiles(this)">
                 <div id="sc-media-preview" class="media-preview"></div>
             </div>
             <button class="btn-primary full-width form-spaced" onclick="uploadMedia()"><span id="sc-media-upload-text">📤 Upload</span></button>
@@ -2033,7 +2038,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div id="ev-img-upload-panel">
                         <div class="aef-upload-row">
                             <div class="upload-zone upload-zone-compact" id="ev-upload">
-                                <input type="file" id="ev-img-file" accept="image/jpeg,image/png,image/webp,image/gif" multiple>
+                                <input type="file" id="ev-img-file" accept="image/*" multiple>
                                 <div class="upload-inner">
                                     <span class="upload-icon">📷</span>
                                     <p class="upload-text"><strong>Click to upload</strong> or drag &amp; drop<br><span class="upload-hint">JPG, PNG, WebP · multiple files OK</span></p>
@@ -2147,7 +2152,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="live-quick-row">
                     <div>
                         <label class="live-quick-upload" id="ev-live-quick-drop">
-                            <input type="file" id="ev-live-quick-photo" accept="image/jpeg,image/png,image/webp,image/gif" multiple onchange="previewLiveQuickPhoto(this)">
+                            <input type="file" id="ev-live-quick-photo" accept="image/*" multiple onchange="previewLiveQuickPhoto(this)">
                             <div style="font-size:1.2rem;">📷</div>
                             <div style="font-size:.74rem;color:var(--text-light);">Click to upload photo(s)</div>
                             <img id="ev-live-quick-preview" class="live-quick-preview" alt="">
@@ -6077,15 +6082,64 @@ function applyHeroImageSettingsForm(settings){
     updateHeroImageModePanels();
     var missing=parseInt(settings.pool_missing,10)||0;
     var warn=document.getElementById('hero-pool-missing-warn');
+    var warnTxt=document.getElementById('hero-pool-missing-warn-text');
     if(warn){
         if(missing>0){
-            warn.style.display='block';
-            warn.textContent='⚠ '+missing+' photo(s) in the pool are missing from the server (404). Re-upload them or paste Google Drive image links, then save again.';
+            warn.style.display='flex';
+            if(warnTxt)warnTxt.textContent='⚠ '+missing+' photo(s) in the pool are missing from the server (404). Click “Remove all missing” to clean the pool, then save — or re-upload the photos.';
         }else{
             warn.style.display='none';
-            warn.textContent='';
+            if(warnTxt)warnTxt.textContent='';
         }
     }
+}
+
+/** Remove every pool image whose URL no longer resolves on the server,
+ *  then auto-save the cleaned pool. */
+function cleanMissingHeroPoolImages(){
+    var items=scGalleryItems('hero-pool');
+    if(!items.length){toast('Pool is already empty.','info');return;}
+    var btn=document.getElementById('hero-pool-missing-clean-btn');
+    if(btn){btn.disabled=true;btn.textContent='Checking…';}
+
+    function isPotentiallyMissing(url){
+        if(!url)return true;
+        if(/^blob:/i.test(url))return false;          // freshly added local file
+        if(/drive\.google|docs\.google/i.test(url))return false; // skip Drive URLs (they resolve via proxy)
+        if(/^https?:\/\//i.test(url))return false;    // skip external URLs (let admin decide)
+        return true;                                  // relative path → verify
+    }
+
+    var checks=items.map(function(it){
+        if(it._pending)return Promise.resolve({item:it,ok:true});
+        if(!isPotentiallyMissing(it.url))return Promise.resolve({item:it,ok:true});
+        return fetch(it.url,{method:'HEAD',cache:'no-store'})
+            .then(function(r){return {item:it,ok:r.ok};})
+            .catch(function(){return {item:it,ok:false};});
+    });
+
+    Promise.all(checks).then(function(results){
+        var keep=results.filter(function(r){return r.ok;}).map(function(r){return r.item;});
+        var removed=items.length-keep.length;
+        if(!removed){
+            toast('No missing photos found — the pool is clean.','info');
+            if(btn){btn.disabled=false;btn.textContent='🧹 Remove all missing';}
+            return;
+        }
+        if(!confirm('Remove '+removed+' missing photo(s) from the pool and save?')){
+            if(btn){btn.disabled=false;btn.textContent='🧹 Remove all missing';}
+            return;
+        }
+        items.length=0;
+        keep.forEach(function(k){items.push(k);});
+        renderScGallery('hero-pool');
+        if(btn){btn.textContent='Saving…';}
+        saveHeroImageSettings();
+        // saveHeroImageSettings re-renders on completion via applyHeroImageSettingsForm.
+        setTimeout(function(){
+            if(btn){btn.disabled=false;btn.textContent='🧹 Remove all missing';}
+        },2500);
+    });
 }
 function updateHeroImageModePanels(){
     var mode=document.querySelector('input[name="hero-img-mode"]:checked');
@@ -6414,12 +6468,15 @@ function renderScGallery(section){
             +'<input type="text" placeholder="Optional headline for this photo" value="'+esc(img.title||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'title\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;margin-bottom:.25rem;border:1px solid var(--border);border-radius:4px;">'
             +'<input type="text" placeholder="Optional supporting line" value="'+esc(img.body||'')+'" oninput="updateScGalleryMeta(\''+section+'\','+i+',\'body\',this.value)" style="width:100%;font-size:.65rem;padding:.25rem .35rem;border:1px solid var(--border);border-radius:4px;">'
             +'</div>');
-        return '<div style="position:relative;border:1px solid '+(pending?'#90caf9':'var(--border,#e2e2e2)')+';border-radius:6px;overflow:hidden;background:#fafafa;">'
+        var tileId='sc-gal-'+section+'-'+i;
+        var onErr="var t=document.getElementById('"+tileId+"');if(t){t.classList.add('sc-gal-missing');t.setAttribute('data-missing','1');}this.style.opacity=.3;";
+        return '<div id="'+tileId+'" style="position:relative;border:1px solid '+(pending?'#90caf9':'var(--border,#e2e2e2)')+';border-radius:6px;overflow:hidden;background:#fafafa;">'
             +'<span class="sc-gallery-order">'+(i+1)+'</span>'
-            +'<img src="'+esc(thumb)+'" alt="" style="width:100%;height:72px;object-fit:cover;display:block;" onerror="this.style.opacity=.3">'
-            +'<button type="button" onclick="removeScGalleryItem(\''+section+'\','+i+')" title="Remove" style="position:absolute;top:2px;right:2px;background:rgba(200,0,0,.85);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;">✕</button>'
+            +'<img src="'+esc(thumb)+'" alt="" style="width:100%;height:72px;object-fit:cover;display:block;" onerror="'+onErr+'">'
+            +'<button type="button" onclick="removeScGalleryItem(\''+section+'\','+i+')" title="Remove" style="position:absolute;top:2px;right:2px;background:rgba(200,0,0,.85);color:#fff;border:0;border-radius:50%;width:22px;height:22px;cursor:pointer;font-size:.7rem;z-index:2;">✕</button>'
             +(i===0?'<span style="position:absolute;bottom:2px;left:2px;background:#1976d2;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">Cover</span>':'')
             +(pending?'<span style="position:absolute;bottom:2px;right:2px;background:#ff9800;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">New</span>':'')
+            +'<span class="sc-gal-missing-tag" style="display:none;position:absolute;bottom:2px;right:2px;background:#b45309;color:#fff;font-size:.55rem;padding:2px 6px;border-radius:10px;">404</span>'
             +metaHtml
             +'</div>';
     }).join('');

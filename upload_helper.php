@@ -86,16 +86,70 @@ function optimizeUploadedImage(string $path): bool
 }
 
 define('UPLOAD_ALLOWED_IMAGES', [
-    'image/jpeg'    => 'jpg',
-    'image/png'     => 'png',
-    'image/gif'     => 'gif',
-    'image/webp'    => 'webp',
-    'image/svg+xml' => 'svg',
+    'image/jpeg'                => 'jpg',
+    'image/pjpeg'               => 'jpg',
+    'image/png'                 => 'png',
+    'image/x-png'               => 'png',
+    'image/apng'                => 'png',
+    'image/gif'                 => 'gif',
+    'image/webp'                => 'webp',
+    'image/svg+xml'             => 'svg',
+    'image/bmp'                 => 'bmp',
+    'image/x-ms-bmp'            => 'bmp',
+    'image/tiff'                => 'tiff',
+    'image/x-icon'              => 'ico',
+    'image/vnd.microsoft.icon'  => 'ico',
+    'image/heic'                => 'heic',
+    'image/heif'                => 'heif',
+    'image/heic-sequence'       => 'heic',
+    'image/heif-sequence'       => 'heif',
+    'image/avif'                => 'avif',
+    'image/avif-sequence'       => 'avif',
+    'image/jxl'                 => 'jxl',
 ]);
 
 define('UPLOAD_ALLOWED_DOCS', [
     'application/pdf' => 'pdf',
 ]);
+
+/**
+ * Try to convert a raw file at $sourcePath into a browser-friendly JPEG
+ * at $targetJpgPath using Imagick (handles HEIC/AVIF/TIFF/BMP/JXL).
+ * Returns true on success, false if Imagick isn't available or fails.
+ */
+function convertToJpegWithImagick(string $sourcePath, string $targetJpgPath): bool
+{
+    if (!class_exists('Imagick')) return false;
+    try {
+        $im = new Imagick($sourcePath);
+        // HEIC may have multiple frames; keep the first.
+        if ($im->getNumberImages() > 1) {
+            $im->setIteratorIndex(0);
+        }
+        $im->setImageFormat('jpeg');
+        $im->setImageCompressionQuality(UPLOAD_IMAGE_JPEG_QUALITY);
+        // Strip metadata, color-correct to sRGB.
+        $im->stripImage();
+        if (method_exists($im, 'transformImageColorspace')) {
+            $im->transformImageColorspace(Imagick::COLORSPACE_SRGB);
+        }
+        // Downscale if huge.
+        $w = $im->getImageWidth();
+        $h = $im->getImageHeight();
+        $maxW = UPLOAD_IMAGE_MAX_WIDTH;
+        $maxH = UPLOAD_IMAGE_MAX_HEIGHT;
+        if ($w > $maxW || $h > $maxH) {
+            $im->resizeImage($maxW, $maxH, Imagick::FILTER_LANCZOS, 1, true);
+        }
+        $ok = $im->writeImage($targetJpgPath);
+        $im->clear();
+        $im->destroy();
+        return $ok && is_file($targetJpgPath) && filesize($targetJpgPath) > 0;
+    } catch (Throwable $e) {
+        error_log('convertToJpegWithImagick: ' . $e->getMessage());
+        return false;
+    }
+}
 
 /**
  * Sanitize SVG markup — remove scripts, event handlers, and external references
@@ -166,8 +220,31 @@ function secureUpload(array $file, string $destDir, bool $allowDocs = false, int
         return $targetPath;
     }
 
+    // Exotic formats browsers usually can't render (HEIC/HEIF/AVIF/TIFF/BMP/JXL/ICO):
+    // try Imagick → convert to JPG so every visitor sees the photo.
+    $needsConversion = in_array($mime, [
+        'image/heic', 'image/heif', 'image/heic-sequence', 'image/heif-sequence',
+        'image/avif', 'image/avif-sequence',
+        'image/tiff', 'image/bmp', 'image/x-ms-bmp',
+        'image/jxl', 'image/x-icon', 'image/vnd.microsoft.icon',
+    ], true);
+    if ($needsConversion) {
+        $jpgName = preg_replace('/\.[^.]+$/', '.jpg', $safeName);
+        $jpgPath = rtrim($destDir, '/') . '/' . $jpgName;
+        if (convertToJpegWithImagick($file['tmp_name'], $jpgPath)) {
+            return $jpgPath;
+        }
+        // Imagick missing or failed → save the original so admin's photo isn't lost,
+        // but log so they can install imagick for browser-friendly output.
+        error_log('secureUpload: Imagick conversion failed/unavailable for mime ' . $mime . '; saving raw ' . ($file['name'] ?? '?'));
+        if (!@move_uploaded_file($file['tmp_name'], $targetPath)) {
+            if (!@copy($file['tmp_name'], $targetPath)) return false;
+        }
+        return $targetPath;
+    }
+
     // For raster images: try to re-encode (strips metadata + downscales).
-    // If GD can't decode (HEIC, AVIF, very large files), fall back to moving the
+    // If GD can't decode (very large files, edge cases), fall back to moving the
     // original so the upload still succeeds — admin sees their image either way.
     if (isset(UPLOAD_ALLOWED_IMAGES[$mime])) {
         $raw = @file_get_contents($file['tmp_name']);
