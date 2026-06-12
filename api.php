@@ -3208,10 +3208,16 @@ HTML;
             $uploads = collectPostedHeroPoolUploads($poolAlt);
             if (empty($uploads)) {
                 http_response_code(400);
+                $attempted = (int)($GLOBALS['__hero_pool_upload_attempted'] ?? 0);
+                $errors = $GLOBALS['__hero_pool_upload_errors'] ?? [];
+                $msg = $attempted > 0
+                    ? 'No photos could be saved'
+                    : 'No images received — file may exceed server size limit';
                 echo json_encode([
-                    'error' => 'No images uploaded',
-                    'upload_attempted' => (int)($GLOBALS['__hero_pool_upload_attempted'] ?? 0),
-                    'upload_errors' => $GLOBALS['__hero_pool_upload_errors'] ?? [],
+                    'error' => $msg,
+                    'upload_attempted' => $attempted,
+                    'upload_accepted' => (int)($GLOBALS['__hero_pool_upload_accepted'] ?? 0),
+                    'upload_errors' => $errors,
                 ]);
                 break;
             }

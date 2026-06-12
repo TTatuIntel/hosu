@@ -3388,19 +3388,37 @@ function hosuPostedMultiFiles(string $baseKey): ?array
     return null;
 }
 
+function heroPoolUploadErrorMessage(int $code, string $name): string
+{
+    $map = [
+        UPLOAD_ERR_INI_SIZE => 'too large (server upload_max_filesize)',
+        UPLOAD_ERR_FORM_SIZE => 'too large (form limit)',
+        UPLOAD_ERR_PARTIAL => 'partially uploaded',
+        UPLOAD_ERR_NO_TMP_DIR => 'no temp folder on server',
+        UPLOAD_ERR_CANT_WRITE => 'disk write failed',
+        UPLOAD_ERR_EXTENSION => 'blocked by PHP extension',
+    ];
+    $reason = $map[$code] ?? ('error code ' . $code);
+    return $name . ' (' . $reason . ')';
+}
+
 function collectPostedHeroPoolUploads(string $defaultAlt = '', string $filesKey = 'poolImageFiles'): array
 {
     require_once __DIR__ . '/upload_helper.php';
 
     $items = [];
     $files = hosuPostedMultiFiles($filesKey);
-    if ($files === null) {
-        return $items;
-    }
-
     $GLOBALS['__hero_pool_upload_attempted'] = 0;
     $GLOBALS['__hero_pool_upload_accepted'] = 0;
     $GLOBALS['__hero_pool_upload_errors'] = [];
+
+    if ($files === null) {
+        $contentLen = (int)($_SERVER['CONTENT_LENGTH'] ?? 0);
+        if ($contentLen > 0) {
+            $GLOBALS['__hero_pool_upload_errors'][] = 'Request too large for server (check post_max_size / upload_max_filesize in PHP).';
+        }
+        return $items;
+    }
 
     foreach ($files['name'] as $i => $name) {
         $err = $files['error'][$i] ?? UPLOAD_ERR_NO_FILE;
@@ -3409,7 +3427,7 @@ function collectPostedHeroPoolUploads(string $defaultAlt = '', string $filesKey 
         }
         $GLOBALS['__hero_pool_upload_attempted']++;
         if ($err !== UPLOAD_ERR_OK) {
-            $GLOBALS['__hero_pool_upload_errors'][] = $name . ' (upload error ' . $err . ')';
+            $GLOBALS['__hero_pool_upload_errors'][] = heroPoolUploadErrorMessage($err, $name);
             continue;
         }
         $file = [
@@ -3419,12 +3437,12 @@ function collectPostedHeroPoolUploads(string $defaultAlt = '', string $filesKey 
             'error' => $files['error'][$i],
             'size' => $files['size'][$i],
         ];
-        $up = secureUpload($file, 'uploads/hero/pool/', false, 8000000);
+        $up = secureUpload($file, 'uploads/hero/pool/', false, UPLOAD_MAX_SIZE);
         if ($up) {
             $items[] = ['url' => $up, 'alt' => $defaultAlt];
             $GLOBALS['__hero_pool_upload_accepted']++;
         } else {
-            $GLOBALS['__hero_pool_upload_errors'][] = $name;
+            $GLOBALS['__hero_pool_upload_errors'][] = $name . ' (could not save — unsupported format or server error)';
         }
     }
 

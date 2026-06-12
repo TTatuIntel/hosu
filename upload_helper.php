@@ -4,9 +4,9 @@
  * Validates type, size, and re-encodes images to strip metadata/payloads.
  */
 
-define('UPLOAD_MAX_SIZE', 12 * 1024 * 1024); // 12 MB — modern phone photos are 4–10 MB
-define('UPLOAD_IMAGE_MAX_WIDTH', 1600);
-define('UPLOAD_IMAGE_MAX_HEIGHT', 1200);
+define('UPLOAD_MAX_SIZE', 32 * 1024 * 1024); // 32 MB hard cap; client auto-compresses before upload
+define('UPLOAD_IMAGE_MAX_WIDTH', 1920);
+define('UPLOAD_IMAGE_MAX_HEIGHT', 1440);
 define('UPLOAD_IMAGE_JPEG_QUALITY', 85);
 define('UPLOAD_IMAGE_WEBP_QUALITY', 85);
 
