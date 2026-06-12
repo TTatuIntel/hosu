@@ -340,7 +340,7 @@
         if (slide.cta_action === 'toggle_recap' || (slide.has_recap && slide.recap_items && slide.recap_items.length)) {
             return '<div class="cta-buttons">' +
                 '<button type="button" class="interactive-button on-recap-btn" data-recap-slide="' + slideIndex + '" aria-expanded="false">' +
-                esc(slide.cta_primary || 'See What Happened') +
+                esc(slide.cta_primary || 'Read more') +
                 ' <span class="icon on-recap-btn__icon" aria-hidden="true">↓</span></button></div>';
         }
 

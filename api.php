@@ -720,7 +720,7 @@ case 'create_post':
 
             autoExpirePastEvents($pdo);
             migrateEventSchema($pdo);
-            $stmt = $pdo->query("SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events ORDER BY created_at DESC");
+            $stmt = $pdo->query("SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, recap_cta_label, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events ORDER BY created_at DESC");
             echo json_encode(['success' => true, 'events' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
@@ -1983,7 +1983,7 @@ HTML;
             $isFree = !empty($isFreeRaw) && $isFreeRaw !== '0' ? 1 : 0;
             $eventFee = $isFree ? 0 : max(0, (float)$mergeField('event_fee', $existing['event_fee'] ?? 0));
 
-            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?, speakers=?, highlights=?, announcements=?, display_start=?, display_end=?, display_for_event=?, pinned=?, home_priority=?, post_event_display_days=?, live_message=?, live_cta_label=?, live_cta_url=?, drive_folder_url=?, show_live_on_home=?, show_upcoming_in_ongoing=?";
+            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?, speakers=?, highlights=?, announcements=?, display_start=?, display_end=?, display_for_event=?, pinned=?, home_priority=?, post_event_display_days=?, live_message=?, live_cta_label=?, live_cta_url=?, drive_folder_url=?, show_live_on_home=?, show_upcoming_in_ongoing=?, recap_cta_label=?";
             $vals = [
                 $mergeField('type', $existing['type'] ?? ''),
                 $status,
@@ -2014,6 +2014,7 @@ HTML;
                 $liveFields['drive_folder_url'],
                 $liveFields['show_live_on_home'],
                 $liveFields['show_upcoming_in_ongoing'],
+                $displayFields['recap_cta_label'],
             ];
             if ($imagePath !== null) {
                 $fields .= ', image=?';
@@ -2064,7 +2065,7 @@ HTML;
 
             $eventRow = null;
             try {
-                $evStmt = $pdo->prepare('SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, drive_folder_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events WHERE id = ?');
+                $evStmt = $pdo->prepare('SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, recap_cta_label, drive_folder_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events WHERE id = ?');
                 $evStmt->execute([$id]);
                 $eventRow = $evStmt->fetch(PDO::FETCH_ASSOC) ?: null;
             } catch (Exception $_evFetch) {}

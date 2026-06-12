@@ -31,6 +31,7 @@ function migrateEventSchema(PDO $pdo): void
         'show_live_on_home TINYINT(1) NOT NULL DEFAULT 1',
         'show_upcoming_in_ongoing TINYINT(1) NOT NULL DEFAULT 0',
         'post_event_display_days INT NOT NULL DEFAULT 0',
+        'recap_cta_label VARCHAR(120) NULL',
     ] as $colDef) {
         $colName = explode(' ', $colDef)[0];
         try {
@@ -41,6 +42,10 @@ function migrateEventSchema(PDO $pdo): void
     try {
         $pdo->exec("ALTER TABLE events ADD COLUMN updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP");
     } catch (Exception $e) { /* already exists */ }
+
+    try {
+        $pdo->exec('ALTER TABLE events MODIFY live_message TEXT NULL');
+    } catch (Exception $e) { /* already TEXT or unsupported */ }
 
     try {
         $pdo->exec("CREATE TABLE IF NOT EXISTS event_images (
@@ -952,7 +957,7 @@ function saveEventOngoingContentUpdate(PDO $pdo, string $eventId, array $existin
     $pdo->prepare(
         'UPDATE events SET live_message = ?, live_cta_label = ?, live_cta_url = ?, drive_folder_url = ?,
          show_live_on_home = ?, show_upcoming_in_ongoing = ?, post_event_display_days = ?,
-         highlights = ?, announcements = ?, speakers = ?
+         highlights = ?, announcements = ?, speakers = ?, recap_cta_label = ?
          WHERE id = ?'
     )->execute([
         $liveFields['live_message'],
@@ -965,6 +970,7 @@ function saveEventOngoingContentUpdate(PDO $pdo, string $eventId, array $existin
         $displayFields['highlights'],
         $displayFields['announcements'],
         $displayFields['speakers'],
+        $displayFields['recap_cta_label'],
         $eventId,
     ]);
 
@@ -990,8 +996,9 @@ function saveEventOngoingContentUpdate(PDO $pdo, string $eventId, array $existin
         $evStmt = $pdo->prepare(
             'SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description,
                     countdown, featured, pinned, home_priority, display_start, display_end, display_for_event,
-                    speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, drive_folder_url,
-                    show_live_on_home, show_upcoming_in_ongoing, post_event_display_days, is_free, event_fee, created_at, updated_at
+                    speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, recap_cta_label,
+                    drive_folder_url, show_live_on_home, show_upcoming_in_ongoing, post_event_display_days,
+                    is_free, event_fee, created_at, updated_at
              FROM events WHERE id = ?'
         );
         $evStmt->execute([$eventId]);
@@ -1368,6 +1375,7 @@ function parseDisplayFields(array $post): array
         'speakers' => trim($post['speakers'] ?? ''),
         'highlights' => trim($post['highlights'] ?? ''),
         'announcements' => trim($post['announcements'] ?? ''),
+        'recap_cta_label' => trim($post['recap_cta_label'] ?? ''),
     ];
 }
 
@@ -2193,6 +2201,12 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
 function buildEventRecapItems(array $ev): array
 {
     $items = [];
+
+    $liveMessage = trim((string) ($ev['live_message'] ?? ''));
+    if ($liveMessage !== '') {
+        $items[] = ['title' => 'Summary', 'body' => $liveMessage];
+    }
+
     $highlights = trim((string) ($ev['highlights'] ?? ''));
     if ($highlights !== '') {
         $parts = preg_split('/\n\s*\n/', $highlights) ?: [$highlights];
@@ -2202,27 +2216,20 @@ function buildEventRecapItems(array $ev): array
                 continue;
             }
             $lines = preg_split('/\r\n|\n/', $part) ?: [$part];
+            $lines = array_values(array_filter(array_map('trim', $lines), fn($l) => $l !== ''));
             if (count($lines) === 1) {
-                $items[] = ['title' => 'What happened', 'body' => $part];
+                $items[] = ['title' => 'Key highlights', 'body' => $lines[0]];
                 continue;
             }
             foreach ($lines as $line) {
-                $line = trim((string) $line);
-                if ($line !== '') {
-                    $items[] = ['title' => 'Highlight', 'body' => $line];
-                }
+                $items[] = ['title' => 'Highlight', 'body' => $line];
             }
         }
     }
 
-    $liveMessage = trim((string) ($ev['live_message'] ?? ''));
-    if ($liveMessage !== '') {
-        $items[] = ['title' => 'Summary', 'body' => $liveMessage];
-    }
-
     $announcements = trim((string) ($ev['announcements'] ?? ''));
     if ($announcements !== '') {
-        $items[] = ['title' => 'Announcements', 'body' => $announcements];
+        $items[] = ['title' => 'Notices', 'body' => $announcements];
     }
 
     foreach ($ev['live_content'] ?? [] as $block) {
@@ -2239,7 +2246,7 @@ function buildEventRecapItems(array $ev): array
 
     $speakers = trim((string) ($ev['speakers'] ?? ''));
     if ($speakers !== '') {
-        $items[] = ['title' => 'Speakers & organizers', 'body' => $speakers];
+        $items[] = ['title' => 'People & hosts', 'body' => $speakers];
     }
 
     return $items;
@@ -2257,7 +2264,8 @@ function applyPostEventRecapToSlide(array $ev, array $slide): array
     $slide['has_recap'] = !empty($recap);
 
     if (!empty($recap)) {
-        $slide['cta_primary'] = 'See What Happened';
+        $customCta = trim((string) ($ev['recap_cta_label'] ?? ''));
+        $slide['cta_primary'] = $customCta !== '' ? $customCta : 'Read more';
         $slide['cta_primary_url'] = '';
         $slide['cta_action'] = 'toggle_recap';
         $slide['cta_secondary'] = '';

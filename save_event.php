@@ -119,8 +119,8 @@ try {
         id, type, status, image, imageAlt, countdown, date, date_start, date_end,
         title, description, location, featured, category, is_free, event_fee,
         speakers, highlights, announcements, display_start, display_end, display_for_event, pinned, home_priority,
-        post_event_display_days, live_message, live_cta_label, live_cta_url, show_live_on_home, show_upcoming_in_ongoing
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        post_event_display_days, live_message, live_cta_label, live_cta_url, recap_cta_label, show_live_on_home, show_upcoming_in_ongoing
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     $success = $stmt->execute([
         $_POST['id'],
@@ -151,6 +151,7 @@ try {
         $liveFields['live_message'],
         $liveFields['live_cta_label'],
         $liveFields['live_cta_url'],
+        $displayFields['recap_cta_label'],
         $liveFields['show_live_on_home'],
         $liveFields['show_upcoming_in_ongoing'],
     ]);
@@ -180,7 +181,7 @@ try {
 
     $eventRow = null;
     try {
-        $evStmt = $pdo->prepare('SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, drive_folder_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events WHERE id = ?');
+        $evStmt = $pdo->prepare('SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description, countdown, featured, pinned, home_priority, display_start, display_end, display_for_event, speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, recap_cta_label, drive_folder_url, show_live_on_home, is_free, event_fee, created_at, updated_at FROM events WHERE id = ?');
         $evStmt->execute([$_POST['id']]);
         $eventRow = $evStmt->fetch(PDO::FETCH_ASSOC) ?: null;
     } catch (Exception $_evFetch) {}

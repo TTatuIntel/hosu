@@ -254,6 +254,8 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 #ev-fee-section{display:none;}
 .pricing-row{display:flex;align-items:center;gap:.5rem;margin-bottom:.3rem;}
 .fee-hint{margin-top:.15rem;font-size:.68rem;}
+.ev-spotlight-intro{margin:0 0 .75rem;font-size:.74rem;line-height:1.55;color:var(--text-light);}
+.ev-spotlight-content-sec{background:#f8fafc;border:1px solid rgba(13,69,147,.1);border-radius:10px;padding:.75rem .85rem;margin-top:.5rem;}
 .featured-hint{display:block;margin-top:.15rem;}
 .desc-field{margin-top:.3rem;}
 .fee-field{margin-top:.2rem;}
@@ -2081,12 +2083,42 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="ff"><label>Location <span>*</span></label><input type="text" id="ev-loc" placeholder="📍 e.g. Serena Hotel, Kampala"></div>
                     <div class="ff"><label>Formatted Date</label><input type="text" id="ev-date" placeholder="Auto-filled" readonly><small>Generated from pickers</small></div>
                 </div>
-                <div class="ff desc-field"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Describe the event — agenda, speakers, objectives…"></textarea></div>
-                <div class="aef-grid" style="margin-top:.75rem;">
-                    <div class="ff"><label>Speakers / Organizers <small>(optional)</small></label><textarea id="ev-speakers" rows="2" placeholder="Dr. Jane Doe — Keynote&#10;Prof. John Smith — Panel Chair"></textarea><small class="fee-hint">Optional — included in recap if filled in.</small></div>
-                    <div class="ff"><label>What happened <small>(optional — your choice)</small></label><textarea id="ev-highlights" rows="3" placeholder="Optional. One paragraph or one bullet per line. Use this, Content blocks, or both — whatever you prefer."></textarea><small class="fee-hint">Included in homepage <em>See What Happened</em> if you add text here.</small></div>
+                <div class="ff desc-field"><label>Description <span>*</span></label><textarea id="ev-desc" rows="2" placeholder="Main public description — agenda, purpose, who should attend…"></textarea></div>
+            </div>
+
+            <!-- Multipurpose spotlight copy (homepage, events page, expandable card) -->
+            <div class="aef-sec ev-spotlight-content-sec">
+                <div class="aef-lbl">🌐 Spotlight &amp; visitor content</div>
+                <p class="ev-spotlight-intro">Optional copy for <strong>Ongoing Now</strong>, the events page, and the expandable homepage card. Use for events, announcements, campaigns, or general updates — mix any fields you need.</p>
+                <div class="aef-grid">
+                    <div class="ff">
+                        <label>Key highlights <small>(optional)</small></label>
+                        <textarea id="ev-highlights" rows="2" placeholder="Key sessions, achievements, milestones…&#10;One point per line, or one short paragraph"></textarea>
+                        <small class="fee-hint">Bullet-style points or a short highlight block.</small>
+                    </div>
+                    <div class="ff">
+                        <label>Summary <small>(optional)</small></label>
+                        <textarea id="ev-live-message" rows="3" placeholder="Main story, recap, or update — one paragraph or a few lines"></textarea>
+                        <small class="fee-hint">Shown as the lead text when visitors expand the homepage card.</small>
+                    </div>
                 </div>
-                <div class="ff" style="margin-top:.5rem;"><label>Important Announcements <small>(optional)</small></label><textarea id="ev-announcements" rows="2" placeholder="Optional — also appears in the recap if filled in."></textarea></div>
+                <div class="aef-grid" style="margin-top:.75rem;">
+                    <div class="ff">
+                        <label>People &amp; hosts <small>(optional)</small></label>
+                        <textarea id="ev-speakers" rows="2" placeholder="Dr. Jane Doe — Keynote&#10;Prof. John Smith — Panel Chair"></textarea>
+                    </div>
+                    <div class="ff">
+                        <label>Important notices <small>(optional)</small></label>
+                        <textarea id="ev-announcements" rows="2" placeholder="Deadlines, venue changes, registration notes…"></textarea>
+                    </div>
+                </div>
+                <div class="aef-grid" style="margin-top:.75rem;">
+                    <div class="ff">
+                        <label>Expand button label <small>(optional)</small></label>
+                        <input type="text" id="ev-recap-cta" placeholder="e.g. Read more, See what happened, View recap">
+                        <small class="fee-hint">Homepage button when extra content exists. Leave blank for <em>Read more</em>.</small>
+                    </div>
+                </div>
             </div>
             </div><!-- /ev-tab-details -->
 
@@ -2115,16 +2147,15 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="aef-sec" id="ev-live-sec">
                 <div class="aef-lbl">📝 Event Content Blocks</div>
                 <div class="ev-recap-help" style="margin-bottom:.85rem;padding:.65rem .75rem;background:#f0f7ff;border:1px solid rgba(13,69,147,.15);border-radius:8px;font-size:.74rem;line-height:1.5;color:var(--text-light);">
-                    <strong style="color:#0d4593;">Past event recap — use any combination you like:</strong>
+                    <strong style="color:#0d4593;">Build the homepage card — mix text, photos, and blocks:</strong>
                     <ul style="margin:.35rem 0 0 1.1rem;padding:0;">
-                        <li><strong>Details</strong> → What happened, Announcements, or Speakers</li>
-                        <li><strong>Content tab</strong> → Live headline and/or content blocks below</li>
-                        <li><strong>Images tab</strong> or Drive folder → rotating photos (separate from text)</li>
+                        <li><strong>Details tab</strong> → Spotlight &amp; visitor content (highlights, summary, notices)</li>
+                        <li><strong>Content tab</strong> → Extra content blocks below (any title/body you need)</li>
+                        <li><strong>Images tab</strong> or Drive folder → rotating photos</li>
                     </ul>
-                    <span style="display:block;margin-top:.4rem;">Mix and match — only filled fields appear. If nothing is added, visitors see <em>View Events</em> instead of <em>See What Happened</em>.</span>
+                    <span style="display:block;margin-top:.4rem;">Only filled fields appear. With no extra content, visitors see <em>View Events</em> instead of an expand button.</span>
                 </div>
                 <div class="aef-grid">
-                    <div class="ff"><label>Live Headline <small>(optional — also used in past-event recap)</small></label><input type="text" id="ev-live-message" placeholder="e.g. Key outcomes from the AGM session…"></div>
                     <div class="ff ev-drive-folder-field">
                         <label>📁 Google Drive photo folder <small>(for Ongoing Now rotation)</small></label>
                         <input type="text" id="ev-drive-folder-url" placeholder="https://drive.google.com/drive/folders/… or …/mobile/folders/…" onchange="previewDriveFolder()" onblur="previewDriveFolder()">
@@ -2145,10 +2176,10 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <button type="button" class="btn-primary" id="ev-save-ongoing-btn" onclick="saveEventOngoingContent()">💾 Save Photos &amp; Live Content</button>
                     <small style="display:block;margin-top:.35rem;color:var(--text-light);font-size:.72rem;">Saves Drive folder, live text, and content blocks only — does not change event dates.</small>
                 </div>
-                <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(optional — add as many as you need, or skip entirely)</small></div>
+                <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(optional — multipurpose sections with custom titles)</small></div>
                 <div id="ev-live-content-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
                 <button type="button" class="btn-sm" style="margin-top:.5rem;" onclick="addLiveContentItem()">➕ Add Content Block</button>
-                <small class="fee-hint" style="display:block;margin-top:.45rem;">Each block can have a title and body — all active blocks are merged into the homepage recap.</small>
+                <small class="fee-hint" style="display:block;margin-top:.45rem;">Use for extra sections — outcomes, quotes, resources, partner notes, etc. Each block has its own title and body on the homepage.</small>
             </div>
             </div><!-- /ev-tab-content -->
 
@@ -4123,6 +4154,7 @@ function populateEditEvent(ev){
     document.getElementById('ev-highlights').value=ev.highlights||'';
     document.getElementById('ev-announcements').value=ev.announcements||'';
     document.getElementById('ev-live-message').value=ev.live_message||'';
+    var recapCta=document.getElementById('ev-recap-cta');if(recapCta)recapCta.value=ev.recap_cta_label||'';
     document.getElementById('ev-live-cta').value=ev.live_cta_label||'Register & Join Now';
     var folderUrl=ev.drive_folder_url||'';
     if(!folderUrl&&ev.live_cta_url&&/folders\//i.test(ev.live_cta_url))folderUrl=ev.live_cta_url;
@@ -4237,7 +4269,7 @@ function refreshEventAssets(ev){
 }
 
 function resetEvForm(){
-    ['ev-title','ev-slug','ev-type','ev-alt','ev-date','ev-loc','ev-desc','ev-img-url','ev-date-start','ev-date-end','ev-fee','ev-speakers','ev-highlights','ev-announcements','ev-video-urls','ev-display-start','ev-display-end','ev-live-message'].forEach(id=>{
+    ['ev-title','ev-slug','ev-type','ev-alt','ev-date','ev-loc','ev-desc','ev-img-url','ev-date-start','ev-date-end','ev-fee','ev-speakers','ev-highlights','ev-announcements','ev-video-urls','ev-display-start','ev-display-end','ev-live-message','ev-recap-cta'].forEach(id=>{
         var el=document.getElementById(id);
         if(el)(el.tagName==='SELECT'?el.selectedIndex=0:el.value='');
     });
@@ -4288,6 +4320,7 @@ function buildEventOngoingFormData(){
     fd.append('highlights',document.getElementById('ev-highlights').value.trim());
     fd.append('announcements',document.getElementById('ev-announcements').value.trim());
     fd.append('speakers',document.getElementById('ev-speakers').value.trim());
+    var recapCtaEl=document.getElementById('ev-recap-cta');fd.append('recap_cta_label',recapCtaEl?recapCtaEl.value.trim():'');
     fd.append('imageAlt',document.getElementById('ev-alt').value.trim());
     _evNewFiles.forEach(function(f){fd.append('imageFiles[]',f);});
     var imgUrls=parseUrlLines(document.getElementById('ev-img-url').value);
@@ -4384,6 +4417,7 @@ function saveEvent(){
     fd.append('speakers',document.getElementById('ev-speakers').value.trim());
     fd.append('highlights',document.getElementById('ev-highlights').value.trim());
     fd.append('announcements',document.getElementById('ev-announcements').value.trim());
+    fd.append('recap_cta_label',(document.getElementById('ev-recap-cta')||{}).value?document.getElementById('ev-recap-cta').value.trim():'');
     fd.append('live_message',document.getElementById('ev-live-message').value.trim());
     fd.append('live_cta_label',document.getElementById('ev-live-cta').value.trim()||'Register & Join Now');
     var driveFolder=document.getElementById('ev-drive-folder-url').value.trim();
@@ -5831,10 +5865,73 @@ var _siteStats=[], _siteMedia=[], _spotlights=[], _heroSlides=[];
 
 function loadHeroSlides(){
     adminJsonFetch('api.php?action=list_hero_slides').then(function(d){
-        if(d.success){_heroSlides=d.slides||[];renderHeroSlideTable();}
+        if(d.success){
+            _heroSlides=d.slides||[];
+            renderHeroSlideTable();
+            applyHeroImageSettingsForm(d.image_settings||null);
+        }
         else toast(d.error||'Could not load hero slides.','error');
     }).catch(function(err){if(err&&err.message!=='auth')toast('Failed to load hero slides.','error');});
 }
+function applyHeroImageSettingsForm(settings){
+    settings=settings||_heroImageSettings||{mode:'per_slide',pool:[],pool_alt:''};
+    _heroImageSettings=settings;
+    var mode=settings.mode==='global_pool'?'global_pool':'per_slide';
+    var perSlide=document.getElementById('hero-img-mode-per-slide');
+    var globalPool=document.getElementById('hero-img-mode-global-pool');
+    if(perSlide)perSlide.checked=mode==='per_slide';
+    if(globalPool)globalPool.checked=mode==='global_pool';
+    initScGallery('hero-pool',settings.pool||[]);
+    var altEl=document.getElementById('sc-hero-pool-image-alt');
+    if(altEl)altEl.value=settings.pool_alt||'';
+    updateHeroImageModePanels();
+}
+function updateHeroImageModePanels(){
+    var mode=document.querySelector('input[name="hero-img-mode"]:checked');
+    var poolPanel=document.getElementById('hero-pool-panel');
+    if(poolPanel)poolPanel.style.display=(mode&&mode.value==='global_pool')?'':'none';
+}
+function bindHeroImageModeRadios(){
+    document.querySelectorAll('input[name="hero-img-mode"]').forEach(function(radio){
+        if(radio.dataset.bound)return;
+        radio.dataset.bound='1';
+        radio.addEventListener('change',updateHeroImageModePanels);
+    });
+}
+function saveHeroImageSettings(){
+    var modeEl=document.querySelector('input[name="hero-img-mode"]:checked');
+    var mode=modeEl&&modeEl.value==='global_pool'?'global_pool':'per_slide';
+    if(mode==='global_pool'&&!scGalleryItems('hero-pool').length){
+        var urlsEl=document.getElementById('sc-hero-pool-image-urls');
+        if(!urlsEl||!urlsEl.value.trim()){
+            toast('Add at least one image to the shared pool, or switch to per-slide mode.','error');
+            return;
+        }
+    }
+    setSaveBtnLoading('sc-hero-img-settings-save-btn','sc-hero-img-settings-save-text',true,'💾 Save Background Settings');
+    flushScGalleryUrlsBeforeSave('hero-pool').then(function(){
+        var fd=new FormData();
+        fd.append('action','save_hero_image_settings');
+        fd.append('image_mode',mode);
+        fd.append('pool_alt',document.getElementById('sc-hero-pool-image-alt').value.trim());
+        fd.append('pool_images_json',JSON.stringify(scGallerySavedPayload('hero-pool')));
+        var poolUrls=document.getElementById('sc-hero-pool-image-urls').value.trim();
+        if(poolUrls)fd.append('pool_image_urls',poolUrls);
+        scGalleryPendingFiles('hero-pool').forEach(function(f){fd.append('poolImageFiles[]',f);});
+        return adminJsonFetch('api.php',{method:'POST',body:fd});
+    }).then(function(d){
+        if(d&&d.success){
+            toast('Hero background settings saved.','success');
+            applyHeroImageSettingsForm(d.image_settings||null);
+        }else if(d)toast(d.error||'Failed to save background settings.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast(err.message||'Network error.','error');
+    }).finally(function(){
+        setSaveBtnLoading('sc-hero-img-settings-save-btn','sc-hero-img-settings-save-text',false,'💾 Save Background Settings');
+    });
+}
+document.addEventListener('DOMContentLoaded',bindHeroImageModeRadios);
+if(document.readyState!=='loading')bindHeroImageModeRadios();
 function adminThumbSrc(img){
     if(!img)return '';
     var u=typeof img==='string'?img:(img.display_url||img.url||'');

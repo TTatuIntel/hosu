@@ -1822,7 +1822,7 @@ footer {
 
         var mainImg = galleryUrls[0] || ev.image || '';
         var speakersHtml = ev.speakers ? '<div class="edp-meta-item" style="margin-top:.5rem;"><strong>&#127908;</strong> ' + ev.speakers.replace(/\n/g, '<br>') + '</div>' : '';
-        var highlightsHtml = ev.highlights ? '<div style="margin-top:1rem;padding:.75rem;background:#f0f7ff;border-radius:8px;"><strong>&#10024; Highlights</strong><p style="margin:.35rem 0 0;font-size:.9rem;">' + ev.highlights + '</p></div>' : '';
+        var highlightsHtml = ev.highlights ? '<div style="margin-top:1rem;padding:.75rem;background:#f0f7ff;border-radius:8px;"><strong>&#10024; Key highlights</strong><p style="margin:.35rem 0 0;font-size:.9rem;white-space:pre-line;">' + ev.highlights + '</p></div>' : '';
         var announceHtml = ev.announcements ? '<div style="margin-top:.75rem;padding:.75rem;background:#fff8e1;border-left:3px solid #f9a825;border-radius:4px;"><strong>&#128227; Announcement</strong><p style="margin:.35rem 0 0;font-size:.9rem;">' + ev.announcements + '</p></div>' : '';
         var liveMessageHtml = isLiveNow && ev.live_message ? '<div style="margin-top:.75rem;padding:.85rem 1rem;background:linear-gradient(90deg,#e8f5e9,#f1f8e9);border-left:4px solid #2e7d32;border-radius:6px;"><strong>&#128308; Ongoing Event</strong><p style="margin:.35rem 0 0;font-size:.95rem;font-weight:500;">' + ev.live_message + '</p></div>' : '';
         var allBlocks = ev.content_blocks || ev.live_content || [];
