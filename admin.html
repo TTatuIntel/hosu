@@ -4246,7 +4246,7 @@ function saveEvent(){
     if(dateEnd)fd.append('date_end',dateEnd);
     fd.append('is_free',isFree?'1':'0');
     fd.append('event_fee',fee);
-    fd.append('featured',document.getElementById('ev-featured').checked?'1':'0');
+    fd.append('featured',(status==='past'?false:document.getElementById('ev-featured').checked)?'1':'0');
     fd.append('pinned',document.getElementById('ev-pinned').checked?'1':'0');
     fd.append('home_priority',document.getElementById('ev-home-priority').value||'0');
     fd.append('display_for_event',document.getElementById('ev-display-for-event').checked?'1':'0');

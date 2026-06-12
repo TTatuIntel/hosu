@@ -1172,6 +1172,20 @@ footer {
         return parseEventDate(ev ? ev.date : '', ev);
     }
 
+    function eventIsPast(ev) {
+        if (!ev) return false;
+        if (ev.is_past || ev.status === 'past') return true;
+        var endD = parseEventEndDate(ev);
+        if (endD) {
+            var today = new Date();
+            today.setHours(0, 0, 0, 0);
+            var endDay = new Date(endD.getTime());
+            endDay.setHours(23, 59, 59, 999);
+            if (today > endDay) return true;
+        }
+        return false;
+    }
+
     function getAllEvents() {
         var all = [];
         // Priority order: current first, then upcoming, then type-specific, then past last
@@ -1180,7 +1194,9 @@ footer {
             var cat = categories[i];
             var arr = eventsData[cat] || [];
             for (var j = 0; j < arr.length; j++) {
-                all.push(Object.assign({}, arr[j], { _category: cat }));
+                var ev = arr[j];
+                if (cat === 'featured' && eventIsPast(ev)) continue;
+                all.push(Object.assign({}, ev, { _category: eventIsPast(ev) ? 'past' : cat }));
             }
         }
         return all;
@@ -1205,9 +1221,9 @@ footer {
             // Status priority
             var aCat = categoryOrder[a._category] !== undefined ? categoryOrder[a._category] : 3;
             var bCat = categoryOrder[b._category] !== undefined ? categoryOrder[b._category] : 3;
-            // Override: if status is past, treat as past regardless of _category
-            if (a.status === 'past' && a._category !== 'current') aCat = 4;
-            if (b.status === 'past' && b._category !== 'current') bCat = 4;
+            // Override: passed events always sort as past (unless live today)
+            if (eventIsPast(a) && a._category !== 'current') aCat = 4;
+            if (eventIsPast(b) && b._category !== 'current') bCat = 4;
             if (aCat !== bCat) return aCat - bCat;
             // Same priority group: sort by date (nearest future first, then most recent past)
             var da = parseEventDate(a.date, a), db = parseEventDate(b.date, b);
@@ -1403,9 +1419,13 @@ footer {
 
         if (category === 'all') {
             events = getUniqueEvents();
+        } else if (category === 'featured') {
+            events = (eventsData[category] || []).filter(function(e) { return !eventIsPast(e); }).map(function(e) {
+                return Object.assign({}, e, { _category: 'featured' });
+            });
         } else {
             events = (eventsData[category] || []).map(function(e) {
-                return Object.assign({}, e, { _category: category });
+                return Object.assign({}, e, { _category: eventIsPast(e) ? 'past' : category });
             });
         }
 
@@ -1834,7 +1854,7 @@ footer {
             + '<span class="edp-badge ' + typeClass + '">' + ev.type + '</span>'
             + '<span class="edp-badge ' + statusClass + '">' + statusLabel + '</span>'
             + (ev.is_live || ev.countdown === 'Happening Now' ? '<span class="edp-badge status-live">&#128308; Live</span>' : '')
-            + (ev.featured ? '<span class="edp-badge" style="background:rgba(230,57,70,0.12);color:var(--primary-color);">&#11088; Featured</span>' : '')
+            + (ev.featured && !eventIsPast(ev) ? '<span class="edp-badge" style="background:rgba(230,57,70,0.12);color:var(--primary-color);">&#11088; Featured</span>' : '')
             + (ev.pinned ? '<span class="edp-badge" style="background:rgba(230,126,34,0.12);color:#e67e22;">&#128204; Pinned</span>' : '')
             + '</div>'
             + '<h2 class="edp-title">' + ev.title + '</h2>'

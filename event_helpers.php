@@ -397,16 +397,51 @@ function collectPostedSlideImages(string $imagesJsonField, string $urlsField, st
     return expandHeroSlideImages(dedupeSlideImages($items));
 }
 
+function eventHasPassed(array $ev, ?DateTimeImmutable $today = null): bool
+{
+    $today = $today ?? new DateTimeImmutable('today');
+    if (!empty($ev['date_start'])) {
+        $start = new DateTimeImmutable($ev['date_start']);
+        $end   = !empty($ev['date_end']) ? new DateTimeImmutable($ev['date_end']) : $start;
+        return $today > $end;
+    }
+
+    return ($ev['status'] ?? '') === 'past' || ($ev['category'] ?? '') === 'past';
+}
+
+function resolveEventBucketCategory(array $ev, ?DateTimeImmutable $today = null): string
+{
+    $today = $today ?? new DateTimeImmutable('today');
+    if (eventHasPassed($ev, $today)) {
+        return 'past';
+    }
+    if (eventIsLive($ev, $today)) {
+        return 'current';
+    }
+
+    $cat = $ev['category'] ?? 'upcoming';
+    if ($cat === 'past') {
+        return 'upcoming';
+    }
+    if ($cat === 'current') {
+        return 'upcoming';
+    }
+
+    return in_array($cat, ['current', 'upcoming', 'past'], true) ? $cat : 'upcoming';
+}
+
 function autoExpirePastEvents(PDO $pdo): void
 {
     $pdo->exec("
         UPDATE events
-        SET status = 'past', category = 'past'
-        WHERE status != 'past'
-          AND (
+        SET status = 'past',
+            category = 'past',
+            featured = 0
+        WHERE (
               (date_end IS NOT NULL AND date_end < CURDATE())
            OR (date_end IS NULL AND date_start IS NOT NULL AND date_start < CURDATE())
           )
+          AND (status != 'past' OR category != 'past' OR featured = 1)
     ");
 }
 
@@ -503,6 +538,11 @@ function enrichEventRow(array &$ev, ?DateTimeImmutable $today = null): void
 
     $ev['countdown'] = computeEventCountdown($ev, $today);
     $ev['is_live'] = eventIsLive($ev, $today);
+    $ev['is_past'] = eventHasPassed($ev, $today);
+    if ($ev['is_past']) {
+        $ev['status'] = 'past';
+        $ev['category'] = 'past';
+    }
     $ev['is_display_active'] = eventIsDisplayActive($ev);
     $ev['show_live_on_home'] = !isset($ev['show_live_on_home']) || (bool)$ev['show_live_on_home'];
     $ev['show_upcoming_in_ongoing'] = !empty($ev['show_upcoming_in_ongoing']);
@@ -914,8 +954,8 @@ function bucketEventsForPublic(array $rows, PDO $pdo): array
     $typeMap = ['conference' => 'conferences', 'workshop' => 'workshops', 'webinar' => 'webinars'];
 
     foreach ($rows as $ev) {
-        $cat = $ev['category'] ?? 'upcoming';
         enrichEventRow($ev, $today);
+        $cat = resolveEventBucketCategory($ev, $today);
 
         $gallery = $galleryByEvent[$ev['id']] ?? [];
         $urls = [];
@@ -945,7 +985,7 @@ function bucketEventsForPublic(array $rows, PDO $pdo): array
         if ($typeKey) {
             $eventsData[$typeKey][] = $ev;
         }
-        if ($ev['featured']) {
+        if ($ev['featured'] && !$ev['is_past']) {
             $eventsData['featured'][] = $ev;
         }
     }
@@ -1189,6 +1229,10 @@ function parseDisplayFields(array $post): array
 
 function eventQualifiesForSpotlight(array $ev): bool
 {
+    if (!empty($ev['is_past']) || eventHasPassed($ev)) {
+        return !empty($ev['show_live_on_home']);
+    }
+
     return !empty($ev['show_live_on_home']) || !empty($ev['featured']) || !empty($ev['pinned']);
 }
 
@@ -2600,26 +2644,16 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
     migrateEventSchema($pdo);
     autoExpirePastEvents($pdo);
 
-    $pdo->exec("
-        UPDATE events
-        SET featured = 0
-        WHERE featured = 1
-          AND display_for_event = 0
-          AND display_start IS NULL
-          AND display_end IS NULL
-          AND status = 'past'
-          AND (
-              (date_end IS NOT NULL AND date_end < CURDATE() - INTERVAL 2 DAY)
-           OR (date_end IS NULL AND date_start IS NOT NULL AND date_start < CURDATE() - INTERVAL 2 DAY)
-          )
-    ");
-
     $evStmt = $pdo->query("
         SELECT id, title, description, date, date_start, date_end, location, image, type, countdown,
                is_free, event_fee, status, featured, pinned, home_priority,
                display_start, display_end, display_for_event, speakers, highlights, announcements
         FROM events
-        WHERE featured = 1 OR pinned = 1
+        WHERE (featured = 1 OR pinned = 1)
+          AND NOT (
+              (date_end IS NOT NULL AND date_end < CURDATE())
+           OR (date_end IS NULL AND date_start IS NOT NULL AND date_start < CURDATE())
+          )
         ORDER BY pinned DESC, home_priority DESC, date_start ASC
         LIMIT 12
     ");
@@ -2631,7 +2665,7 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
     }
     unset($ev);
 
-    $events = array_values(array_filter($events, fn($ev) => $ev['featured'] && $ev['is_display_active']));
+    $events = array_values(array_filter($events, fn($ev) => $ev['featured'] && !$ev['is_past'] && $ev['is_display_active']));
     usort($events, function ($a, $b) {
         if ($a['pinned'] !== $b['pinned']) return $b['pinned'] <=> $a['pinned'];
         if ($a['home_priority'] !== $b['home_priority']) return $b['home_priority'] <=> $a['home_priority'];
@@ -3038,7 +3072,7 @@ function fetchHomepageAdminOverview(PDO $pdo): array
                     'event_id' => (string) $row['id'],
                 ];
             }
-            if (!empty($row['featured'])) {
+            if (!empty($row['featured']) && empty($row['is_past'])) {
                 $items[] = [
                     'kind' => 'featured_event',
                     'id' => (string) $row['id'],

@@ -135,7 +135,7 @@ try {
         $_POST['title'],
         $_POST['description'],
         $_POST['location'],
-        (!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0,
+        ($status === 'past') ? 0 : ((!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0),
         $category,
         $isFree,
         $eventFee,
