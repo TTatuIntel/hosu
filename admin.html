@@ -1963,8 +1963,8 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             </div>
 
             <div id="ev-live-banner" class="ev-live-banner">
-                <strong>🔴 This event is LIVE right now</strong>
-                <p>Upload photos or paste image links below — they rotate on the homepage <strong>Ongoing Now</strong> section within about a minute. Use <strong>Featured on Home</strong> (Homepage tab) for the hero slider only.</p>
+                <strong id="ev-live-banner-title">🔴 This event is LIVE right now</strong>
+                <p id="ev-live-banner-text">Upload photos or paste image links below — they rotate on the homepage <strong>Ongoing Now</strong> section within about a minute. Event dates stay unchanged.</p>
             </div>
             <div id="ev-quick-bar" class="ev-quick-bar" style="display:none;">
                 <span style="font-size:.78rem;font-weight:600;color:#1565c0;">Quick add (no need to re-save all fields):</span>
@@ -2060,8 +2060,8 @@ textarea.ld-input{resize:vertical;min-height:100px;}
 
             <div id="ev-tab-content" class="ev-tab-panel">
             <div id="ev-live-quick" class="live-quick-panel" style="display:none;">
-                <h4>🔴 Publish live photos to Ongoing Now</h4>
-                <p>Upload one or more photos <strong>or</strong> paste image link(s). Optional message shown with the event. Enables homepage display automatically.</p>
+                <h4 id="ev-live-quick-title">📷 Add photos to Ongoing Now</h4>
+                <p>Upload photos or paste links — <strong>no need to change event dates</strong>, even after the event has passed. Homepage updates in about a minute.</p>
                 <div class="live-quick-row">
                     <div>
                         <label class="live-quick-upload" id="ev-live-quick-drop">
@@ -2086,7 +2086,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 <div class="aef-grid">
                     <div class="ff"><label>Live Headline <small>(shown when event is ongoing)</small></label><input type="text" id="ev-live-message" placeholder="e.g. We are waiting for more members to join us"></div>
                     <div class="ff ev-drive-folder-field">
-                        <label>📁 Google Drive photo folder <span>*</span> <small>(for Ongoing Now rotation)</small></label>
+                        <label>📁 Google Drive photo folder <small>(for Ongoing Now rotation)</small></label>
                         <input type="text" id="ev-drive-folder-url" placeholder="https://drive.google.com/drive/folders/… or …/mobile/folders/…" onchange="previewDriveFolder()" onblur="previewDriveFolder()">
                         <small>Paste the <strong>folder</strong> link (not a single file). Must be shared: <strong>Anyone with the link can view</strong>. Supports mobile/desktop Drive URLs.</small>
                         <div id="ev-drive-folder-preview" class="ev-drive-preview" style="display:none;margin-top:.5rem;"></div>
@@ -2100,7 +2100,11 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-show-live-home" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Auto-live on event day (Ongoing Now)</span></div>
                     <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-show-upcoming-ongoing"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show as upcoming preview (countdown)</span></div>
                 </div>
-                <small class="fee-hint">Live = automatic on event day. Upcoming = only if you add it in Homepage → Ongoing Now lineup and enable upcoming previews there.</small>
+                <small class="fee-hint">Past events: keep <strong>Auto-live on Ongoing Now</strong> on, paste a Drive folder or upload photos, then use <strong>Save Photos &amp; Live Content</strong> below — dates are not changed.</small>
+                <div style="margin:.75rem 0 .5rem;">
+                    <button type="button" class="btn-primary" id="ev-save-ongoing-btn" onclick="saveEventOngoingContent()">💾 Save Photos &amp; Live Content</button>
+                    <small style="display:block;margin-top:.35rem;color:var(--text-light);font-size:.72rem;">Saves Drive folder, live text, and content blocks only — does not change event dates.</small>
+                </div>
                 <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(add, edit, remove anytime)</small></div>
                 <div id="ev-live-content-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
                 <button type="button" class="btn-sm" style="margin-top:.5rem;" onclick="addLiveContentItem()">➕ Add Content Block</button>
@@ -3473,16 +3477,38 @@ function isEventLiveByDates(startStr,endStr){
     return today>=start&&today<=end;
 }
 
+function isEventPastByDates(startStr,endStr){
+    if(!startStr)return false;
+    var today=new Date();today.setHours(0,0,0,0);
+    var end=endStr?new Date(endStr+'T00:00:00'):new Date(startStr+'T00:00:00');
+    return today>end;
+}
+
 function updateEvLiveUi(){
-    var live=isEventLiveByDates(
-        document.getElementById('ev-date-start').value,
-        document.getElementById('ev-date-end').value
-    );
+    var start=document.getElementById('ev-date-start').value;
+    var end=document.getElementById('ev-date-end').value;
+    var live=isEventLiveByDates(start,end);
+    var past=isEventPastByDates(start,end);
+    var editing=!!_editingEvId;
     var banner=document.getElementById('ev-live-banner');
     var quick=document.getElementById('ev-live-quick');
-    if(banner)banner.classList.toggle('show',live&&!!_editingEvId);
-    if(quick)quick.style.display=(live&&_editingEvId)?'':'none';
-    if(live&&_editingEvId){
+    var bannerTitle=document.getElementById('ev-live-banner-title');
+    var bannerText=document.getElementById('ev-live-banner-text');
+    var quickTitle=document.getElementById('ev-live-quick-title');
+    if(banner)banner.classList.toggle('show',editing&&(live||past));
+    if(quick)quick.style.display=editing?'block':'none';
+    if(bannerTitle){
+        if(live)bannerTitle.textContent='🔴 This event is LIVE right now';
+        else if(past)bannerTitle.textContent='📷 Update photos for this past event';
+        else bannerTitle.textContent='📷 Add Ongoing Now photos & updates';
+    }
+    if(bannerText){
+        bannerText.innerHTML='Upload photos, paste a Google Drive folder, or add content blocks — <strong>event dates stay unchanged</strong>. Homepage <strong>Ongoing Now</strong> updates in about a minute.';
+    }
+    if(quickTitle){
+        quickTitle.textContent=live?'🔴 Publish live photos to Ongoing Now':'📷 Add photos to Ongoing Now';
+    }
+    if(live&&editing){
         document.getElementById('ev-show-live-home').checked=true;
     }
 }
@@ -3531,6 +3557,10 @@ function publishLiveQuickUpdate(){
     fd.append('action','append_event_assets');
     fd.append('event_id',_editingEvId);
     fd.append('enable_live_home','1');
+    var driveFolder=(document.getElementById('ev-drive-folder-url')||{}).value||'';
+    if(driveFolder)fd.append('drive_folder_url',driveFolder.trim());
+    var liveMsg=(document.getElementById('ev-live-message')||{}).value||'';
+    if(liveMsg)fd.append('live_message',liveMsg.trim());
     files.forEach(function(f){fd.append('imageFiles[]',f);});
     urls.forEach(function(u){fd.append('imageUrls[]',u);});
     if(msg){
@@ -3787,9 +3817,9 @@ function quickAppendEventAssets(){
     var fd=new FormData();
     fd.append('action','append_event_assets');
     fd.append('event_id',_editingEvId);
-    if(isEventLiveByDates(document.getElementById('ev-date-start').value,document.getElementById('ev-date-end').value)){
-        fd.append('enable_live_home','1');
-    }
+    fd.append('enable_live_home',document.getElementById('ev-show-live-home').checked?'1':'0');
+    var driveFolder=(document.getElementById('ev-drive-folder-url')||{}).value||'';
+    if(driveFolder)fd.append('drive_folder_url',driveFolder.trim());
     fd.append('imageAlt',document.getElementById('ev-alt').value.trim());
     _evNewFiles.forEach(function(f){fd.append('imageFiles[]',f);});
     var imgUrls=parseUrlLines(document.getElementById('ev-img-url').value);
@@ -4087,7 +4117,8 @@ function populateEditEvent(ev){
     document.getElementById('ev-remove-home-btn').style.display='';
     document.getElementById('ev-quick-bar').style.display='';
     updateEvLiveUi();
-    if(isEventLiveByDates(ev.date_start||'',ev.date_end||'')){
+    if(isEventLiveByDates(ev.date_start||'',ev.date_end||'')
+        ||(isEventPastByDates(ev.date_start||'',ev.date_end||'')&&(ev.show_live_on_home==1||ev.show_live_on_home===true))){
         switchEvTab('content');
     }
     _evExistingMedia=(ev.media||[]).slice();
@@ -4198,6 +4229,62 @@ function resetEvForm(){
     _editingEvId=null;
 }
 
+function buildEventOngoingFormData(){
+    var fd=new FormData();
+    fd.append('action','update_event');
+    fd.append('content_only','1');
+    fd.append('id',_editingEvId);
+    fd.append('live_message',document.getElementById('ev-live-message').value.trim());
+    fd.append('live_cta_label',document.getElementById('ev-live-cta').value.trim()||'Register & Join Now');
+    var driveFolder=document.getElementById('ev-drive-folder-url').value.trim();
+    var btnUrl=document.getElementById('ev-live-cta-url').value.trim();
+    fd.append('drive_folder_url',driveFolder);
+    fd.append('live_cta_url',btnUrl||driveFolder);
+    fd.append('show_live_on_home',document.getElementById('ev-show-live-home').checked?'1':'0');
+    fd.append('show_upcoming_in_ongoing',document.getElementById('ev-show-upcoming-ongoing')&&document.getElementById('ev-show-upcoming-ongoing').checked?'1':'0');
+    fd.append('live_content_json',getLiveContentJson());
+    fd.append('post_event_display_days',document.getElementById('ev-post-event-days').value||'0');
+    fd.append('highlights',document.getElementById('ev-highlights').value.trim());
+    fd.append('announcements',document.getElementById('ev-announcements').value.trim());
+    fd.append('speakers',document.getElementById('ev-speakers').value.trim());
+    fd.append('imageAlt',document.getElementById('ev-alt').value.trim());
+    _evNewFiles.forEach(function(f){fd.append('imageFiles[]',f);});
+    var imgUrls=parseUrlLines(document.getElementById('ev-img-url').value);
+    imgUrls.forEach(function(u){fd.append('imageUrls[]',u);});
+    return fd;
+}
+
+function saveEventOngoingContent(){
+    if(!_editingEvId){toast('Open an existing event first.','error');return;}
+    var btn=document.getElementById('ev-save-ongoing-btn');
+    if(btn){btn.disabled=true;btn.textContent='⏳ Saving…';}
+    adminJsonFetch('api.php',{method:'POST',body:buildEventOngoingFormData()}).then(function(d){
+        if(d.success){
+            var msg='✅ Photos & live content saved — dates unchanged.';
+            if(d.drive_sync){
+                msg+=d.drive_sync.ok?(' Drive: '+d.drive_sync.photo_count+' photo(s).'):' Drive folder linked but 0 photos found — check sharing.';
+            } else if(d.images_added_from_urls){
+                msg+=' '+d.images_added_from_urls+' image link(s) added.';
+            }
+            toast(msg,'success');
+            if(d.event){
+                var idx=_events.findIndex(function(e){return e.id===d.event.id;});
+                if(idx>=0)_events[idx]=d.event;
+                _evNewFiles=[];
+                document.getElementById('ev-img-url').value='';
+                clearEvImg();
+                refreshEventAssets(d.event);
+                renderEvents();
+            }
+            bumpOngoingRevision();loadOngoingNowPanel();loadHomepageOverview();
+        } else toast(d.error||'Failed.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast(err.message||'Connection error.','error');
+    }).finally(function(){
+        if(btn){btn.disabled=false;btn.textContent='💾 Save Photos & Live Content';}
+    });
+}
+
 function saveEvent(){
     var title=document.getElementById('ev-title').value.trim();
     var slug=document.getElementById('ev-slug').value.trim();
@@ -4246,7 +4333,7 @@ function saveEvent(){
     if(dateEnd)fd.append('date_end',dateEnd);
     fd.append('is_free',isFree?'1':'0');
     fd.append('event_fee',fee);
-    fd.append('featured',(status==='past'?false:document.getElementById('ev-featured').checked)?'1':'0');
+    fd.append('featured',document.getElementById('ev-featured').checked?'1':'0');
     fd.append('pinned',document.getElementById('ev-pinned').checked?'1':'0');
     fd.append('home_priority',document.getElementById('ev-home-priority').value||'0');
     fd.append('display_for_event',document.getElementById('ev-display-for-event').checked?'1':'0');

@@ -834,6 +834,33 @@ function appendEventAssets(PDO $pdo, string $eventId, array $post, array $files)
 
     if (!empty($post['enable_live_home']) && $post['enable_live_home'] !== '0') {
         $pdo->prepare('UPDATE events SET show_live_on_home = 1 WHERE id = ?')->execute([$eventId]);
+        $rowStmt = $pdo->prepare('SELECT * FROM events WHERE id = ?');
+        $rowStmt->execute([$eventId]);
+        $row = $rowStmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            ensurePastEventHomeDisplay($pdo, $eventId, $row, true);
+        }
+    }
+
+    if (!empty($post['drive_folder_url']) || !empty($post['live_message'])) {
+        $liveFields = parseLiveFields($post);
+        $pdo->prepare(
+            'UPDATE events SET drive_folder_url = ?, live_cta_url = ?, live_message = ?, live_cta_label = ?,
+             show_live_on_home = GREATEST(show_live_on_home, ?) WHERE id = ?'
+        )->execute([
+            $liveFields['drive_folder_url'],
+            $liveFields['live_cta_url'],
+            $liveFields['live_message'],
+            $liveFields['live_cta_label'],
+            (int) $liveFields['show_live_on_home'],
+            $eventId,
+        ]);
+        $rowStmt = $pdo->prepare('SELECT * FROM events WHERE id = ?');
+        $rowStmt->execute([$eventId]);
+        $row = $rowStmt->fetch(PDO::FETCH_ASSOC);
+        if ($row) {
+            ensurePastEventHomeDisplay($pdo, $eventId, array_merge($row, $liveFields), !empty($post['enable_live_home']));
+        }
     }
 
     return $summary;
@@ -858,6 +885,123 @@ function parseLiveFields(array $post): array
         'drive_folder_url' => $folder,
         'show_live_on_home' => $showLive ? 1 : 0,
         'show_upcoming_in_ongoing' => $showUpcoming ? 1 : 0,
+    ];
+}
+
+/**
+ * Keep past events visible on Ongoing Now when admin adds photos or enables live-on-home.
+ */
+function ensurePastEventHomeDisplay(PDO $pdo, string $eventId, array $ev, bool $forceEnable = false): void
+{
+    $today = new DateTimeImmutable('today');
+    enrichEventRow($ev, $today);
+    $showLive = $forceEnable || !empty($ev['show_live_on_home']);
+    if (!$showLive || empty($ev['is_past'])) {
+        return;
+    }
+
+    $days = (int) ($ev['post_event_display_days'] ?? 0);
+    if ($days === 0) {
+        $pdo->prepare('UPDATE events SET show_live_on_home = 1, post_event_display_days = -1 WHERE id = ?')
+            ->execute([$eventId]);
+        return;
+    }
+
+    if ($forceEnable) {
+        $pdo->prepare('UPDATE events SET show_live_on_home = 1 WHERE id = ?')->execute([$eventId]);
+    }
+}
+
+/**
+ * Update Ongoing Now / live content without changing event dates or core details.
+ *
+ * @return array{event: ?array, drive_sync: ?array, images_added_from_urls: int}
+ */
+function saveEventOngoingContentUpdate(PDO $pdo, string $eventId, array $existing, array $post, array $files = []): array
+{
+    migrateEventSchema($pdo);
+    $merged = array_merge($existing, $post);
+    $imagesAddedFromUrls = 0;
+
+    $imageUrls = [];
+    if (!empty($post['imageUrls']) && is_array($post['imageUrls'])) {
+        $imageUrls = $post['imageUrls'];
+    } elseif (!empty($post['imageUrls'])) {
+        $imageUrls = preg_split('/[\r\n,]+/', (string) $post['imageUrls']);
+    }
+    if (!empty($imageUrls)) {
+        $imagesAddedFromUrls = insertEventImageUrls($pdo, $eventId, $imageUrls, $post['imageAlt'] ?? ($existing['imageAlt'] ?? ''));
+    }
+
+    if (!empty($files['imageFiles'])) {
+        appendEventAssets($pdo, $eventId, array_merge($post, ['enable_live_home' => $post['enable_live_home'] ?? '1']), $files);
+    }
+
+    saveEventMediaFromRequest($pdo, $eventId, $post, $files);
+    if (array_key_exists('live_content_json', $post)) {
+        saveLiveContentFromRequest($pdo, $eventId, $post);
+    }
+
+    $liveFields = parseLiveFields($merged);
+    $displayFields = parseDisplayFields(array_merge($existing, $post));
+    $postEventDays = (int) ($displayFields['post_event_display_days'] ?? $existing['post_event_display_days'] ?? 0);
+    if (!empty($liveFields['show_live_on_home']) && eventHasPassed($existing) && $postEventDays === 0) {
+        $postEventDays = -1;
+    }
+
+    $pdo->prepare(
+        'UPDATE events SET live_message = ?, live_cta_label = ?, live_cta_url = ?, drive_folder_url = ?,
+         show_live_on_home = ?, show_upcoming_in_ongoing = ?, post_event_display_days = ?,
+         highlights = ?, announcements = ?, speakers = ?
+         WHERE id = ?'
+    )->execute([
+        $liveFields['live_message'],
+        $liveFields['live_cta_label'],
+        $liveFields['live_cta_url'],
+        $liveFields['drive_folder_url'],
+        $liveFields['show_live_on_home'],
+        $liveFields['show_upcoming_in_ongoing'],
+        $postEventDays,
+        $displayFields['highlights'],
+        $displayFields['announcements'],
+        $displayFields['speakers'],
+        $eventId,
+    ]);
+
+    ensurePastEventHomeDisplay($pdo, $eventId, array_merge($existing, $liveFields, ['post_event_display_days' => $postEventDays]), true);
+
+    $driveSync = null;
+    $folderUrl = resolveEventDriveFolderUrl(array_merge($existing, $liveFields));
+    if ($folderUrl !== '') {
+        $folderId = extractDriveFolderId($folderUrl);
+        if ($folderId !== '') {
+            invalidateDriveFolderCache($folderId);
+            $driveIds = fetchDriveFolderFileIds($folderId, true);
+            $driveSync = [
+                'ok' => count($driveIds) > 0,
+                'photo_count' => count($driveIds),
+                'folder_id' => $folderId,
+            ];
+        }
+    }
+
+    $eventRow = null;
+    try {
+        $evStmt = $pdo->prepare(
+            'SELECT id, title, type, status, category, date, date_start, date_end, location, image, imageAlt, description,
+                    countdown, featured, pinned, home_priority, display_start, display_end, display_for_event,
+                    speakers, highlights, announcements, live_message, live_cta_label, live_cta_url, drive_folder_url,
+                    show_live_on_home, show_upcoming_in_ongoing, post_event_display_days, is_free, event_fee, created_at, updated_at
+             FROM events WHERE id = ?'
+        );
+        $evStmt->execute([$eventId]);
+        $eventRow = $evStmt->fetch(PDO::FETCH_ASSOC) ?: null;
+    } catch (Exception $_e) { /* ignore */ }
+
+    return [
+        'event' => $eventRow,
+        'drive_sync' => $driveSync,
+        'images_added_from_urls' => $imagesAddedFromUrls,
     ];
 }
 

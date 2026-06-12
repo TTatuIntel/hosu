@@ -1797,6 +1797,18 @@ HTML;
                 break;
             }
 
+            $contentOnly = !empty($_POST['content_only']) && $_POST['content_only'] !== '0';
+            if ($contentOnly) {
+                $result = saveEventOngoingContentUpdate($pdo, $id, $existing, $_POST, $_FILES);
+                echo json_encode([
+                    'success' => true,
+                    'event' => $result['event'],
+                    'drive_sync' => $result['drive_sync'],
+                    'images_added_from_urls' => $result['images_added_from_urls'],
+                ]);
+                break;
+            }
+
             $partial = !empty($_POST['partial']) && $_POST['partial'] !== '0';
             $mergeField = function (string $key, $fallback = '') use ($partial, $existing) {
                 if ($partial && !array_key_exists($key, $_POST)) {
@@ -1967,9 +1979,6 @@ HTML;
             $liveFields = parseLiveFields(array_merge($existing, $_POST));
 
             $featuredRaw = $mergeField('featured', $existing['featured'] ?? 0);
-            if ($status === 'past') {
-                $featuredRaw = 0;
-            }
             $isFreeRaw = $mergeField('is_free', $existing['is_free'] ?? 1);
             $isFree = !empty($isFreeRaw) && $isFreeRaw !== '0' ? 1 : 0;
             $eventFee = $isFree ? 0 : max(0, (float)$mergeField('event_fee', $existing['event_fee'] ?? 0));
