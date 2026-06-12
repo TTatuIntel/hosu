@@ -64,6 +64,6 @@ foreach ($sources as $source) {
     }
 }
 
-http_response_code(404);
-header('Content-Type: text/plain; charset=utf-8');
-echo 'Image not available';
+/* Let the browser load Google directly when server-side fetch fails (no curl, firewall, etc.). */
+header('Location: https://lh3.googleusercontent.com/d/' . rawurlencode($id) . '=w' . $w, true, 302);
+exit;

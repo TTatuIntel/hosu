@@ -109,9 +109,33 @@
         return (d.textContent || d.innerText || '').trim();
     }
 
+    function hosuAssetUrl(path) {
+        if (!path) return '';
+        var s = String(path).trim();
+        if (/^https?:\/\//i.test(s)) return s;
+        if (s.charAt(0) === '/') return s;
+        var base = window.HOSU_ASSET_BASE || '';
+        if (!base) {
+            var scripts = document.getElementsByTagName('script');
+            for (var i = 0; i < scripts.length; i++) {
+                var src = scripts[i].src || '';
+                if (src && /\/(?:home-hero\.js|page_bootstrap\.php|index\.html)(?:\?|$)/i.test(src)) {
+                    base = src.replace(/\/[^/]*(?:\?.*)?$/, '');
+                    break;
+                }
+            }
+        }
+        if (base && base.charAt(base.length - 1) !== '/') base += '/';
+        return (base || '') + s.replace(/^\.\//, '');
+    }
+
     function extractDriveFileId(url) {
         if (!url) return '';
-        var m = String(url).match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        var m = String(url).match(/drive_image\.php\?id=([a-zA-Z0-9_-]+)/i);
+        if (m) return m[1];
+        m = String(url).match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (m) return m[1];
+        m = String(url).match(/\/d\/([a-zA-Z0-9_-]+)/);
         if (m) return m[1];
         m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);
         return m ? m[1] : '';
@@ -124,10 +148,10 @@
         if (/drive\.google|docs\.google/i.test(u) && u.indexOf('drive_image.php') === -1) {
             var driveId = extractDriveFileId(u);
             if (driveId) {
-                return 'drive_image.php?id=' + encodeURIComponent(driveId) + '&w=1400';
+                return hosuAssetUrl('drive_image.php?id=' + encodeURIComponent(driveId) + '&w=1400');
             }
         }
-        return u;
+        return hosuAssetUrl(u);
     }
 
     function slideImages(slide) {
@@ -149,7 +173,7 @@
         if (slide.image_path && !/\/folders\//i.test(slide.image_path)) {
             return [{
                 url: slide.image_path,
-                display_url: slide.image_path,
+                display_url: resolveHeroDisplayUrl({ url: slide.image_path, display_url: slide.image_path }),
                 alt: slide.image_alt || '',
                 title: '',
                 body: '',
@@ -226,10 +250,14 @@
 
     function buildBackgroundDiv(id, attrs, img) {
         var src = img.display_url || img.url;
+        var raw = img.url || src;
         var bg = src ? ' data-bg="' + escAttr(src) + '"' : '';
+        var orig = raw && raw !== src ? ' data-original-url="' + escAttr(raw) + '"' : '';
+        var driveId = extractDriveFileId(src) || extractDriveFileId(raw);
+        var driveAttr = driveId ? ' data-drive-id="' + escAttr(driveId) + '"' : '';
         var alt = img.alt ? ' aria-label="' + escAttr(img.alt) + '"' : '';
         var idAttr = id ? ' id="' + escAttr(id) + '"' : '';
-        return '<div' + idAttr + ' class="hero-background"' + attrs + bg + alt + mediaDataAttrs(img) + '></div>';
+        return '<div' + idAttr + ' class="hero-background"' + attrs + bg + orig + driveAttr + alt + mediaDataAttrs(img) + '></div>';
     }
 
     function renderSlides(slides) {

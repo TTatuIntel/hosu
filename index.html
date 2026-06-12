@@ -485,27 +485,21 @@ section {
     max-height: 420px;
 }
 
+/* Soft left-edge blend only — full overlays hid hero photos */
 .hero-image-container::after {
     content: '';
     position: absolute;
-    top: -1px;
-    left: -1px;
-    right: -1px;
-    bottom: -1px;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: 22%;
     z-index: 2;
     pointer-events: none;
-    background:
-        linear-gradient(to right,
-            var(--gray-100) 0%,
-            rgba(247, 250, 252, 0.85) 6%,
-            rgba(247, 250, 252, 0.55) 14%,
-            rgba(247, 250, 252, 0.25) 24%,
-            rgba(247, 250, 252, 0.08) 34%,
-            transparent 44%
-        ),
-        linear-gradient(to left, var(--gray-100) 0%, rgba(247, 250, 252, 0.2) 3%, transparent 10%),
-        linear-gradient(to bottom, var(--gray-100) 0%, rgba(247, 250, 252, 0.3) 3%, transparent 12%),
-        linear-gradient(to top, var(--gray-100) 0%, rgba(247, 250, 252, 0.3) 3%, transparent 12%);
+    background: linear-gradient(to right,
+        var(--gray-100) 0%,
+        rgba(247, 250, 252, 0.75) 35%,
+        transparent 100%
+    );
 }
 
 /* Soft fade below hero (Ongoing Now section now lives after Partners) */
@@ -585,7 +579,7 @@ section {
     height: 100%;
     object-fit: cover;
     object-position: center;
-    z-index: 0;
+    z-index: 1;
     display: block;
     pointer-events: none;
 }
@@ -3325,6 +3319,49 @@ if (joinButton) {
     });
 }
 
+// Resolve relative hero asset paths (uploads/, drive_image.php) for subfolder installs
+function hosuAssetUrl(path) {
+    if (!path) return '';
+    var s = String(path).trim();
+    if (/^https?:\/\//i.test(s)) return s;
+    if (s.charAt(0) === '/') return s;
+    var base = window.HOSU_ASSET_BASE || '';
+    if (!base) {
+        var scripts = document.getElementsByTagName('script');
+        for (var i = 0; i < scripts.length; i++) {
+            var src = scripts[i].src || '';
+            if (src && /\/(?:home-hero\.js|page_bootstrap\.php|index\.html)(?:\?|$)/i.test(src)) {
+                base = src.replace(/\/[^/]*(?:\?.*)?$/, '');
+                break;
+            }
+        }
+    }
+    if (base && base.charAt(base.length - 1) !== '/') base += '/';
+    return (base || '') + s.replace(/^\.\//, '');
+}
+
+function hosuExtractDriveFileId(url) {
+    if (!url) return '';
+    var m = String(url).match(/drive_image\.php\?id=([a-zA-Z0-9_-]+)/i);
+    if (m) return m[1];
+    m = String(url).match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return m[1];
+    m = String(url).match(/\/d\/([a-zA-Z0-9_-]+)/);
+    if (m) return m[1];
+    m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);
+    return m ? m[1] : '';
+}
+
+function hosuHeroDriveUrls(fileId, width) {
+    var w = width || 1400;
+    return [
+        hosuAssetUrl('drive_image.php?id=' + encodeURIComponent(fileId) + '&w=' + w),
+        'https://drive.google.com/thumbnail?id=' + encodeURIComponent(fileId) + '&sz=w' + w,
+        'https://drive.google.com/uc?export=view&id=' + encodeURIComponent(fileId),
+        'https://lh3.googleusercontent.com/d/' + fileId + '=w' + w,
+    ];
+}
+
 // Synced hero slideshow: text slides + background images + dots
 // Wrapped in IIFE for dynamic slide support
 var HeroSlideshow = (function() {
@@ -3356,31 +3393,62 @@ var HeroSlideshow = (function() {
         return next;
     }
 
+    function markHeroBackgroundFailed(bgEl) {
+        bgEl.classList.remove('is-loading', 'is-loaded');
+        bgEl.classList.add('is-failed');
+        bgEl.classList.remove('event-bg', 'dynamic-bg', 'publication-bg', 'grant-bg');
+        if (!bgEl.classList.contains('active')) return;
+        var si = parseInt(bgEl.getAttribute('data-hero-slide') || String(heroIndex), 10);
+        if (isNaN(si)) return;
+        var slideBgs = getBgsForSlide(si);
+        var failSkips = parseInt(bgEl.getAttribute('data-fail-skips') || '0', 10) + 1;
+        bgEl.setAttribute('data-fail-skips', String(failSkips));
+        if (failSkips < slideBgs.length) advanceHeroMedia(si);
+    }
+
     function ensureHeroBackgroundLoaded(bgEl) {
         if (!bgEl) return;
         var src = (bgEl.getAttribute('data-bg') || '').trim();
         if (!src) return;
         if (bgEl.querySelector('.hero-bg-img')) return;
+        src = hosuAssetUrl(src);
         bgEl.classList.add('is-loading');
-        bgEl.classList.remove('event-bg', 'dynamic-bg', 'publication-bg', 'grant-bg');
+        bgEl.classList.remove('event-bg', 'dynamic-bg', 'publication-bg', 'grant-bg', 'is-failed');
+
+        var driveId = bgEl.getAttribute('data-drive-id') || hosuExtractDriveFileId(src);
+        if (driveId) bgEl.setAttribute('data-drive-id', driveId);
+
+        var urls = driveId ? hosuHeroDriveUrls(driveId) : [src];
+        var orig = bgEl.getAttribute('data-original-url');
+        if (orig) {
+            orig = hosuAssetUrl(orig);
+            if (urls.indexOf(orig) === -1) urls.push(orig);
+        }
+
         var img = document.createElement('img');
         img.className = 'hero-bg-img';
         img.alt = bgEl.getAttribute('aria-label') || '';
         img.decoding = 'async';
         img.loading = 'eager';
         img.referrerPolicy = 'no-referrer';
+        if (driveId) img.setAttribute('data-drive-id', driveId);
+
+        var step = 0;
+        function tryNext() {
+            if (step >= urls.length) {
+                markHeroBackgroundFailed(bgEl);
+                return;
+            }
+            img.src = urls[step++];
+        }
+
         img.onload = function () {
-            bgEl.classList.remove('is-loading');
+            bgEl.classList.remove('is-loading', 'is-failed');
             bgEl.classList.add('is-loaded');
         };
-        img.onerror = function () {
-            bgEl.classList.remove('is-loading', 'is-loaded');
-            if (!bgEl.classList.contains('event-bg')) {
-                bgEl.classList.add('event-bg');
-            }
-        };
-        img.src = src;
+        img.onerror = function () { tryNext(); };
         bgEl.appendChild(img);
+        tryNext();
     }
 
     window.hosuLoadAllHeroBackgrounds = function () {
@@ -3523,6 +3591,22 @@ var HeroSlideshow = (function() {
         startMediaRotation(slideIndex);
     }
 
+    function pickShowableBackground(slideBgs, preferredIndex) {
+        if (!slideBgs.length) return null;
+        var n = slideBgs.length;
+        var start = preferredIndex;
+        if (start < 0) start = n - 1;
+        if (start >= n) start = 0;
+        for (var i = 0; i < n; i++) {
+            var idx = (start + i) % n;
+            var el = slideBgs[idx];
+            if (!el.classList.contains('is-failed')) {
+                return { el: el, index: idx };
+            }
+        }
+        return { el: slideBgs[start], index: start };
+    }
+
     function showHeroMedia(slideIndex, mediaIndex) {
         var slideBgs = getBgsForSlide(slideIndex);
         if (!slideBgs.length) {
@@ -3532,15 +3616,16 @@ var HeroSlideshow = (function() {
                 return;
             }
         }
-        if (mediaIndex < 0) mediaIndex = slideBgs.length - 1;
-        if (mediaIndex >= slideBgs.length) mediaIndex = 0;
+
+        var picked = pickShowableBackground(slideBgs, mediaIndex);
+        if (!picked) return;
 
         heroBgs.forEach(function (b) { b.classList.remove('active'); });
-        var target = slideBgs[mediaIndex];
+        var target = picked.el;
         ensureHeroBackgroundLoaded(target);
         target.classList.add('active');
-        heroMediaIndex = mediaIndex;
-        applyHeroMediaContent(slideIndex, mediaIndex);
+        heroMediaIndex = picked.index;
+        applyHeroMediaContent(slideIndex, picked.index);
     }
 
     function refreshDom() {
@@ -3559,12 +3644,7 @@ var HeroSlideshow = (function() {
     }
 
     function lazyLoadBackgrounds() {
-        var load = function() { heroBgs.forEach(ensureHeroBackgroundLoaded); };
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(load, { timeout: 2000 });
-        } else {
-            setTimeout(load, 1500);
-        }
+        heroBgs.forEach(ensureHeroBackgroundLoaded);
     }
 
     function activateAt(index) {
@@ -3709,7 +3789,7 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061229"></script>
+<script src="home-hero.js?v=2026061230"></script>
 <script src="home-refresh.js?v=2026061227"></script>
 <script>
 
@@ -4711,6 +4791,8 @@ document.addEventListener('DOMContentLoaded', function() {
                 newBg.setAttribute('data-hero-media', String(mi));
                 if (imageUrl) {
                     newBg.setAttribute('data-bg', imageUrl);
+                    var driveId = hosuExtractDriveFileId(imageUrl);
+                    if (driveId) newBg.setAttribute('data-drive-id', driveId);
                 } else if (bgClass) {
                     newBg.classList.add(bgClass);
                 } else {
