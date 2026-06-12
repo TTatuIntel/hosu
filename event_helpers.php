@@ -3384,14 +3384,6 @@ function repairEmptyHomepageSettings(PDO $pdo): array
             $repaired[] = 'cta';
         }
     }
-    if (homepageSettingKeyExists($pdo, 'site_chrome')) {
-        $saved = loadHomepageSetting($pdo, 'site_chrome', []);
-        $merged = mergeSiteChrome(defaultSiteChrome(), is_array($saved) ? $saved : []);
-        if (json_encode($merged) !== json_encode($saved)) {
-            saveHomepageSetting($pdo, 'site_chrome', $merged);
-            $repaired[] = 'site_chrome (footer/nav repaired)';
-        }
-    }
     return $repaired;
 }
 

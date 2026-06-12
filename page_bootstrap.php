@@ -50,7 +50,6 @@ try {
             'eventsData' => fetchEventsPagePayload($pdo),
         ];
     } else {
-        restoreMissingSiteDefaults($pdo);
         $spotlight = fetchHomeSpotlightPayload($pdo);
         $payload = [
             'success' => true,
