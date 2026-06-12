@@ -3324,23 +3324,8 @@ var HeroSlideshow = (function() {
     var heroBgs = [];
     var heroDots = [];
     var heroTimer = null;
-    var heroMediaTimer = null;
     var heroMediaIndex = 0;
-    var heroVisibilityObserver = null;
-    var heroWasVisible = true;
-
-    function shuffleIndices(count) {
-        var order = [];
-        var i;
-        for (i = 0; i < count; i++) order.push(i);
-        for (i = order.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var tmp = order[i];
-            order[i] = order[j];
-            order[j] = tmp;
-        }
-        return order;
-    }
+    var heroLastMediaBySlide = {};
 
     function pickRandomMediaIndex(slideIndex, avoidIndex) {
         var slideBgs = getBgsForSlide(slideIndex);
@@ -3434,15 +3419,16 @@ var HeroSlideshow = (function() {
         });
     }
 
-    function stopHeroMediaRotation() {
-        if (heroMediaTimer) {
-            clearTimeout(heroMediaTimer);
-            heroMediaTimer = null;
+    /** One random gallery image per slide turn — no rotation while the slide stays active. */
+    function showRandomHeroMedia(slideIndex) {
+        var slideBgs = getBgsForSlide(slideIndex);
+        if (!slideBgs.length) return;
+        var mediaIndex = 0;
+        if (slideBgs.length > 1) {
+            mediaIndex = pickRandomMediaIndex(slideIndex, heroLastMediaBySlide[slideIndex]);
         }
-    }
-
-    function randomHeroMediaDelay() {
-        return 3500 + Math.floor(Math.random() * 2000);
+        showHeroMedia(slideIndex, mediaIndex);
+        heroLastMediaBySlide[slideIndex] = mediaIndex;
     }
 
     function showHeroMedia(slideIndex, mediaIndex) {
@@ -3461,54 +3447,12 @@ var HeroSlideshow = (function() {
         var target = slideBgs[mediaIndex];
         ensureHeroBackgroundLoaded(target);
         target.classList.add('active');
-        if (slideBgs[(mediaIndex + 1) % slideBgs.length]) {
-            ensureHeroBackgroundLoaded(slideBgs[(mediaIndex + 1) % slideBgs.length]);
-        }
         heroMediaIndex = mediaIndex;
         applyHeroMediaContent(slideIndex, mediaIndex);
     }
 
-    function startHeroMediaRotation(slideIndex) {
-        stopHeroMediaRotation();
-        var slideBgs = getBgsForSlide(slideIndex);
-        if (!slideBgs.length) return;
-        if (slideBgs.length <= 1) {
-            showHeroMedia(slideIndex, 0);
-            return;
-        }
-
-        var order = shuffleIndices(slideBgs.length);
-        var startPos = Math.floor(Math.random() * order.length);
-        showHeroMedia(slideIndex, order[startPos]);
-
-        function tick() {
-            if (heroIndex !== slideIndex) return;
-            var next = pickRandomMediaIndex(slideIndex, heroMediaIndex);
-            showHeroMedia(slideIndex, next);
-            heroMediaTimer = setTimeout(tick, randomHeroMediaDelay());
-        }
-
-        heroMediaTimer = setTimeout(tick, randomHeroMediaDelay());
-    }
-
-    function setupHeroVisibilityReshuffle() {
-        var section = document.getElementById('home');
-        if (!section || !('IntersectionObserver' in window)) return;
-        if (heroVisibilityObserver) heroVisibilityObserver.disconnect();
-        heroWasVisible = true;
-        heroVisibilityObserver = new IntersectionObserver(function (entries) {
-            entries.forEach(function (entry) {
-                if (entry.isIntersecting && !heroWasVisible) {
-                    startHeroMediaRotation(heroIndex);
-                }
-                heroWasVisible = entry.isIntersecting;
-            });
-        }, { threshold: 0.2 });
-        heroVisibilityObserver.observe(section);
-    }
-
     function init() {
-        stopHeroMediaRotation();
+        heroLastMediaBySlide = {};
         heroSlides = Array.from(document.querySelectorAll('#home .hero-slide'));
         heroBgs = Array.from(document.querySelectorAll('#home .hero-background'));
         heroDots = Array.from(document.querySelectorAll('#home .hero-indicators .hero-dot'));
@@ -3521,8 +3465,7 @@ var HeroSlideshow = (function() {
         if (heroSlides[0]) heroSlides[0].classList.add('active');
         if (heroDots[0]) heroDots[0].classList.add('active');
         cacheDefaultCtaHtml();
-        startHeroMediaRotation(0);
-        setupHeroVisibilityReshuffle();
+        showRandomHeroMedia(0);
 
         if ('requestIdleCallback' in window) {
             requestIdleCallback(function () {
@@ -3553,7 +3496,6 @@ var HeroSlideshow = (function() {
         if (index < 0) index = heroSlides.length - 1;
         if (index >= heroSlides.length) index = 0;
 
-        stopHeroMediaRotation();
         heroSlides.forEach(function(s) { s.classList.remove('active'); });
         heroDots.forEach(function(d) { d.classList.remove('active'); });
 
@@ -3563,7 +3505,7 @@ var HeroSlideshow = (function() {
         }
 
         heroIndex = index;
-        startHeroMediaRotation(index);
+        showRandomHeroMedia(index);
     }
 
     function getCarouselInterval() {
@@ -3641,7 +3583,7 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061133"></script>
+<script src="home-hero.js?v=2026061134"></script>
 <script>
 
 // Hero popup content — populated by home-hero.js from admin slides

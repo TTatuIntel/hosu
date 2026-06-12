@@ -1,7 +1,8 @@
 /**
  * Loads admin-managed hero slides from the API and initializes the carousel.
  * Supports multiple images per slide (URL, upload, Drive folders) with optional
- * per-image title/body/CTA overrides that sync as images rotate.
+ * per-image title/body/CTA overrides. One random gallery image is shown each
+ * time its slide becomes active in the carousel (no mid-slide image cycling).
  */
 (function () {
     'use strict';
@@ -112,17 +113,6 @@
         return u;
     }
 
-    function shuffleArray(items) {
-        var arr = items.slice();
-        for (var i = arr.length - 1; i > 0; i--) {
-            var j = Math.floor(Math.random() * (i + 1));
-            var tmp = arr[i];
-            arr[i] = arr[j];
-            arr[j] = tmp;
-        }
-        return arr;
-    }
-
     function slideImages(slide) {
         if (slide.images && slide.images.length) {
             return slide.images.map(function (img) {
@@ -186,9 +176,9 @@
 
         var bgHtml = '';
         slides.forEach(function (slide, i) {
-            var imgs = shuffleArray(slideImages(slide));
+            var imgs = slideImages(slide);
             if (!imgs.length) {
-                bgHtml += '<div class="hero-background' + (i === 0 ? ' active' : '') +
+                bgHtml += '<div class="hero-background' +
                     '" data-hero-slide="' + i + '" data-hero-media="0"></div>';
                 return;
             }
@@ -197,7 +187,7 @@
                 var bg = src ? ' data-bg="' + escAttr(src) + '"' : '';
                 var alt = img.alt ? ' aria-label="' + escAttr(img.alt) + '"' : '';
                 bgHtml += '<div id="hero-bg-' + i + '-' + j + '" class="hero-background' +
-                    (i === 0 && j === 0 ? ' active' : '') + '" data-hero-slide="' + i +
+                    '" data-hero-slide="' + i +
                     '" data-hero-media="' + j + '"' + bg + alt + mediaDataAttrs(img) + '></div>';
             });
         });
