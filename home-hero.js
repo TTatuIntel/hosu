@@ -152,22 +152,55 @@
         return attrs;
     }
 
+  var DEFAULT_HERO_SLIDES = [
+        {
+            slide_key: 'intro',
+            title: 'A Uganda Free from Cancer & Blood Diseases',
+            body: 'The Hematology & Oncology Society of Uganda (HOSU) is a nonprofit organization dedicated to eliminating suffering from cancer and blood diseases through care, research, education, and advocacy.',
+            cta_label: 'Join Our Community →',
+            cta_url: 'membership.html',
+            pills: []
+        },
+        {
+            slide_key: 'surgical-oncology',
+            title: 'Surgical Oncology',
+            body: 'Focuses on the diagnosis, staging, and treatment of cancer through surgery — often combined with other therapies for the best outcomes.',
+            pills: ['Diagnosis', 'Staging', 'Curative', 'Palliative', 'Reconstructive'],
+            read_more_label: 'Read More →'
+        },
+        {
+            slide_key: 'medical-oncology',
+            title: 'Medical Oncology',
+            body: 'Treats cancer with medicines — chemotherapy, targeted therapy, immunotherapy, and hormonal therapy — tailored to each patient\'s needs.',
+            pills: ['Chemotherapy', 'Immunotherapy', 'Targeted Therapy', 'Hormone Therapy', 'Precision Medicine'],
+            read_more_label: 'Read More →'
+        },
+        {
+            slide_key: 'radiation-oncology',
+            title: 'Radiation Oncology',
+            body: 'Uses high-energy radiation to target and destroy cancer cells while sparing healthy tissue, alone or combined with other treatments.',
+            pills: ['External Beam', 'Brachytherapy', 'Stereotactic', 'Proton Therapy', 'Image-Guided'],
+            read_more_label: 'Read More →'
+        },
+        {
+            slide_key: 'pediatric-oncology',
+            title: 'Pediatric Oncology',
+            body: 'Focuses on cancers in children and adolescents — leukemia, brain tumors, and sarcomas — with care tailored to young patients.',
+            pills: ['Leukemia', 'Brain Tumors', 'Sarcoma Care', 'Supportive Care', 'Follow-Up'],
+            read_more_label: 'Read More →'
+        }
+    ];
+
+    function effectiveSlides(slides) {
+        return slides && slides.length ? slides : DEFAULT_HERO_SLIDES;
+    }
+
     function renderSlides(slides) {
+        slides = effectiveSlides(slides);
         var mount = document.getElementById('hero-slides-mount');
         var dotsMount = document.getElementById('hero-indicators-mount');
         var bgMount = document.getElementById('hero-bg-mount');
         if (!mount || !dotsMount || !bgMount) return;
-
-        if (!slides.length) {
-            mount.innerHTML =
-                '<div class="hero-slide active" data-slide="fallback">' +
-                '<h1>Welcome to HOSU</h1>' +
-                '<p>Add hero slides from the admin panel under Site Content.</p>' +
-                '</div>';
-            dotsMount.innerHTML = '<span class="hero-dot active" data-index="0"></span>';
-            bgMount.innerHTML = '<div class="hero-background active"></div>';
-            return;
-        }
 
         mount.innerHTML = slides.map(buildSlideHtml).join('');
         dotsMount.innerHTML = slides.map(function (_, i) {
@@ -218,8 +251,8 @@
     }
 
     function loadHeroFromBootstrap(boot) {
-        if (boot && boot.success && Array.isArray(boot.slides)) {
-            renderSlides(boot.slides);
+        if (boot && boot.success) {
+            renderSlides(Array.isArray(boot.slides) ? boot.slides : []);
             initHero();
             return true;
         }

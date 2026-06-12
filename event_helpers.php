@@ -2803,7 +2803,7 @@ function heroSlideIsDisplayActive(array $slide, ?DateTimeImmutable $now = null):
     return true;
 }
 
-function loadHomepageHeroSlides(PDO $pdo, bool $activeOnly = true): array
+function loadHomepageHeroSlides(PDO $pdo, bool $activeOnly = true, bool $attemptRestore = true): array
 {
     $rows = [];
     try {
@@ -2825,6 +2825,16 @@ function loadHomepageHeroSlides(PDO $pdo, bool $activeOnly = true): array
         }
         $out[] = $row;
     }
+
+    if (empty($out) && $activeOnly && $attemptRestore) {
+        restoreHeroSlidesIfMissing($pdo);
+        return loadHomepageHeroSlides($pdo, true, false);
+    }
+
+    if (empty($out) && $activeOnly) {
+        return heroSlidesFromDefaultSeed();
+    }
+
     return $out;
 }
 
@@ -2842,21 +2852,32 @@ function defaultHomepagePartners(): array
     return [
         'title' => 'Our Partners',
         'visible' => true,
-        'items' => [],
+        'items' => [
+            ['name' => 'Uganda Cancer Institute', 'logo' => 'img/uci.png', 'css_class' => 'partner-logo--uci'],
+            ['name' => 'Adonis Healthcare', 'logo' => 'img/ado.png', 'css_class' => ''],
+            ['name' => 'Aga Khan University Hospital', 'logo' => 'img/Agakhan.png', 'css_class' => ''],
+            ['name' => 'Future Healthcare', 'logo' => 'img/future.png', 'css_class' => ''],
+            ['name' => 'Hetero', 'logo' => 'img/hetero.png', 'css_class' => ''],
+            ['name' => 'Metropolis', 'logo' => 'img/metro.png', 'css_class' => ''],
+            ['name' => 'MSN', 'logo' => 'img/msn.png', 'css_class' => ''],
+            ['name' => 'Mulago National Referral Hospital', 'logo' => 'img/mulago.png', 'css_class' => 'partner-logo--mulago'],
+            ['name' => 'Nsambya Hospital', 'logo' => 'img/nsambya.png', 'css_class' => ''],
+            ['name' => 'OncoPharm', 'logo' => 'img/onco.png', 'css_class' => 'partner-logo--onco'],
+        ],
     ];
 }
 
 function defaultHomepageCta(): array
 {
     return [
-        'title' => '',
-        'body' => '',
-        'primary_label' => '',
-        'primary_url' => '',
-        'secondary_label' => '',
-        'secondary_action' => '',
+        'title' => 'Make a Difference',
+        'body' => 'Join us in our mission to eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.',
+        'primary_label' => 'Learn More About HOSU',
+        'primary_url' => 'about.html',
+        'secondary_label' => 'Support Us',
+        'secondary_action' => 'donate',
         'secondary_url' => '',
-        'visible' => false,
+        'visible' => true,
     ];
 }
 
@@ -2896,6 +2917,12 @@ function fetchHomepageExtrasPayload(PDO $pdo): array
     $cta = loadHomepageSetting($pdo, 'cta', defaultHomepageCta());
     if (!isset($partners['items']) || !is_array($partners['items'])) {
         $partners['items'] = [];
+    }
+    if (empty($partners['items'])) {
+        $partners = defaultHomepagePartners();
+    }
+    if (empty(trim((string) ($cta['title'] ?? '')))) {
+        $cta = defaultHomepageCta();
     }
     if (!array_key_exists('visible', $partners)) {
         $partners['visible'] = !empty($partners['items']);
@@ -3150,69 +3177,276 @@ function isProductionEnvironment(): bool
     return $domain === 'hosu.or.ug' || $domain === 'www.hosu.or.ug';
 }
 
+function homepageSettingKeyExists(PDO $pdo, string $key): bool
+{
+    migrateEventSchema($pdo);
+    $stmt = $pdo->prepare('SELECT 1 FROM homepage_settings WHERE setting_key = ? LIMIT 1');
+    $stmt->execute([$key]);
+    return (bool) $stmt->fetchColumn();
+}
+
+function insertHomepageSettingIfMissing(PDO $pdo, string $key, array $value): bool
+{
+    if (homepageSettingKeyExists($pdo, $key)) {
+        return false;
+    }
+    $json = json_encode($value, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES);
+    $pdo->prepare('INSERT INTO homepage_settings (setting_key, setting_value) VALUES (?, ?)')
+        ->execute([$key, $json]);
+    return true;
+}
+
 /**
- * Remove all public-facing content (local dev only).
- * Blocked on production — live site content at hosu.or.ug must only change via Admin.
+ * Standard HOSU homepage hero slides (used only when the table is completely empty).
+ *
+ * @return array<int, array<string, mixed>>
+ */
+function defaultHomepageHeroSlideSeedRows(): array
+{
+    return [
+        [
+            'slide_key' => 'intro',
+            'title' => 'A Uganda Free from Cancer & Blood Diseases',
+            'body' => 'The Hematology & Oncology Society of Uganda (HOSU) is a nonprofit organization dedicated to eliminating suffering from cancer and blood diseases through care, research, education, and advocacy.',
+            'cta_label' => 'Join Our Community →',
+            'cta_url' => 'membership.html',
+            'sort_order' => 0,
+        ],
+        [
+            'slide_key' => 'surgical-oncology',
+            'title' => 'Surgical Oncology',
+            'body' => 'Focuses on the diagnosis, staging, and treatment of cancer through surgery — often combined with other therapies for the best outcomes.',
+            'pills_json' => json_encode(['Diagnosis', 'Staging', 'Curative', 'Palliative', 'Reconstructive']),
+            'read_more_label' => 'Read More →',
+            'sort_order' => 1,
+        ],
+        [
+            'slide_key' => 'medical-oncology',
+            'title' => 'Medical Oncology',
+            'body' => 'Treats cancer with medicines — chemotherapy, targeted therapy, immunotherapy, and hormonal therapy — tailored to each patient\'s needs.',
+            'pills_json' => json_encode(['Chemotherapy', 'Immunotherapy', 'Targeted Therapy', 'Hormone Therapy', 'Precision Medicine']),
+            'read_more_label' => 'Read More →',
+            'sort_order' => 2,
+        ],
+        [
+            'slide_key' => 'radiation-oncology',
+            'title' => 'Radiation Oncology',
+            'body' => 'Uses high-energy radiation to target and destroy cancer cells while sparing healthy tissue, alone or combined with other treatments.',
+            'pills_json' => json_encode(['External Beam', 'Brachytherapy', 'Stereotactic', 'Proton Therapy', 'Image-Guided']),
+            'read_more_label' => 'Read More →',
+            'sort_order' => 3,
+        ],
+        [
+            'slide_key' => 'pediatric-oncology',
+            'title' => 'Pediatric Oncology',
+            'body' => 'Focuses on cancers in children and adolescents — leukemia, brain tumors, and sarcomas — with care tailored to young patients.',
+            'pills_json' => json_encode(['Leukemia', 'Brain Tumors', 'Sarcoma Care', 'Supportive Care', 'Follow-Up']),
+            'read_more_label' => 'Read More →',
+            'sort_order' => 4,
+        ],
+    ];
+}
+
+function heroSlidesFromDefaultSeed(): array
+{
+    $slides = [];
+    foreach (defaultHomepageHeroSlideSeedRows() as $row) {
+        $slides[] = normalizeHeroSlideRow(array_merge([
+            'id' => 0,
+            'is_active' => 1,
+            'badge_label' => '',
+            'image_path' => '',
+            'image_alt' => '',
+            'cta_secondary_label' => '',
+            'cta_secondary_url' => '',
+            'popup_title' => '',
+            'popup_html' => '',
+            'display_start' => null,
+            'display_end' => null,
+        ], $row));
+    }
+    return $slides;
+}
+
+function insertDefaultHeroSlideRows(PDO $pdo): void
+{
+    $ins = $pdo->prepare(
+        'INSERT INTO homepage_hero_slides
+        (title, body, badge_label, pills_json, popup_title, popup_html, image_path, image_alt,
+         cta_label, cta_url, cta_secondary_label, cta_secondary_url, read_more_label, slide_key, sort_order, is_active)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, 1)'
+    );
+
+    foreach (defaultHomepageHeroSlideSeedRows() as $row) {
+        $ins->execute([
+            $row['title'],
+            $row['body'] ?? '',
+            $row['badge_label'] ?? '',
+            $row['pills_json'] ?? null,
+            $row['popup_title'] ?? '',
+            $row['popup_html'] ?? '',
+            $row['image_path'] ?? '',
+            $row['image_alt'] ?? '',
+            $row['cta_label'] ?? '',
+            $row['cta_url'] ?? '',
+            $row['cta_secondary_label'] ?? '',
+            $row['cta_secondary_url'] ?? '',
+            $row['read_more_label'] ?? 'Read More →',
+            $row['slide_key'] ?? '',
+            (int) ($row['sort_order'] ?? 0),
+        ]);
+    }
+}
+
+function seedDefaultHeroSlidesIfEmpty(PDO $pdo): bool
+{
+    migrateEventSchema($pdo);
+    $count = (int) $pdo->query('SELECT COUNT(*) FROM homepage_hero_slides')->fetchColumn();
+    if ($count > 0) {
+        return false;
+    }
+
+    insertDefaultHeroSlideRows($pdo);
+    return true;
+}
+
+/**
+ * Restore the homepage hero carousel when slides were deleted or are all hidden.
+ * Re-seeds the standard HOSU slides only if nothing is displayable on the homepage.
+ */
+function restoreHeroSlidesIfMissing(PDO $pdo): bool
+{
+    migrateEventSchema($pdo);
+
+    $displayable = loadHomepageHeroSlides($pdo, true, false);
+    if (!empty($displayable)) {
+        return false;
+    }
+
+    $total = (int) $pdo->query('SELECT COUNT(*) FROM homepage_hero_slides')->fetchColumn();
+    if ($total > 0) {
+        try {
+            $pdo->exec(
+                'UPDATE homepage_hero_slides
+                 SET is_active = 1, display_start = NULL, display_end = NULL'
+            );
+        } catch (Exception $e) { /* ignore */ }
+
+        $displayable = loadHomepageHeroSlides($pdo, true, false);
+        if (!empty($displayable)) {
+            return true;
+        }
+
+        $pdo->exec('DELETE FROM homepage_hero_slides');
+    }
+
+    insertDefaultHeroSlideRows($pdo);
+    return true;
+}
+
+/**
+ * Re-insert site defaults only when rows are missing (never overwrites admin edits).
+ */
+function repairEmptyHomepageSettings(PDO $pdo): array
+{
+    $repaired = [];
+    if (homepageSettingKeyExists($pdo, 'partners')) {
+        $partners = loadHomepageSetting($pdo, 'partners', []);
+        if (empty($partners['items'])) {
+            saveHomepageSetting($pdo, 'partners', defaultHomepagePartners());
+            $repaired[] = 'partners';
+        }
+    }
+    if (homepageSettingKeyExists($pdo, 'cta')) {
+        $cta = loadHomepageSetting($pdo, 'cta', []);
+        if (empty(trim((string) ($cta['title'] ?? '')))) {
+            saveHomepageSetting($pdo, 'cta', defaultHomepageCta());
+            $repaired[] = 'cta';
+        }
+    }
+    return $repaired;
+}
+
+function restoreMissingSiteDefaults(PDO $pdo): array
+{
+    migrateEventSchema($pdo);
+    $restored = [];
+
+    if (insertHomepageSettingIfMissing($pdo, 'partners', defaultHomepagePartners())) {
+        $restored[] = 'partners';
+    }
+    if (insertHomepageSettingIfMissing($pdo, 'cta', defaultHomepageCta())) {
+        $restored[] = 'cta';
+    }
+    if (insertHomepageSettingIfMissing($pdo, 'site_chrome', defaultSiteChrome())) {
+        $restored[] = 'site_chrome';
+    }
+    foreach (repairEmptyHomepageSettings($pdo) as $key) {
+        $restored[] = $key . ' (repaired)';
+    }
+    if (restoreHeroSlidesIfMissing($pdo)) {
+        $restored[] = 'homepage_hero_slides';
+    }
+
+    return $restored;
+}
+
+function eventRowLooksLikeTest(array $row): bool
+{
+    $title = strtolower(trim((string) ($row['title'] ?? '')));
+    $id = strtolower(trim((string) ($row['id'] ?? '')));
+    $needles = ['test event', 'dummy', 'sample event', 'placeholder', 'demo event', 'fake event'];
+    foreach ($needles as $needle) {
+        if ($title !== '' && str_contains($title, $needle)) {
+            return true;
+        }
+    }
+    if ($id !== '' && (str_contains($id, 'test-') || str_contains($id, 'dummy') || str_contains($id, 'sample'))) {
+        return true;
+    }
+    if (preg_match('/\btest\b/i', $title) && preg_match('/\bevent\b/i', $title)) {
+        return true;
+    }
+    return false;
+}
+
+/**
+ * Remove only obvious test/dummy events — never homepage, footer, leaders, or real content.
+ *
+ * @return array{deleted: string[], skipped: int}
+ */
+function deleteTestEventsOnly(PDO $pdo): array
+{
+    migrateEventSchema($pdo);
+    $deleted = [];
+    $skipped = 0;
+
+    $rows = $pdo->query('SELECT id, title FROM events')->fetchAll(PDO::FETCH_ASSOC);
+    foreach ($rows as $row) {
+        if (!eventRowLooksLikeTest($row)) {
+            $skipped++;
+            continue;
+        }
+        $id = $row['id'];
+        $pdo->prepare('DELETE FROM event_live_content WHERE event_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM event_images WHERE event_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM event_media WHERE event_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM event_registrants WHERE event_id = ?')->execute([$id]);
+        $pdo->prepare('DELETE FROM events WHERE id = ?')->execute([$id]);
+        $deleted[] = $id . ' (' . ($row['title'] ?? '') . ')';
+    }
+
+    return ['deleted' => $deleted, 'skipped' => $skipped];
+}
+
+/**
+ * @deprecated Never wipe live site data. Use deleteTestEventsOnly() or restoreMissingSiteDefaults().
  */
 function clearPublicContent(PDO $pdo): array
 {
-    if (isProductionEnvironment() && getenv('ALLOW_CONTENT_CLEAR') !== '1') {
-        throw new RuntimeException(
-            'Refusing to clear content on production. Set ALLOW_CONTENT_CLEAR=1 only on a dev copy of the database.'
-        );
-    }
-
-    migrateEventSchema($pdo);
-    $cleared = [];
-
-    $tables = [
-        'event_live_content',
-        'event_images',
-        'event_media',
-        'event_registrants',
-        'events',
-        'comments',
-        'posts',
-        'grant_applications',
-        'grants_opportunities',
-        'publications',
-        'homepage_spotlights',
-        'homepage_hero_slides',
-        'leaders',
-        'site_media',
-        'cpd_entries',
-        'committee_members',
-        'committees',
-        'audit_logs',
-    ];
-
-    $pdo->exec('SET FOREIGN_KEY_CHECKS = 0');
-    foreach ($tables as $table) {
-        try {
-            $before = (int) $pdo->query("SELECT COUNT(*) FROM `$table`")->fetchColumn();
-            $pdo->exec("DELETE FROM `$table`");
-            $cleared[$table] = $before;
-        } catch (Exception $e) {
-            $cleared[$table] = 'skip: ' . $e->getMessage();
-        }
-    }
-    $pdo->exec('SET FOREIGN_KEY_CHECKS = 1');
-
-    try {
-        $cleared['homepage_settings'] = (int) $pdo->exec('DELETE FROM homepage_settings');
-    } catch (Exception $e) {
-        $cleared['homepage_settings'] = 'skip: ' . $e->getMessage();
-    }
-
-    try {
-        $cleared['site_stats'] = (int) $pdo->exec('DELETE FROM site_stats');
-        $pdo->exec("INSERT INTO site_stats (stat_key, stat_value, stat_label, page, sort_order, is_active)
-            VALUES ('live_active_members', '0', 'Active Members', 'about', 0, 1)
-            ON DUPLICATE KEY UPDATE stat_value = '0'");
-    } catch (Exception $e) {
-        $cleared['site_stats'] = 'skip: ' . $e->getMessage();
-    }
-
-    return $cleared;
+    throw new RuntimeException(
+        'clearPublicContent() was removed — it deleted real homepage/footer data by mistake. '
+        . 'Use deleteTestEventsOnly() for test events, or restoreMissingSiteDefaults() to fill missing rows only.'
+    );
 }
 

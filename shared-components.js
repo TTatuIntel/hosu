@@ -97,10 +97,50 @@
             .replace(/"/g, '&quot;');
     }
 
+    var DEFAULT_CHROME = {
+        navbar: {
+            logo: 'img/logo2.png',
+            logo_alt: 'HOSU - Hematology & Oncology Society of Uganda',
+            portal_label: 'Member Portal',
+            links: [
+                { label: 'Home', url: 'index.html' },
+                { label: 'Events', url: 'events.html' },
+                { label: 'Research', url: 'research.html' },
+                { label: 'Membership', url: 'membership.html' },
+                { label: 'About', url: 'about.html' },
+                { label: 'Blog', url: 'blog.html' },
+                { label: 'Contact', url: 'contact.html' }
+            ]
+        },
+        footer: {
+            copyright: '© 2026 Hematology & Oncology Society of Uganda. All rights reserved.',
+            quick_links_title: 'Quick Links',
+            quick_links: [
+                { label: 'About HOSU', url: 'about.html' },
+                { label: 'Membership', url: 'membership.html' },
+                { label: 'Research', url: 'research.html' },
+                { label: 'Events', url: 'events.html' },
+                { label: 'Blog', url: 'blog.html' },
+                { label: 'Contact Us', url: 'contact.html' }
+            ],
+            contact_title: 'Contact Us',
+            contact_lines: ['Mulago Hospital Complex', 'Kampala, Uganda', 'P.O. Box 170251'],
+            phone: '+256 766 529869',
+            whatsapp: '+256 709 752107',
+            email: 'info@hosu.or.ug',
+            website: 'https://hosu.or.ug',
+            social_title: 'Stay Connected',
+            social_blurb: 'Follow us for updates.',
+            social: { twitter: 'https://x.com/Hem0nc_Uganda' },
+            support_title: 'Support',
+            support_name: 'Official HOSU Support'
+        }
+    };
+
     function getChrome() {
         var boot = window.__HOSU_SITE_CHROME;
         if (boot && boot.success && boot.chrome) return boot.chrome;
-        return null;
+        return DEFAULT_CHROME;
     }
 
     function buildNavbarHtml(chrome) {
