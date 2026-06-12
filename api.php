@@ -1829,22 +1829,32 @@ HTML;
             $dateStart = !empty($dateStartRaw) ? trim((string)$dateStartRaw) : null;
             $dateEnd   = !empty($dateEndRaw) ? trim((string)$dateEndRaw) : null;
 
-            // Auto-determine status and category from dates
-            $status   = $mergeField('status', $existing['status'] ?? 'open');
-            $category = $mergeField('category', $existing['category'] ?? 'upcoming');
-            if ($dateStart) {
-                $today    = new DateTimeImmutable('today');
-                $startDt  = new DateTimeImmutable($dateStart);
-                $endDt    = $dateEnd ? new DateTimeImmutable($dateEnd) : $startDt;
-                if ($today > $endDt) {
-                    $status   = 'past';
-                    $category = 'past';
-                } elseif ($today >= $startDt && $today <= $endDt) {
-                    $status = 'open';
-                    if ($category === 'past') $category = 'current';
-                } else {
-                    if ($status === 'past') $status = 'open';
-                    if ($category === 'past') $category = 'upcoming';
+            // Past events: never change stored dates — the event already happened.
+            $preserveDates = (!empty($_POST['preserve_dates']) && $_POST['preserve_dates'] !== '0')
+                || eventHasPassed($existing);
+            if ($preserveDates) {
+                $dateStart = !empty($existing['date_start']) ? trim((string) $existing['date_start']) : $dateStart;
+                $dateEndRaw = $existing['date_end'] ?? '';
+                $dateEnd = !empty($dateEndRaw) ? trim((string) $dateEndRaw) : null;
+                $status = 'past';
+                $category = 'past';
+            } else {
+                $status   = $mergeField('status', $existing['status'] ?? 'open');
+                $category = $mergeField('category', $existing['category'] ?? 'upcoming');
+                if ($dateStart) {
+                    $today    = new DateTimeImmutable('today');
+                    $startDt  = new DateTimeImmutable($dateStart);
+                    $endDt    = $dateEnd ? new DateTimeImmutable($dateEnd) : $startDt;
+                    if ($today > $endDt) {
+                        $status   = 'past';
+                        $category = 'past';
+                    } elseif ($today >= $startDt && $today <= $endDt) {
+                        $status = 'open';
+                        if ($category === 'past') $category = 'current';
+                    } else {
+                        if ($status === 'past') $status = 'open';
+                        if ($category === 'past') $category = 'upcoming';
+                    }
                 }
             }
 
@@ -1989,7 +1999,7 @@ HTML;
                 $status,
                 $mergeField('imageAlt', $existing['imageAlt'] ?? ''),
                 $mergeField('countdown', $existing['countdown'] ?? ''),
-                $mergeField('date', $existing['date'] ?? ''),
+                $preserveDates ? ($existing['date'] ?? '') : $mergeField('date', $existing['date'] ?? ''),
                 $mergeField('title', $existing['title'] ?? ''),
                 $mergeField('description', $existing['description'] ?? ''),
                 $mergeField('location', $existing['location'] ?? ''),

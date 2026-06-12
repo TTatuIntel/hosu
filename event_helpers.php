@@ -954,12 +954,19 @@ function saveEventOngoingContentUpdate(PDO $pdo, string $eventId, array $existin
         $postEventDays = -1;
     }
 
+    $title = trim((string) ($post['title'] ?? $existing['title'] ?? ''));
+    $description = trim((string) ($post['description'] ?? $existing['description'] ?? ''));
+    $location = trim((string) ($post['location'] ?? $existing['location'] ?? ''));
+
     $pdo->prepare(
-        'UPDATE events SET live_message = ?, live_cta_label = ?, live_cta_url = ?, drive_folder_url = ?,
+        'UPDATE events SET title = ?, description = ?, location = ?, live_message = ?, live_cta_label = ?, live_cta_url = ?, drive_folder_url = ?,
          show_live_on_home = ?, show_upcoming_in_ongoing = ?, post_event_display_days = ?,
          highlights = ?, announcements = ?, speakers = ?, recap_cta_label = ?
          WHERE id = ?'
     )->execute([
+        $title !== '' ? $title : ($existing['title'] ?? ''),
+        array_key_exists('description', $post) ? $description : ($existing['description'] ?? ''),
+        $location !== '' ? $location : ($existing['location'] ?? ''),
         $liveFields['live_message'],
         $liveFields['live_cta_label'],
         $liveFields['live_cta_url'],
@@ -2110,6 +2117,14 @@ function collectBlockSpotlightMedia(array $block, array $fallbackMedia = []): ar
     return $items;
 }
 
+/** Public summary for past events — prefer the description entered at creation. */
+function eventPastEventHeadline(array $ev): string
+{
+    return trim((string) (
+        $ev['description'] ?: $ev['live_message'] ?: $ev['highlights'] ?: $ev['announcements'] ?: ''
+    ));
+}
+
 function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
 {
     $today = new DateTimeImmutable('today');
@@ -2126,7 +2141,9 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
     $image = $overrides['image'] ?? ((($ev['image_urls'] ?? [])[0] ?? null) ?: ($ev['image'] ?? ''));
     $headline = $overrides['headline'] ?? ($isLive
         ? truncatePlain($ev['live_message'] ?: 'Sessions are live — join us today.', 82)
-        : truncatePlain($ev['announcements'] ?: ($ev['description'] ?? ''), 82));
+        : ($isPast
+            ? truncatePlain(eventPastEventHeadline($ev), 82)
+            : truncatePlain($ev['announcements'] ?: ($ev['description'] ?? ''), 82)));
 
     $countdownLabel = computeEventCountdown($ev, $today);
     $statusLabel = $isLive ? 'Happening Now' : ($ongoingPhase === 'upcoming' ? $countdownLabel : ($ev['countdown'] ?? $countdownLabel));
@@ -2662,7 +2679,7 @@ function buildOngoingNowSlides(array $events, array $customSpotlights = [], $set
                 'badge' => $badge['label'],
                 'ongoing_phase' => $badge['phase'],
                 'is_live' => false,
-                'headline' => truncatePlain($ev['highlights'] ?: $ev['announcements'] ?: ($ev['description'] ?? ''), 82),
+                'headline' => truncatePlain(eventPastEventHeadline($ev), 82),
                 'media' => $eventMedia,
                 'updates' => array_values(array_filter($blocks, fn($b) => !empty($b['title']) || !empty($b['body']))),
             ]);
@@ -2725,7 +2742,7 @@ function buildOngoingNowSlides(array $events, array $customSpotlights = [], $set
             'is_live' => false,
             'headline' => truncatePlain(
                 $isPast
-                    ? ($ev['highlights'] ?: $ev['announcements'] ?: ($ev['description'] ?? ''))
+                    ? eventPastEventHeadline($ev)
                     : ($ev['live_message'] ?: $ev['announcements'] ?: ($ev['description'] ?? '')),
                 82
             ),
