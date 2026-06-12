@@ -1630,15 +1630,20 @@
     margin-top: -0.12rem;
 }
 
-/* Smoother cross-fade between media in the same slide. */
+/* Smoother cross-fade — no scale (index.html .hero-background.active uses scale(1.05) which crops). */
 #home-ongoing .hero-background {
     transition: opacity 0.55s ease;
+    transform: none !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
 }
 #home-ongoing .hero-background:not(.active) {
     opacity: 0;
 }
 #home-ongoing .hero-background.active {
     opacity: 1;
+    transform: none !important;
 }
 
 @media (max-width: 768px) {
@@ -1775,18 +1780,19 @@
 }
 
 /* ─── Media stage (left side of .on-card) ─────────────────────────────
-   Sits inside .on-card (which already has overflow:hidden + border-radius),
-   so we keep the inner stage tile clean and tightly clipped. Images use
-   background-size:cover for the same "fit without overlap" feel as the hero. */
+   Portrait + landscape: full image visible (contain), never cropped. */
 #home-ongoing .on-media {
     position: relative;
     width: 100%;
     max-width: none;
-    min-height: 0;
-    max-height: 300px;
-    height: auto;
-    aspect-ratio: 16 / 10;
+    min-height: clamp(220px, 34vw, 280px);
+    height: clamp(240px, 38vw, 360px);
+    max-height: 360px;
+    aspect-ratio: auto;
     overflow: hidden;
+    display: flex;
+    align-items: center;
+    justify-content: center;
     background: #eef2f7;
     border-radius: 0;
     left: auto;
@@ -1809,19 +1815,43 @@
     height: 100%;
     background: transparent;
     background-image: none !important;
+    background-size: contain !important;
+    background-repeat: no-repeat !important;
+    background-position: center center !important;
     opacity: 0;
     transition: opacity 0.55s ease;
-    transform: none;
+    transform: none !important;
     z-index: 1;
     display: flex;
     align-items: center;
     justify-content: center;
     overflow: hidden;
+    padding: 0.5rem;
+    box-sizing: border-box;
 }
 
 #home-ongoing .on-media .hero-background.active,
 #home-ongoing .on-media .on-frame.active {
     opacity: 1;
+    transform: none !important;
+}
+
+#home-ongoing .on-media .on-frame--image {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+}
+
+#home-ongoing .on-img-fit {
+    position: relative;
+    width: 100%;
+    height: 100%;
+    max-width: 100%;
+    max-height: 100%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    overflow: hidden;
 }
 
 #home-ongoing .on-img-shield {
@@ -1843,31 +1873,30 @@
 }
 
 #home-ongoing .on-img--main {
-    width: 100%;
-    height: 100%;
-    min-width: 100%;
-    min-height: 100%;
-    object-fit: cover;
-    object-position: center center;
+    display: block;
+    width: auto !important;
+    height: auto !important;
+    max-width: 100% !important;
+    max-height: 100% !important;
+    object-fit: contain !important;
+    object-position: center center !important;
     image-rendering: auto;
     filter: none;
-    background: #e8edf3;
-    transition: transform 0.35s ease;
+    background: transparent;
+    flex: 0 1 auto;
 }
 
 #home-ongoing .on-img--main.on-img--failed {
     display: none;
 }
 
-#home-ongoing .on-frame--image:hover .on-img--main {
-    transform: scale(1.03);
-}
-
 #home-ongoing .on-media .spotlight-media-video video,
 #home-ongoing .on-media .spotlight-media-embed iframe {
     width: 100%;
     height: 100%;
-    object-fit: cover;
+    max-width: 100%;
+    max-height: 100%;
+    object-fit: contain;
     object-position: center;
 }
 
@@ -1885,12 +1914,7 @@
 }
 
 #home-ongoing .on-media::after {
-    content: '';
-    position: absolute;
-    inset: 0;
-    pointer-events: none;
-    background: linear-gradient(to right, transparent 88%, rgba(255, 255, 255, 0.35) 100%);
-    z-index: 3;
+    content: none;
 }
 
 /* ─── Content panel (right side) ──────────────────────────────────── */
@@ -2280,9 +2304,9 @@
         min-height: 0;
     }
     #home-ongoing .on-media {
-        aspect-ratio: 16 / 10;
-        min-height: 0;
-        max-height: 260px;
+        min-height: 200px;
+        height: clamp(220px, 42vw, 300px);
+        max-height: 300px;
     }
     #home-ongoing .on-media-nav__btn {
         opacity: 1;
@@ -2306,7 +2330,9 @@
         margin-bottom: 0.85rem;
     }
     #home-ongoing .on-media {
-        max-height: 200px;
+        min-height: 180px;
+        height: clamp(200px, 50vw, 260px);
+        max-height: 260px;
     }
     .on-content {
         padding: 1.2rem 1.1rem 1.1rem;

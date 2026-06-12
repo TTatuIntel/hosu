@@ -20,7 +20,7 @@
 <link rel="stylesheet" href="donate-float.css?v=2026040404">
     <link rel="stylesheet" href="shared-footer.css?v=2026040404">
     <link rel="stylesheet" href="shared-login.css?v=2026040404">
-    <link rel="stylesheet" href="home-sections.css?v=2026061215">
+    <link rel="stylesheet" href="home-sections.css?v=2026061225">
     <script src="site_bootstrap.php"></script>
     <script src="page_bootstrap.php?page=home&amp;v=2026061128"></script>
 <style>
@@ -2656,13 +2656,13 @@ footer {
 
 <!-- Ongoing Now: admin-curated live updates (events + custom spotlights). Placed after partners. -->
 <section id="home-ongoing" class="ongoing-now" aria-live="polite" aria-label="Ongoing now" hidden></section>
-<script src="home-sections.js?v=2026061215"></script>
+<script src="home-sections.js?v=2026061225"></script>
 
 <!-- CTA Section -->
 <section class="cta-section">
     <div id="home-cta-mount"></div>
 </section>
-<script src="home-extras.js?v=2026061108"></script>
+<script src="home-extras.js?v=2026061202"></script>
 
 <style>
 /* Floating Donate Popup */
@@ -3470,41 +3470,72 @@ var HeroSlideshow = (function() {
         applyHeroMediaContent(slideIndex, mediaIndex);
     }
 
-    function init() {
-        heroLastMediaBySlide = {};
-        heroLastPoolMediaIndex = -1;
+    function refreshDom() {
         heroSlides = Array.from(document.querySelectorAll('#home .hero-slide'));
         heroBgs = Array.from(document.querySelectorAll('#home .hero-background'));
         heroDots = Array.from(document.querySelectorAll('#home .hero-indicators .hero-dot'));
-        heroIndex = 0;
-        heroMediaIndex = 0;
+    }
 
-        heroSlides.forEach(function(s) { s.classList.remove('active'); });
-        heroBgs.forEach(function(b) { b.classList.remove('active'); });
-        heroDots.forEach(function(d) { d.classList.remove('active'); });
-        if (heroSlides[0]) heroSlides[0].classList.add('active');
-        if (heroDots[0]) heroDots[0].classList.add('active');
-        cacheDefaultCtaHtml();
-        showRandomHeroMedia(0);
-
-        if ('requestIdleCallback' in window) {
-            requestIdleCallback(function () {
-                heroBgs.forEach(ensureHeroBackgroundLoaded);
-            }, { timeout: 2000 });
-        } else {
-            setTimeout(function () {
-                heroBgs.forEach(ensureHeroBackgroundLoaded);
-            }, 1500);
-        }
-
+    function bindDots() {
         heroDots.forEach(function(dot, idx) {
             dot.onclick = function() {
                 showSlide(idx);
                 resetTimer();
             };
         });
+    }
 
+    function lazyLoadBackgrounds() {
+        var load = function() { heroBgs.forEach(ensureHeroBackgroundLoaded); };
+        if ('requestIdleCallback' in window) {
+            requestIdleCallback(load, { timeout: 2000 });
+        } else {
+            setTimeout(load, 1500);
+        }
+    }
+
+    function activateAt(index) {
+        if (!heroSlides.length) {
+            heroIndex = 0;
+            return;
+        }
+        if (index < 0) index = heroSlides.length - 1;
+        if (index >= heroSlides.length) index = 0;
+
+        heroSlides.forEach(function(s) { s.classList.remove('active'); });
+        heroDots.forEach(function(d) { d.classList.remove('active'); });
+        heroSlides[index].classList.add('active');
+        if (heroDots[index]) heroDots[index].classList.add('active');
+        heroIndex = index;
+        showRandomHeroMedia(index);
+    }
+
+    function init() {
+        heroLastMediaBySlide = {};
+        heroLastPoolMediaIndex = -1;
+        refreshDom();
+        cacheDefaultCtaHtml();
+        activateAt(0);
+        bindDots();
+        lazyLoadBackgrounds();
         startTimer();
+    }
+
+    function reinit(opts) {
+        opts = opts || {};
+        var prevIndex = heroIndex;
+        refreshDom();
+        var target = opts.preserveIndex !== false ? prevIndex : 0;
+        if (heroSlides.length) {
+            target = Math.max(0, Math.min(target, heroSlides.length - 1));
+        } else {
+            target = 0;
+        }
+        cacheDefaultCtaHtml();
+        activateAt(target);
+        bindDots();
+        lazyLoadBackgrounds();
+        resetTimer();
     }
 
     function showSlide(index) {
@@ -3590,6 +3621,7 @@ var HeroSlideshow = (function() {
 
     return {
         init: init,
+        reinit: reinit,
         show: showSlide,
         reset: resetTimer,
         stop: stopTimer,
@@ -3603,7 +3635,8 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061201"></script>
+<script src="home-hero.js?v=2026061202"></script>
+<script src="home-refresh.js?v=2026061202"></script>
 <script>
 
 // Hero popup content — populated by home-hero.js from admin slides

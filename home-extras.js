@@ -1,8 +1,11 @@
 /**
  * Renders admin-managed homepage sections below the hero (partners, CTA).
+ * Refreshes quietly in the background when admin content changes.
  */
 (function () {
     'use strict';
+
+    var _lastExtrasFingerprint = '';
 
     function escHtml(str) {
         if (!str) return '';
@@ -78,22 +81,75 @@
             '</div></div>';
     }
 
-    function applyExtras(data) {
-        if (!data) return;
+    function extrasFingerprint(data) {
+        if (!data) return '';
+        return JSON.stringify(data.partners || {}) + '||' + JSON.stringify(data.cta || {});
+    }
+
+    function syncBootstrapExtras(data) {
+        if (!window.__HOSU_PAGE_BOOTSTRAP || !data) return;
+        window.__HOSU_PAGE_BOOTSTRAP.homepage_extras = {
+            partners: data.partners,
+            cta: data.cta,
+        };
+    }
+
+    function applyExtras(data, opts) {
+        opts = opts || {};
+        if (!data) return false;
+        var fp = extrasFingerprint(data);
+        if (!opts.force && fp === _lastExtrasFingerprint) return false;
+        _lastExtrasFingerprint = fp;
         renderPartners(data.partners);
         renderCta(data.cta);
+        syncBootstrapExtras(data);
+        return true;
     }
+
+    function fetchExtrasFromApi() {
+        return fetch('api.php?action=get_homepage_extras', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+        }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
+    }
+
+    function refreshQuietly(force) {
+        if (!force && document.hidden) return Promise.resolve(false);
+        return fetchExtrasFromApi()
+            .then(function (data) {
+                if (!data || !data.success) return false;
+                return applyExtras(data, { force: !!force });
+            })
+            .catch(function () {
+                return false;
+            });
+    }
+
+    window.HOSU_EXTRAS = {
+        apply: function (data, opts) {
+            return applyExtras(data, Object.assign({ force: true }, opts || {}));
+        },
+        refreshQuietly: refreshQuietly,
+        reload: function () {
+            return fetchExtrasFromApi().then(function (data) {
+                if (data && data.success) applyExtras(data, { force: true });
+                return data;
+            });
+        },
+    };
 
     var boot = window.__HOSU_PAGE_BOOTSTRAP;
     if (boot && boot.success && boot.homepage_extras) {
-        applyExtras(boot.homepage_extras);
+        applyExtras(boot.homepage_extras, { force: true });
         return;
     }
 
-    fetch('api.php?action=get_homepage_extras', { credentials: 'same-origin' })
-        .then(function (r) { return r.json(); })
+    fetchExtrasFromApi()
         .then(function (data) {
-            if (data && data.success) applyExtras(data);
+            if (data && data.success) applyExtras(data, { force: true });
         })
         .catch(function () { /* keep static fallback if any */ });
 })();

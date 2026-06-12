@@ -10,6 +10,7 @@
     window.heroPopupData = window.heroPopupData || {};
     var heroImageMode = 'per_slide';
     var heroPoolImages = [];
+    var _lastHeroFingerprint = '';
 
     function escHtml(str) {
         if (!str) return '';
@@ -270,11 +271,95 @@
         });
     }
 
-    function initHero() {
+    function heroFingerprint(slides, mode, pool) {
+        var slideFp = effectiveSlides(slides).map(function (s) {
+            var imgs = (s.images || []).map(function (img) {
+                return (img.display_url || img.url || '') + ':' + (img.title || '') + ':' + (img.body || '');
+            }).join(',');
+            return [
+                s.id || s.slide_key || '',
+                s.title || '',
+                s.body || '',
+                s.badge_label || '',
+                s.sort_order || 0,
+                s.is_active === false || s.is_active === 0 || s.is_active === '0' ? '0' : '1',
+                s.cta_label || '',
+                s.cta_url || '',
+                s.image_path || '',
+                imgs,
+            ].join('|');
+        }).join(';;');
+        var poolFp = (pool || []).map(function (img) {
+            return img.display_url || img.url || '';
+        }).join(',');
+        return (mode || 'per_slide') + '::' + slideFp + '::' + poolFp;
+    }
+
+    function syncBootstrapHero(data) {
+        if (!window.__HOSU_PAGE_BOOTSTRAP || !data) return;
+        window.__HOSU_PAGE_BOOTSTRAP.slides = data.slides || [];
+        window.__HOSU_PAGE_BOOTSTRAP.image_mode = data.image_mode;
+        window.__HOSU_PAGE_BOOTSTRAP.pool_images = data.pool_images || [];
+    }
+
+    function initHero(opts) {
+        opts = opts || {};
         if (typeof HeroSlideshow !== 'undefined') {
-            HeroSlideshow.init();
+            if (opts.preserveIndex && typeof HeroSlideshow.reinit === 'function') {
+                HeroSlideshow.reinit({
+                    preserveIndex: true,
+                    index: typeof opts.index === 'number' ? opts.index : HeroSlideshow.getIndex(),
+                });
+            } else {
+                HeroSlideshow.init();
+            }
         }
         bindJoinButtonGlow();
+    }
+
+    function applyHeroData(data, opts) {
+        opts = opts || {};
+        if (!data) return false;
+
+        applyHeroImageConfig(data);
+        var slides = (data.success && data.slides) ? data.slides : [];
+        var fp = heroFingerprint(slides, heroImageMode, heroPoolImages);
+        if (!opts.force && fp === _lastHeroFingerprint) return false;
+        _lastHeroFingerprint = fp;
+
+        var preserveIndex = opts.preserveIndex !== false;
+        var currentIndex = 0;
+        if (preserveIndex && typeof HeroSlideshow !== 'undefined' && typeof HeroSlideshow.getIndex === 'function') {
+            currentIndex = HeroSlideshow.getIndex();
+        }
+
+        window.heroPopupData = {};
+        renderSlides(slides);
+        initHero({ preserveIndex: preserveIndex, index: currentIndex });
+        syncBootstrapHero(data);
+        return true;
+    }
+
+    function fetchHeroFromApi() {
+        return fetch('api.php?action=get_home_hero', {
+            credentials: 'same-origin',
+            cache: 'no-store',
+        }).then(function (r) {
+            if (!r.ok) throw new Error('HTTP ' + r.status);
+            return r.json();
+        });
+    }
+
+    function refreshQuietly(force) {
+        if (!force && document.hidden) return Promise.resolve(false);
+        return fetchHeroFromApi()
+            .then(function (data) {
+                if (!data || !data.success) return false;
+                return applyHeroData(data, { preserveIndex: true, force: !!force });
+            })
+            .catch(function () {
+                return false;
+            });
     }
 
     function bindJoinButtonGlow() {
@@ -293,13 +378,29 @@
 
     function loadHeroFromBootstrap(boot) {
         if (boot && boot.success) {
-            applyHeroImageConfig(boot);
-            renderSlides(Array.isArray(boot.slides) ? boot.slides : []);
-            initHero();
+            applyHeroData({
+                success: true,
+                slides: Array.isArray(boot.slides) ? boot.slides : [],
+                image_mode: boot.image_mode,
+                pool_images: boot.pool_images,
+            }, { preserveIndex: false, force: true });
             return true;
         }
         return false;
     }
+
+    window.HOSU_HERO = {
+        apply: function (data, opts) {
+            return applyHeroData(data, Object.assign({ force: true }, opts || {}));
+        },
+        refreshQuietly: refreshQuietly,
+        reload: function () {
+            return fetchHeroFromApi().then(function (data) {
+                applyHeroData(data, { preserveIndex: true, force: true });
+                return data;
+            });
+        },
+    };
 
     window.__HOSU_HERO_READY = new Promise(function (resolve) {
         var boot = window.__HOSU_PAGE_BOOTSTRAP;
@@ -308,18 +409,13 @@
             return;
         }
 
-        fetch('api.php?action=get_home_hero', { credentials: 'same-origin' })
-            .then(function (r) { return r.json(); })
+        fetchHeroFromApi()
             .then(function (data) {
-                applyHeroImageConfig(data);
-                var slides = (data && data.success && data.slides) ? data.slides : [];
-                renderSlides(slides);
-                initHero();
+                applyHeroData(data, { preserveIndex: false, force: true });
                 resolve();
             })
             .catch(function () {
-                renderSlides([]);
-                initHero();
+                applyHeroData({ success: true, slides: [] }, { preserveIndex: false, force: true });
                 resolve();
             });
     });

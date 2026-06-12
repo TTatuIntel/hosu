@@ -5651,7 +5651,7 @@ function saveHomepageExtras(){
     fd.append('partners_json',JSON.stringify(partners));
     fd.append('cta_json',JSON.stringify(cta));
     fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'}).then(r=>r.json()).then(d=>{
-        if(d.success){toast('Homepage sections saved.','success');_homepageExtras={partners:partners,cta:cta};loadHomepageOverview();}
+        if(d.success){toast('Homepage sections saved.','success');bumpHomeRevision();_homepageExtras={partners:partners,cta:cta};loadHomepageOverview();}
         else toast(d.error||'Failed to save.','error');
     }).catch(()=>toast('Network error.','error'));
 }
@@ -5922,6 +5922,7 @@ function saveHeroImageSettings(){
     }).then(function(d){
         if(d&&d.success){
             toast('Hero background settings saved.','success');
+            bumpHomeRevision();
             applyHeroImageSettingsForm(d.image_settings||null);
         }else if(d)toast(d.error||'Failed to save background settings.','error');
     }).catch(function(err){
@@ -6261,6 +6262,7 @@ function saveHeroSlide(){
     adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
         if(d.success){
             toast(editId?'Hero slide updated.':'Hero slide added.','success');
+            bumpHomeRevision();
             if(d.slide){
                 document.getElementById('sc-hero-edit-id').value=d.slide.id;
                 initScGallery('hero',d.slide.images||[]);
@@ -6281,7 +6283,7 @@ function deleteHeroSlide(id){
     _heroSlides=_heroSlides.filter(function(s){return String(s.id)!==String(id);});
     renderHeroSlideTable();
     adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','delete_hero_slide');fd.append('id',id);return fd;})()}).then(function(d){
-        if(d.success){toast('Hero slide deleted.','success');loadHomepageOverview();}
+        if(d.success){toast('Hero slide deleted.','success');bumpHomeRevision();loadHomepageOverview();}
         else{_heroSlides=prev;renderHeroSlideTable();toast(d.error||'Failed.','error');}
     }).catch(function(err){
         _heroSlides=prev;renderHeroSlideTable();
@@ -6295,7 +6297,7 @@ function toggleHeroSlideActive(id,active){
     slide.is_active=active?1:0;
     renderHeroSlideTable();
     adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','toggle_hero_slide');fd.append('id',id);fd.append('is_active',active);return fd;})()}).then(function(d){
-        if(d.success){toast(active?'Hero slide visible on site.':'Hero slide hidden from site.','success');loadHomepageOverview();}
+        if(d.success){toast(active?'Hero slide visible on site.':'Hero slide hidden from site.','success');bumpHomeRevision();loadHomepageOverview();}
         else{slide.is_active=prev;renderHeroSlideTable();toast(d.error||'Failed.','error');}
     }).catch(function(err){
         slide.is_active=prev;renderHeroSlideTable();
@@ -6322,9 +6324,15 @@ function loadOngoingSettingsForm(){
         var ph=document.getElementById('hp-ongoing-past-hide-upcoming');if(ph)ph.checked=!!s.past_hide_when_upcoming;
     }).catch(function(){});
 }
-function bumpOngoingRevision(){
-    try{localStorage.setItem('hosu_ongoing_rev',String(Date.now()));}catch(e){}
+function bumpSiteRevision(){
+    try{
+        var ts=String(Date.now());
+        localStorage.setItem('hosu_home_rev',ts);
+        localStorage.setItem('hosu_ongoing_rev',ts);
+    }catch(e){}
 }
+function bumpOngoingRevision(){ bumpSiteRevision(); }
+function bumpHomeRevision(){ bumpSiteRevision(); }
 function saveOngoingSettings(){
     var fd=new FormData();
     fd.append('action','save_ongoing_settings');

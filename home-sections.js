@@ -281,6 +281,10 @@
         var src = resolveMediaUrl(bgEl.getAttribute('data-bg'));
         if (src) {
             bgEl.style.backgroundImage = "url('" + cssUrl(src) + "')";
+            bgEl.style.backgroundSize = 'contain';
+            bgEl.style.backgroundRepeat = 'no-repeat';
+            bgEl.style.backgroundPosition = 'center center';
+            bgEl.style.transform = 'none';
         }
     }
 
@@ -449,10 +453,12 @@
             : '';
         var altText = media.title || (driveId ? 'Event photo' : 'Event photo');
         var inner = safeUrl
-            ? '<div class="on-img-shield" aria-hidden="true"></div>' +
+            ? '<div class="on-img-fit">' +
+              '<div class="on-img-shield" aria-hidden="true"></div>' +
               '<img class="on-img on-img--main" src="' + safeUrl + '"' +
               ' alt="' + esc(altText) + '" loading="' + loadAttr + '"' +
-              priorityAttr + ' decoding="async" draggable="false" referrerpolicy="no-referrer"' + driveAttrs + '>'
+              priorityAttr + ' decoding="async" draggable="false" referrerpolicy="no-referrer"' + driveAttrs + '>' +
+              '</div>'
             : '';
         return (
             '<div class="hero-background on-frame on-frame--image' + active + (url ? '' : ' event-bg') + '"' +
