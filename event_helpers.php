@@ -3206,8 +3206,13 @@ function loadHeroImageSettings(PDO $pdo): array
 
 function saveHeroImageSettings(PDO $pdo, string $mode, array $pool, string $poolAlt = ''): array
 {
-    $mode = ($mode === 'global_pool') ? 'global_pool' : 'per_slide';
     $pool = normalizeHeroPoolImages($pool);
+    // A non-empty pool is always used as the shared shuffle gallery on the homepage.
+    if (count($pool) > 0) {
+        $mode = 'global_pool';
+    } else {
+        $mode = ($mode === 'global_pool') ? 'global_pool' : 'per_slide';
+    }
     $payload = [
         'mode' => $mode,
         'pool' => array_map(function ($img) {
@@ -3264,10 +3269,11 @@ function appendHeroPoolImages(PDO $pdo, array $newImages, string $defaultAlt = '
 {
     $settings = loadHeroImageSettings($pdo);
     $merged = normalizeHeroPoolImages(array_merge($settings['pool'], $newImages));
-    if ($defaultAlt !== '' && empty($settings['pool_alt'])) {
-        $settings['pool_alt'] = $defaultAlt;
+    $poolAlt = $settings['pool_alt'] ?? '';
+    if ($defaultAlt !== '' && $poolAlt === '') {
+        $poolAlt = $defaultAlt;
     }
-    return saveHeroImageSettings($pdo, $settings['mode'], $merged, $settings['pool_alt']);
+    return saveHeroImageSettings($pdo, 'global_pool', $merged, $poolAlt);
 }
 
 function defaultHomepagePartners(): array

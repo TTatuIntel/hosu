@@ -1292,7 +1292,8 @@ body.density-compact .main{padding-top:.85rem;}
                         </label>
                     </div>
                     <div id="hero-pool-panel" style="display:none;">
-                        <p class="sc-gallery-hint">Add photos to the shared pool. They are <strong>not tied</strong> to any slide — the homepage picks one at random whenever the hero text changes.</p>
+                        <p class="sc-gallery-hint">Add photos to the shared pool. They <strong>shuffle automatically</strong> on the homepage every few seconds while visitors read the hero text. Use uploads, image links, or Google Drive file/folder links.</p>
+                        <p id="hero-pool-mode-hint" class="ev-past-date-hint" style="display:none;margin-bottom:.65rem;">You have photos in the pool — select <strong>Shared random pool</strong> above (or just save; we enable it automatically).</p>
                         <div id="sc-hero-pool-images-wrap" style="margin-bottom:.75rem;">
                             <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin-bottom:.4rem;">Pool gallery <span id="sc-hero-pool-images-count"></span></div>
                             <div id="sc-hero-pool-images-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(100px,1fr));gap:.5rem;"></div>
@@ -6042,7 +6043,24 @@ function applyHeroImageSettingsForm(settings){
 function updateHeroImageModePanels(){
     var mode=document.querySelector('input[name="hero-img-mode"]:checked');
     var poolPanel=document.getElementById('hero-pool-panel');
-    if(poolPanel)poolPanel.style.display=(mode&&mode.value==='global_pool')?'':'none';
+    var poolCount=scGalleryItems('hero-pool').length;
+    if(poolPanel)poolPanel.style.display=(mode&&mode.value==='global_pool')||poolCount>0?'':'none';
+    var hint=document.getElementById('hero-pool-mode-hint');
+    if(hint)hint.style.display=(poolCount>0&&mode&&mode.value!=='global_pool')?'block':'none';
+}
+function ensureHeroPoolModeForSave(){
+    var poolCount=scGalleryItems('hero-pool').length;
+    var pending=scGalleryPendingFiles('hero-pool').length;
+    var urlsEl=document.getElementById('sc-hero-pool-image-urls');
+    var hasUrls=urlsEl&&urlsEl.value.trim();
+    if(poolCount>0||pending>0||hasUrls){
+        var gp=document.getElementById('hero-img-mode-global-pool');
+        if(gp)gp.checked=true;
+        updateHeroImageModePanels();
+        return 'global_pool';
+    }
+    var modeEl=document.querySelector('input[name="hero-img-mode"]:checked');
+    return modeEl&&modeEl.value==='global_pool'?'global_pool':'per_slide';
 }
 function bindHeroImageModeRadios(){
     document.querySelectorAll('input[name="hero-img-mode"]').forEach(function(radio){
@@ -6085,8 +6103,7 @@ function uploadHeroPoolFilesInBatches(files){
     return nextBatch();
 }
 function saveHeroImageSettings(){
-    var modeEl=document.querySelector('input[name="hero-img-mode"]:checked');
-    var mode=modeEl&&modeEl.value==='global_pool'?'global_pool':'per_slide';
+    var mode=ensureHeroPoolModeForSave();
     if(mode==='global_pool'&&!scGalleryItems('hero-pool').length){
         var urlsEl=document.getElementById('sc-hero-pool-image-urls');
         if(!urlsEl||!urlsEl.value.trim()){
@@ -6108,7 +6125,11 @@ function saveHeroImageSettings(){
         });
     }).then(function(d){
         if(d&&d.success){
-            toast('Hero background settings saved.','success');
+            var poolN=(d.image_settings&&d.image_settings.pool)?d.image_settings.pool.length:0;
+            var msg=poolN>1
+                ?('✅ Saved — '+poolN+' photos will shuffle dynamically on the homepage.')
+                :(poolN===1?'✅ Saved — 1 hero photo active. Add more for shuffle.':'Hero background settings saved.');
+            toast(msg,'success');
             bumpHomeRevision();
             applyHeroImageSettingsForm(d.image_settings||null);
             revokeScGalleryBlobs('hero-pool');
@@ -6321,6 +6342,7 @@ function renderScGallery(section){
         return;
     }
     var simple=section==='hero-pool';
+    if(section==='hero-pool')updateHeroImageModePanels();
     grid.innerHTML=items.map(function(img,i){
         var pending=!!img._pending;
         var thumb=img.url;

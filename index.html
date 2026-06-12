@@ -3462,7 +3462,8 @@ var HeroSlideshow = (function() {
         var slideBgs = getBgsForSlide(slideIndex);
         if (slideBgs.length <= 1) return;
         heroMediaTimer = setInterval(function () {
-            advanceHeroMedia(slideIndex);
+            if (!heroSlides.length) return;
+            advanceHeroMedia(heroIndex);
         }, getHeroMediaInterval());
     }
 
@@ -3673,7 +3674,7 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061227"></script>
+<script src="home-hero.js?v=2026061228"></script>
 <script src="home-refresh.js?v=2026061227"></script>
 <script>
 

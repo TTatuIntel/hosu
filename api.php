@@ -3064,11 +3064,15 @@ HTML;
             migrateEventSchema($pdo);
             $slides = loadHomepageHeroSlides($pdo, true);
             $heroImages = loadHeroImageSettings($pdo);
+            if (count($heroImages['pool']) > 0) {
+                $heroImages['mode'] = 'global_pool';
+            }
             echo json_encode([
                 'success' => true,
                 'slides' => $slides,
                 'image_mode' => $heroImages['mode'],
                 'pool_images' => $heroImages['pool'],
+                'pool_count' => count($heroImages['pool']),
             ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);

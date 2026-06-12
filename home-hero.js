@@ -109,10 +109,24 @@
         return (d.textContent || d.innerText || '').trim();
     }
 
+    function extractDriveFileId(url) {
+        if (!url) return '';
+        var m = String(url).match(/\/file\/d\/([a-zA-Z0-9_-]+)/);
+        if (m) return m[1];
+        m = String(url).match(/[?&]id=([a-zA-Z0-9_-]+)/);
+        return m ? m[1] : '';
+    }
+
     function resolveHeroDisplayUrl(img) {
         if (!img) return '';
         var u = img.display_url || img.url || '';
         if (!u || /\/folders\//i.test(u)) return '';
+        if (/drive\.google|docs\.google/i.test(u) && u.indexOf('drive_image.php') === -1) {
+            var driveId = extractDriveFileId(u);
+            if (driveId) {
+                return 'drive_image.php?id=' + encodeURIComponent(driveId) + '&w=1400';
+            }
+        }
         return u;
     }
 
@@ -233,7 +247,8 @@
         }).join('');
 
         var bgHtml = '';
-        var useGlobalPool = heroImageMode === 'global_pool' && heroPoolImages.length > 0;
+        var useGlobalPool = heroPoolImages.length > 0
+            && (heroImageMode === 'global_pool' || heroPoolImages.length >= 2);
 
         if (useGlobalPool) {
             var poolImgs = poolImagesFromList(heroPoolImages);
@@ -261,6 +276,19 @@
             });
         }
         bgMount.innerHTML = bgHtml;
+
+        if (useGlobalPool) {
+            window.HOSU_HERO_IMAGE_MODE = 'global_pool';
+        }
+
+        bgMount.querySelectorAll('.hero-background[data-bg]').forEach(function (el) {
+            var src = el.getAttribute('data-bg');
+            if (src) {
+                var pre = new Image();
+                pre.decoding = 'async';
+                pre.src = src;
+            }
+        });
 
         slides.forEach(function (slide, i) {
             var slideEl = mount.querySelector('.hero-slide[data-hero-slide="' + i + '"]');
