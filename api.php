@@ -2732,15 +2732,6 @@ HTML;
             $id = $_POST['id'] ?? '';
             $featured = (!empty($_POST['featured']) && $_POST['featured'] !== '0') ? 1 : 0;
             if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
-            if ($featured) {
-                $check = $pdo->prepare('SELECT date_start, date_end FROM events WHERE id = ?');
-                $check->execute([$id]);
-                $row = $check->fetch(PDO::FETCH_ASSOC);
-                if ($row && eventHasPassed($row)) {
-                    echo json_encode(['success' => false, 'error' => 'Past events cannot be featured on the homepage.']);
-                    break;
-                }
-            }
             $stmt = $pdo->prepare("UPDATE events SET featured = ? WHERE id = ?");
             $stmt->execute([$featured, $id]);
             if ($stmt->rowCount() === 0) { echo json_encode(['success' => false, 'error' => 'Event not found']); break; }
@@ -3440,7 +3431,7 @@ HTML;
                 }
                 return strcmp($a['date_start'] ?? '', $b['date_start'] ?? '');
             });
-            $featuredEvents = array_values(array_filter($visible, fn($ev) => ($ev['featured'] || $ev['pinned']) && empty($ev['is_past'])));
+            $featuredEvents = array_values(array_filter($visible, fn($ev) => ($ev['featured'] || $ev['pinned']) && $ev['is_display_active']));
             usort($featuredEvents, function ($a, $b) {
                 if ($a['pinned'] !== $b['pinned']) return $b['pinned'] <=> $a['pinned'];
                 if ($a['home_priority'] !== $b['home_priority']) return $b['home_priority'] <=> $a['home_priority'];

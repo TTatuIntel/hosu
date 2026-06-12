@@ -1283,7 +1283,7 @@ function eventInSpotlightPeriod(array $ev, ?DateTimeImmutable $today = null): bo
         return !empty($ev['show_live_on_home']);
     }
     if ($days <= 0) {
-        return false;
+        return !empty($ev['show_live_on_home']);
     }
 
     $graceEnd = $end->modify('+' . $days . ' days')->setTime(23, 59, 59);
@@ -2198,7 +2198,7 @@ function eventPassesAdminDisplayWindow(array $ev, ?DateTimeImmutable $now = null
 function eventInOngoingUpcomingPeriod(array $ev, ?DateTimeImmutable $today = null): bool
 {
     $today = $today ?? new DateTimeImmutable('today');
-    if (empty($ev['show_upcoming_in_ongoing'])) {
+    if (empty($ev['show_upcoming_in_ongoing']) && empty($ev['show_live_on_home'])) {
         return false;
     }
     if (eventIsLive($ev, $today)) {
@@ -2281,7 +2281,7 @@ function eventInOngoingPostEventPeriod(
 
     $days = (int) ($ev['post_event_display_days'] ?? 0);
     if ($days === 0) {
-        return false;
+        return true;
     }
 
     if ($hasUpcomingInSection) {
@@ -2426,6 +2426,62 @@ function buildOngoingNowSlides(array $events, array $customSpotlights = [], $set
             $slide = buildSpotlightSlideFromCustom($row);
             $mixedSlides[] = enrichOngoingSlideFromLinkedEvent($slide, $eventsById, $today);
         }
+    }
+
+    // Admin-enabled live-on-home: surface whenever within the display window,
+    // even outside live dates or default post-event grace settings.
+    $onSlideIds = [];
+    foreach (array_merge($liveSlides, $mixedSlides) as $slide) {
+        if (!empty($slide['event_id'])) {
+            $onSlideIds[(string) $slide['event_id']] = true;
+        }
+    }
+
+    foreach ($events as $ev) {
+        if (empty($ev['show_live_on_home']) || !eventPassesAdminDisplayWindow($ev, $now)) {
+            continue;
+        }
+        $eid = (string) ($ev['id'] ?? '');
+        if ($eid === '' || isset($onSlideIds[$eid]) || eventIsLive($ev, $today)) {
+            continue;
+        }
+
+        $badge = computeOngoingEventBadge($ev, $today);
+        $isUpcoming = !empty($ev['date_start']) && $today < new DateTimeImmutable($ev['date_start']);
+        $isPast = eventHasPassed($ev, $today);
+        $visibility = $isPast || $isUpcoming ? 'homepage' : 'live';
+        $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, $visibility);
+        $eventMedia = collectEventSpotlightMedia($ev, $blocks, $isPast || eventIsLive($ev, $today));
+
+        if ($isUpcoming) {
+            $mixedSlides[] = buildSpotlightSlideFromEvent($ev, [
+                'type' => 'upcoming_event',
+                'badge' => $badge['label'],
+                'ongoing_phase' => $badge['phase'],
+                'is_live' => false,
+                'headline' => truncatePlain($ev['announcements'] ?: ($ev['description'] ?? ''), 82),
+                'cta_primary' => 'View & Register',
+                'media' => $eventMedia,
+            ]);
+            continue;
+        }
+
+        $feedBlocks = array_values(array_filter($blocks, fn($b) => !empty($b['title']) || !empty($b['body'])));
+        $mixedSlides[] = buildSpotlightSlideFromEvent($ev, [
+            'type' => $isPast ? 'post_event' : 'live_event',
+            'badge' => $badge['label'],
+            'ongoing_phase' => $badge['phase'],
+            'is_live' => false,
+            'headline' => truncatePlain(
+                $isPast
+                    ? ($ev['highlights'] ?: $ev['announcements'] ?: ($ev['description'] ?? ''))
+                    : ($ev['live_message'] ?: $ev['announcements'] ?: ($ev['description'] ?? '')),
+                82
+            ),
+            'cta_primary' => $isPast ? 'See What Happened' : ($ev['live_cta_label'] ?? 'Register & Join Now'),
+            'updates' => $feedBlocks,
+            'media' => $eventMedia,
+        ]);
     }
 
     return sortOngoingSlides($mixedSlides, $arrangement);
@@ -2649,11 +2705,7 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
                is_free, event_fee, status, featured, pinned, home_priority,
                display_start, display_end, display_for_event, speakers, highlights, announcements
         FROM events
-        WHERE (featured = 1 OR pinned = 1)
-          AND NOT (
-              (date_end IS NOT NULL AND date_end < CURDATE())
-           OR (date_end IS NULL AND date_start IS NOT NULL AND date_start < CURDATE())
-          )
+        WHERE featured = 1 OR pinned = 1
         ORDER BY pinned DESC, home_priority DESC, date_start ASC
         LIMIT 12
     ");
@@ -2665,7 +2717,7 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
     }
     unset($ev);
 
-    $events = array_values(array_filter($events, fn($ev) => $ev['featured'] && !$ev['is_past'] && $ev['is_display_active']));
+    $events = array_values(array_filter($events, fn($ev) => ($ev['featured'] || $ev['pinned']) && $ev['is_display_active']));
     usort($events, function ($a, $b) {
         if ($a['pinned'] !== $b['pinned']) return $b['pinned'] <=> $a['pinned'];
         if ($a['home_priority'] !== $b['home_priority']) return $b['home_priority'] <=> $a['home_priority'];
@@ -3061,6 +3113,13 @@ function fetchHomepageAdminOverview(PDO $pdo): array
     migrateEventSchema($pdo);
     $items = [];
     $today = new DateTimeImmutable('today');
+    $spotlightPayload = fetchHomeSpotlightPayload($pdo);
+    $displayingEventIds = [];
+    foreach ($spotlightPayload['spotlight_slides'] as $slide) {
+        if (!empty($slide['event_id'])) {
+            $displayingEventIds[(string) $slide['event_id']] = true;
+        }
+    }
 
     try {
         $heroRows = $pdo->query(
@@ -3108,23 +3167,26 @@ function fetchHomepageAdminOverview(PDO $pdo): array
         foreach ($evRows as $row) {
             enrichEventRow($row, $today);
             if (!empty($row['show_live_on_home'])) {
+                $onHomepage = isset($displayingEventIds[(string) $row['id']]);
                 $items[] = [
                     'kind' => 'ongoing_event',
                     'id' => (string) $row['id'],
                     'section' => 'Ongoing Now',
                     'title' => trim((string) ($row['title'] ?? '')),
-                    'is_visible' => !empty($row['is_live']) || !empty($row['show_live_on_home']),
-                    'meta' => !empty($row['is_live']) ? 'Live now' : 'Enabled — outside live dates',
+                    'is_visible' => $onHomepage,
+                    'meta' => !empty($row['is_live'])
+                        ? 'Live now'
+                        : ($onHomepage ? 'On homepage' : 'Enabled — not visible (check display dates)'),
                     'event_id' => (string) $row['id'],
                 ];
             }
-            if (!empty($row['featured']) && empty($row['is_past'])) {
+            if (!empty($row['featured']) || !empty($row['pinned'])) {
                 $items[] = [
                     'kind' => 'featured_event',
                     'id' => (string) $row['id'],
                     'section' => 'Hero Featured',
                     'title' => trim((string) ($row['title'] ?? '')),
-                    'is_visible' => !empty($row['is_display_active']),
+                    'is_visible' => !empty($row['is_display_active']) && ($row['featured'] || $row['pinned']),
                     'meta' => !empty($row['pinned']) ? 'Pinned · priority ' . (int) ($row['home_priority'] ?? 0) : 'Featured event',
                     'event_id' => (string) $row['id'],
                 ];
