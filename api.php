@@ -105,6 +105,134 @@ function auditLog($pdo, $action, $entityType = null, $entityId = null, $details 
     }
 }
 
+// ── Committees + CPD: idempotent schema bootstrap ────────────────────
+function ensureCommitteeTables(PDO $pdo): void {
+    static $checked = false;
+    if ($checked) return;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS committees (
+            id          INT AUTO_INCREMENT PRIMARY KEY,
+            slug        VARCHAR(80)  NOT NULL UNIQUE,
+            name        VARCHAR(150) NOT NULL,
+            description TEXT NULL,
+            discipline  VARCHAR(60)  NOT NULL DEFAULT 'general',
+            sort_order  INT          NOT NULL DEFAULT 0,
+            is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+            created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        $pdo->exec("CREATE TABLE IF NOT EXISTS committee_members (
+            id           INT AUTO_INCREMENT PRIMARY KEY,
+            committee_id INT NOT NULL,
+            member_id    INT NOT NULL,
+            role         VARCHAR(40) NOT NULL DEFAULT 'member',
+            joined_at    TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+            UNIQUE KEY uq_committee_member (committee_id, member_id),
+            INDEX idx_cm_member (member_id),
+            CONSTRAINT fk_cm_committee FOREIGN KEY (committee_id) REFERENCES committees(id) ON DELETE CASCADE,
+            CONSTRAINT fk_cm_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+        // Seed a couple of common groups on first install only
+        $cnt = (int)$pdo->query("SELECT COUNT(*) FROM committees")->fetchColumn();
+        if ($cnt === 0) {
+            $pdo->exec("INSERT INTO committees (slug, name, description, discipline, sort_order) VALUES
+                ('breast-cancer','Breast Cancer Working Group','Clinical, research and advocacy work on breast cancer in Uganda.','medical-oncology',1),
+                ('pediatric-oncology','Pediatric Oncology Group','Care pathways, training and family support for children with cancer.','pediatric',2),
+                ('hematology','Hematology Group','Sickle cell, leukemia, lymphoma and benign hematology in Uganda.','hematology',3),
+                ('palliative-care','Palliative Care Group','Symptom control, dignity in care, community palliation.','palliative',4)");
+        }
+    } catch (Exception $e) {
+        error_log('ensureCommitteeTables: ' . $e->getMessage());
+    }
+    $checked = true;
+}
+
+function ensureCpdTables(PDO $pdo): void {
+    static $checked = false;
+    if ($checked) return;
+    try {
+        $pdo->exec("CREATE TABLE IF NOT EXISTS cpd_entries (
+            id            INT AUTO_INCREMENT PRIMARY KEY,
+            member_id     INT NOT NULL,
+            activity      VARCHAR(200) NOT NULL,
+            points        INT NOT NULL DEFAULT 0,
+            activity_date DATE NULL,
+            source        VARCHAR(40) NOT NULL DEFAULT 'manual',
+            awarded_by    INT NULL,
+            awarded_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+            INDEX idx_cpd_member (member_id),
+            CONSTRAINT fk_cpd_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+        ) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+    } catch (Exception $e) {
+        error_log('ensureCpdTables: ' . $e->getMessage());
+    }
+    $checked = true;
+}
+
+// Resolve a broadcast audience identifier to a list of {full_name,email} rows.
+function hosuResolveBroadcastAudience(PDO $pdo, string $audience, int $committeeId = 0): array {
+    $sql = '';
+    $params = [];
+    switch ($audience) {
+        case 'all':
+            $sql = "SELECT DISTINCT full_name, email FROM members
+                    WHERE email IS NOT NULL AND email <> '' AND status NOT IN ('rejected','suspended')";
+            break;
+        case 'active':
+            $sql = "SELECT DISTINCT full_name, email FROM members
+                    WHERE email IS NOT NULL AND email <> ''
+                      AND approval_status = 'approved' AND dues_paid_at IS NOT NULL
+                      AND (expiry_date IS NULL OR expiry_date >= CURDATE())
+                      AND status NOT IN ('rejected','suspended')";
+            break;
+        case 'expired':
+            $sql = "SELECT DISTINCT full_name, email FROM members
+                    WHERE email IS NOT NULL AND email <> ''
+                      AND expiry_date IS NOT NULL AND expiry_date < CURDATE()
+                      AND status NOT IN ('rejected','suspended')";
+            break;
+        case 'pending':
+            $sql = "SELECT DISTINCT full_name, email FROM members
+                    WHERE email IS NOT NULL AND email <> ''
+                      AND approval_status IN ('pending','needs_correction')";
+            break;
+        case 'committee':
+            if (!$committeeId) return [];
+            ensureCommitteeTables($pdo);
+            $sql = "SELECT DISTINCT m.full_name, m.email FROM committee_members cm
+                    JOIN members m ON m.id = cm.member_id
+                    WHERE cm.committee_id = ? AND m.email IS NOT NULL AND m.email <> ''";
+            $params[] = $committeeId;
+            break;
+        default:
+            return [];
+    }
+    $stmt = $pdo->prepare($sql);
+    $stmt->execute($params);
+    return $stmt->fetchAll(PDO::FETCH_ASSOC);
+}
+
+function hosuWrapBroadcastTemplate(string $subject, string $bodyHtml): string {
+    $safeSubject = htmlspecialchars($subject, ENT_QUOTES, 'UTF-8');
+    return <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:600px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 14px rgba(0,0,0,0.08);">
+  <tr><td style="background:#0d4593;padding:22px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;font-weight:700;">HOSU — Announcement</h1>
+    <div style="color:rgba(255,255,255,0.85);font-size:13px;margin-top:4px;">{$safeSubject}</div>
+  </td></tr>
+  <tr><td style="padding:28px;color:#333;font-size:14.5px;line-height:1.65;">
+    {$bodyHtml}
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:14px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU)<br>
+    <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a> &middot;
+    <a href="mailto:info@hosu.or.ug" style="color:#0d4593;text-decoration:none;">info@hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+}
+
 // ── Admin notification email ──────────────────────────────────────────
 function notifyAdmin(string $subject, string $htmlBody): void {
     ensureMailer();
@@ -3812,6 +3940,398 @@ HTML;
             error_log('cancel_pending_payment error: ' . $e->getMessage());
             http_response_code(500);
             echo json_encode(['error' => 'Failed to cancel payment. Please try again.']);
+        }
+        break;
+
+    case 'run_renewal_reminders':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $dry = !empty($_POST['dry_run']);
+            // Capture stdout from the dispatcher
+            ob_start();
+            $_GET['admin_inline'] = '1';
+            if ($dry) $_GET['dry_run'] = '1';
+            // Mark this as admin-triggered so the dispatcher knows
+            $_SESSION['_renewal_admin_run'] = true;
+            include __DIR__ . '/send_renewal_reminders.php';
+            unset($_SESSION['_renewal_admin_run']);
+            $output = ob_get_clean();
+            // Parse the JSON tail if present
+            $sent = 0; $skipped = 0; $failed = 0; $candidates = 0;
+            if (preg_match('/\n---\n(\{.*\})\s*$/s', $output, $mm)) {
+                $tail = json_decode($mm[1], true);
+                if (is_array($tail)) {
+                    $sent       = (int)($tail['sent'] ?? 0);
+                    $skipped    = (int)($tail['skipped'] ?? 0);
+                    $failed     = (int)($tail['failed'] ?? 0);
+                    $candidates = (int)($tail['candidates'] ?? 0);
+                }
+            }
+            auditLog($pdo, 'run_renewal_reminders', 'system', null, "sent=$sent failed=$failed dry=" . ($dry ? '1' : '0'));
+            echo json_encode([
+                'success'    => true,
+                'sent'       => $sent,
+                'skipped'    => $skipped,
+                'failed'     => $failed,
+                'candidates' => $candidates,
+                'dry_run'    => (bool)$dry,
+                'log'        => $output,
+            ]);
+        } catch (Exception $e) {
+            error_log('run_renewal_reminders: ' . $e->getMessage());
+            http_response_code(500);
+            echo json_encode(['error' => 'Failed to run renewal reminders']);
+        }
+        break;
+
+    case 'issue_membership_certificate':
+        // Auth handled inside certificate.php directly; this is just a discovery endpoint.
+        // Returns a tokenised certificate URL for the given verified member id.
+        if (empty($_SESSION['user_id'])) {
+            http_response_code(401); echo json_encode(['error' => 'Sign in required']); break;
+        }
+        try {
+            $isAdmin = ($_SESSION['user_role'] ?? '') === 'admin';
+            $userId  = (int)$_SESSION['user_id'];
+            $memberId = (int)($_POST['member_id'] ?? $_GET['member_id'] ?? 0);
+
+            if (!$isAdmin) {
+                // Members can only mint a certificate for their own row
+                $s = $pdo->prepare("SELECT id FROM members WHERE user_id = ? LIMIT 1");
+                $s->execute([$userId]);
+                $ownId = (int)$s->fetchColumn();
+                if (!$ownId) { http_response_code(404); echo json_encode(['error' => 'No member record']); break; }
+                $memberId = $ownId;
+            }
+            if (!$memberId) { http_response_code(400); echo json_encode(['error' => 'member_id required']); break; }
+
+            // Verify member is active (approved + paid + not expired)
+            $s = $pdo->prepare("SELECT approval_status, dues_paid_at, expiry_date, status FROM members WHERE id = ?");
+            $s->execute([$memberId]);
+            $row = $s->fetch(PDO::FETCH_ASSOC);
+            if (!$row) { http_response_code(404); echo json_encode(['error' => 'Member not found']); break; }
+            $derived = hosuMembershipStatus($row);
+            if (!in_array($derived, ['active','honorary'], true)) {
+                http_response_code(403);
+                echo json_encode(['error' => 'Certificate only available for active or honorary members', 'status' => $derived]);
+                break;
+            }
+            $url = 'certificate.php?member=' . $memberId;
+            echo json_encode(['success' => true, 'certificate_url' => $url]);
+        } catch (Exception $e) {
+            error_log('issue_membership_certificate: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ─── COMMITTEES / WORKING GROUPS ────────────────────────────────────
+    case 'list_committees':
+        try {
+            hosuPublicJsonCache(60);
+            // Ensure tables exist (idempotent first-run safety)
+            ensureCommitteeTables($pdo);
+            $rows = $pdo->query("
+                SELECT c.id, c.slug, c.name, c.description, c.discipline, c.is_active, c.sort_order,
+                       (SELECT COUNT(*) FROM committee_members cm WHERE cm.committee_id = c.id) AS member_count
+                  FROM committees c
+                 WHERE c.is_active = 1
+                 ORDER BY c.sort_order, c.name
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'committees' => $rows]);
+        } catch (Exception $e) {
+            error_log('list_committees: ' . $e->getMessage());
+            echo json_encode(['success' => true, 'committees' => []]);
+        }
+        break;
+
+    case 'list_committees_admin':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $rows = $pdo->query("
+                SELECT c.id, c.slug, c.name, c.description, c.discipline, c.is_active, c.sort_order,
+                       (SELECT COUNT(*) FROM committee_members cm WHERE cm.committee_id = c.id) AS member_count
+                  FROM committees c
+                 ORDER BY c.sort_order, c.name
+            ")->fetchAll(PDO::FETCH_ASSOC);
+            echo json_encode(['success' => true, 'committees' => $rows]);
+        } catch (Exception $e) {
+            error_log('list_committees_admin: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_committee':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $id          = (int)($_POST['id'] ?? 0);
+            $name        = trim($_POST['name'] ?? '');
+            $description = trim($_POST['description'] ?? '');
+            $discipline  = trim($_POST['discipline'] ?? 'general');
+            $sort        = (int)($_POST['sort_order'] ?? 0);
+            $active      = !empty($_POST['is_active']) ? 1 : 0;
+            if ($name === '') { http_response_code(400); echo json_encode(['error' => 'Name required']); break; }
+            $slug = trim($_POST['slug'] ?? '');
+            if ($slug === '') {
+                $slug = strtolower(preg_replace('/[^a-z0-9]+/i', '-', $name));
+                $slug = trim($slug, '-') ?: ('committee-' . time());
+            }
+            if ($id > 0) {
+                $pdo->prepare("UPDATE committees SET name=?, description=?, discipline=?, slug=?, sort_order=?, is_active=? WHERE id=?")
+                    ->execute([$name, $description, $discipline, $slug, $sort, $active, $id]);
+                auditLog($pdo, 'update_committee', 'committee', (string)$id, $name);
+            } else {
+                $pdo->prepare("INSERT INTO committees (slug, name, description, discipline, sort_order, is_active) VALUES (?,?,?,?,?,?)")
+                    ->execute([$slug, $name, $description, $discipline, $sort, $active]);
+                $id = (int)$pdo->lastInsertId();
+                auditLog($pdo, 'create_committee', 'committee', (string)$id, $name);
+            }
+            echo json_encode(['success' => true, 'id' => $id]);
+        } catch (Exception $e) {
+            error_log('save_committee: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'delete_committee':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) { http_response_code(400); echo json_encode(['error' => 'id required']); break; }
+            $pdo->prepare("DELETE FROM committee_members WHERE committee_id = ?")->execute([$id]);
+            $pdo->prepare("DELETE FROM committees WHERE id = ?")->execute([$id]);
+            auditLog($pdo, 'delete_committee', 'committee', (string)$id);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            error_log('delete_committee: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'list_committee_members':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $committeeId = (int)($_GET['committee_id'] ?? $_POST['committee_id'] ?? 0);
+            if (!$committeeId) { http_response_code(400); echo json_encode(['error' => 'committee_id required']); break; }
+            $stmt = $pdo->prepare("
+                SELECT cm.id, cm.member_id, cm.role, cm.joined_at,
+                       m.full_name, m.email, m.institution, m.membership_number, m.approval_status,
+                       mc.name AS category_name
+                  FROM committee_members cm
+                  JOIN members m ON m.id = cm.member_id
+                  LEFT JOIN membership_categories mc ON mc.id = m.category_id
+                 WHERE cm.committee_id = ?
+                 ORDER BY cm.role = 'chair' DESC, cm.role = 'co-chair' DESC, m.full_name
+            ");
+            $stmt->execute([$committeeId]);
+            echo json_encode(['success' => true, 'members' => $stmt->fetchAll(PDO::FETCH_ASSOC)]);
+        } catch (Exception $e) {
+            error_log('list_committee_members: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'add_committee_member':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $committeeId = (int)($_POST['committee_id'] ?? 0);
+            $memberId    = (int)($_POST['member_id'] ?? 0);
+            $role        = trim($_POST['role'] ?? 'member');
+            $allowedRoles = ['member','chair','co-chair','secretary','treasurer'];
+            if (!in_array($role, $allowedRoles, true)) $role = 'member';
+            if (!$committeeId || !$memberId) { http_response_code(400); echo json_encode(['error' => 'committee_id and member_id required']); break; }
+
+            // Verify member exists
+            $check = $pdo->prepare("SELECT full_name, committee FROM members WHERE id = ?");
+            $check->execute([$memberId]);
+            $mrow = $check->fetch(PDO::FETCH_ASSOC);
+            if (!$mrow) { http_response_code(404); echo json_encode(['error' => 'Member not found']); break; }
+
+            // Already in committee? upsert role
+            $exist = $pdo->prepare("SELECT id FROM committee_members WHERE committee_id = ? AND member_id = ?");
+            $exist->execute([$committeeId, $memberId]);
+            $existingId = (int)$exist->fetchColumn();
+            if ($existingId) {
+                $pdo->prepare("UPDATE committee_members SET role = ? WHERE id = ?")->execute([$role, $existingId]);
+            } else {
+                $pdo->prepare("INSERT INTO committee_members (committee_id, member_id, role) VALUES (?,?,?)")
+                    ->execute([$committeeId, $memberId, $role]);
+            }
+
+            // Update the denormalised committee label on members.committee with the first committee name (back-compat)
+            $cn = $pdo->prepare("SELECT name FROM committees WHERE id = ?");
+            $cn->execute([$committeeId]);
+            $cname = (string)$cn->fetchColumn();
+            if ($cname && empty($mrow['committee'])) {
+                $pdo->prepare("UPDATE members SET committee = ? WHERE id = ?")->execute([$cname, $memberId]);
+            }
+            auditLog($pdo, 'add_committee_member', 'committee', (string)$committeeId, "member=$memberId role=$role");
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            error_log('add_committee_member: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'remove_committee_member':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCommitteeTables($pdo);
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) { http_response_code(400); echo json_encode(['error' => 'id required']); break; }
+            $pdo->prepare("DELETE FROM committee_members WHERE id = ?")->execute([$id]);
+            auditLog($pdo, 'remove_committee_member', 'committee', (string)$id);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            error_log('remove_committee_member: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ─── BULK EMAIL BROADCAST ────────────────────────────────────────────
+    case 'broadcast_email_preview':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $audience = $_POST['audience'] ?? 'active';
+            $recipients = hosuResolveBroadcastAudience($pdo, $audience, (int)($_POST['committee_id'] ?? 0));
+            echo json_encode([
+                'success'    => true,
+                'audience'   => $audience,
+                'recipient_count' => count($recipients),
+                'sample'     => array_slice(array_map(fn($r) => ['name' => $r['full_name'], 'email' => $r['email']], $recipients), 0, 8),
+            ]);
+        } catch (Exception $e) {
+            error_log('broadcast_email_preview: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'broadcast_email_send':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $audience = $_POST['audience'] ?? 'active';
+            $subject  = trim($_POST['subject'] ?? '');
+            $bodyHtml = trim($_POST['body'] ?? '');
+            $committeeId = (int)($_POST['committee_id'] ?? 0);
+            if ($subject === '' || $bodyHtml === '') {
+                http_response_code(400); echo json_encode(['error' => 'Subject and body are required']); break;
+            }
+            if (strlen($subject) > 200) $subject = substr($subject, 0, 200);
+
+            $recipients = hosuResolveBroadcastAudience($pdo, $audience, $committeeId);
+            if (!count($recipients)) { echo json_encode(['success' => true, 'sent' => 0, 'failed' => 0, 'audience' => $audience, 'note' => 'No recipients in this audience']); break; }
+
+            ensureMailer();
+            $sent = 0; $failed = 0;
+            foreach ($recipients as $r) {
+                $safeName = htmlspecialchars($r['full_name'] ?? 'Member', ENT_QUOTES, 'UTF-8');
+                $personal = str_replace(['{{name}}', '{{first_name}}'], [$safeName, explode(' ', $safeName)[0]], $bodyHtml);
+                $html = hosuWrapBroadcastTemplate($subject, $personal);
+                $ok = hosuMail($r['email'], $subject, $html, 'HOSU Secretariat');
+                if ($ok) $sent++; else $failed++;
+                // Light throttle — avoid bursts (skip in dev if needed)
+                if ($sent % 25 === 0) usleep(200000);
+            }
+            auditLog($pdo, 'broadcast_email_send', 'system', null, "audience=$audience sent=$sent failed=$failed");
+            echo json_encode(['success' => true, 'sent' => $sent, 'failed' => $failed, 'audience' => $audience, 'total' => count($recipients)]);
+        } catch (Exception $e) {
+            error_log('broadcast_email_send: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    // ─── CPD POINTS ──────────────────────────────────────────────────────
+    case 'list_cpd_entries':
+        if (empty($_SESSION['user_id'])) { http_response_code(401); echo json_encode(['error' => 'Sign in required']); break; }
+        try {
+            ensureCpdTables($pdo);
+            $isAdmin = ($_SESSION['user_role'] ?? '') === 'admin';
+            $memberId = (int)($_GET['member_id'] ?? $_POST['member_id'] ?? 0);
+            if (!$isAdmin) {
+                $s = $pdo->prepare("SELECT id FROM members WHERE user_id = ? LIMIT 1");
+                $s->execute([(int)$_SESSION['user_id']]);
+                $memberId = (int)$s->fetchColumn();
+            }
+            if (!$memberId) { echo json_encode(['success' => true, 'entries' => [], 'total_points' => 0]); break; }
+            $stmt = $pdo->prepare("SELECT id, activity, points, activity_date, source, awarded_at FROM cpd_entries WHERE member_id = ? ORDER BY activity_date DESC, id DESC");
+            $stmt->execute([$memberId]);
+            $entries = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $total = (int)$pdo->query("SELECT COALESCE(SUM(points),0) FROM cpd_entries WHERE member_id = $memberId")->fetchColumn();
+            echo json_encode(['success' => true, 'entries' => $entries, 'total_points' => $total]);
+        } catch (Exception $e) {
+            error_log('list_cpd_entries: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'add_cpd_entry':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCpdTables($pdo);
+            $memberId = (int)($_POST['member_id'] ?? 0);
+            $activity = trim($_POST['activity'] ?? '');
+            $points   = (int)($_POST['points'] ?? 0);
+            $date     = trim($_POST['activity_date'] ?? date('Y-m-d'));
+            $source   = trim($_POST['source'] ?? 'manual');
+            if (!$memberId || $activity === '' || $points <= 0) {
+                http_response_code(400); echo json_encode(['error' => 'member_id, activity and positive points required']); break;
+            }
+            $pdo->prepare("INSERT INTO cpd_entries (member_id, activity, points, activity_date, source, awarded_by) VALUES (?,?,?,?,?,?)")
+                ->execute([$memberId, $activity, $points, $date, $source, (int)$_SESSION['user_id']]);
+            // Recompute denormalised total on members
+            $pdo->exec("UPDATE members SET cpd_points = (SELECT COALESCE(SUM(points),0) FROM cpd_entries WHERE member_id = $memberId) WHERE id = $memberId");
+            auditLog($pdo, 'add_cpd_entry', 'member', (string)$memberId, "+$points $activity");
+            echo json_encode(['success' => true, 'id' => (int)$pdo->lastInsertId()]);
+        } catch (Exception $e) {
+            error_log('add_cpd_entry: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'delete_cpd_entry':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            ensureCpdTables($pdo);
+            $id = (int)($_POST['id'] ?? 0);
+            if (!$id) { http_response_code(400); echo json_encode(['error' => 'id required']); break; }
+            $row = $pdo->prepare("SELECT member_id FROM cpd_entries WHERE id = ?");
+            $row->execute([$id]);
+            $memberId = (int)$row->fetchColumn();
+            $pdo->prepare("DELETE FROM cpd_entries WHERE id = ?")->execute([$id]);
+            if ($memberId) {
+                $pdo->exec("UPDATE members SET cpd_points = (SELECT COALESCE(SUM(points),0) FROM cpd_entries WHERE member_id = $memberId) WHERE id = $memberId");
+            }
+            auditLog($pdo, 'delete_cpd_entry', 'cpd_entry', (string)$id);
+            echo json_encode(['success' => true]);
+        } catch (Exception $e) {
+            error_log('delete_cpd_entry: ' . $e->getMessage());
+            http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
         break;
 

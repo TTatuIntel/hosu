@@ -230,6 +230,61 @@ foreach ($catRows as $r) {
 echo "  + $mapped members mapped to a category\n";
 
 // ─────────────────────────────────────────────────────────────────────
+// 6b. committees + committee_members (Phase 2 — working groups)
+// ─────────────────────────────────────────────────────────────────────
+$pdo->exec("CREATE TABLE IF NOT EXISTS committees (
+    id          INT AUTO_INCREMENT PRIMARY KEY,
+    slug        VARCHAR(80)  NOT NULL UNIQUE,
+    name        VARCHAR(150) NOT NULL,
+    description TEXT NULL,
+    discipline  VARCHAR(60)  NOT NULL DEFAULT 'general',
+    sort_order  INT          NOT NULL DEFAULT 0,
+    is_active   TINYINT(1)   NOT NULL DEFAULT 1,
+    created_at  TIMESTAMP    DEFAULT CURRENT_TIMESTAMP
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+echo "[✓] table committees\n";
+
+$pdo->exec("CREATE TABLE IF NOT EXISTS committee_members (
+    id           INT AUTO_INCREMENT PRIMARY KEY,
+    committee_id INT NOT NULL,
+    member_id    INT NOT NULL,
+    role         VARCHAR(40) NOT NULL DEFAULT 'member',
+    joined_at    TIMESTAMP   DEFAULT CURRENT_TIMESTAMP,
+    UNIQUE KEY uq_committee_member (committee_id, member_id),
+    INDEX idx_cm_member (member_id),
+    CONSTRAINT fk_cm_committee FOREIGN KEY (committee_id) REFERENCES committees(id) ON DELETE CASCADE,
+    CONSTRAINT fk_cm_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+echo "[✓] table committee_members\n";
+
+$cnt = (int)$pdo->query("SELECT COUNT(*) FROM committees")->fetchColumn();
+if ($cnt === 0) {
+    $pdo->exec("INSERT INTO committees (slug, name, description, discipline, sort_order) VALUES
+        ('breast-cancer','Breast Cancer Working Group','Clinical, research and advocacy work on breast cancer in Uganda.','medical-oncology',1),
+        ('pediatric-oncology','Pediatric Oncology Group','Care pathways, training and family support for children with cancer.','pediatric',2),
+        ('hematology','Hematology Group','Sickle cell, leukemia, lymphoma and benign hematology in Uganda.','hematology',3),
+        ('palliative-care','Palliative Care Group','Symptom control, dignity in care, community palliation.','palliative',4)");
+    echo "[✓] seeded 4 default working groups\n";
+}
+
+// ─────────────────────────────────────────────────────────────────────
+// 6c. cpd_entries (Phase 3 — CPD points accrual)
+// ─────────────────────────────────────────────────────────────────────
+$pdo->exec("CREATE TABLE IF NOT EXISTS cpd_entries (
+    id            INT AUTO_INCREMENT PRIMARY KEY,
+    member_id     INT NOT NULL,
+    activity      VARCHAR(200) NOT NULL,
+    points        INT NOT NULL DEFAULT 0,
+    activity_date DATE NULL,
+    source        VARCHAR(40) NOT NULL DEFAULT 'manual',
+    awarded_by    INT NULL,
+    awarded_at    TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    INDEX idx_cpd_member (member_id),
+    CONSTRAINT fk_cpd_member FOREIGN KEY (member_id) REFERENCES members(id) ON DELETE CASCADE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8");
+echo "[✓] table cpd_entries\n";
+
+// ─────────────────────────────────────────────────────────────────────
 // 7. site_stats: live counter for active members (read by About page)
 // ─────────────────────────────────────────────────────────────────────
 $pdo->exec("INSERT INTO site_stats (stat_key, stat_value, stat_label, page, sort_order, is_active)

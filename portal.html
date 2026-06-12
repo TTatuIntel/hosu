@@ -200,6 +200,24 @@
                             <tr><th>CPD points</th><td id="ov_cpd">0</td></tr>
                             <tr><th>Date joined</th><td id="ov_joined">—</td></tr>
                         </table>
+                        <div id="certBlock" class="hide" style="margin-top:1.25rem; padding:1rem 1.1rem; background:linear-gradient(135deg,#f0f7ff,#fff); border:1px solid #c7d7fa; border-radius:10px; display:flex; align-items:center; justify-content:space-between; gap:1rem; flex-wrap:wrap;">
+                            <div>
+                                <div style="font-weight:700; color:var(--secondary-color); margin-bottom:.2rem;"><i class="fas fa-certificate"></i> Your membership certificate is ready</div>
+                                <div style="font-size:.82rem; color:var(--text-light);">Download a printable certificate confirming your active HOSU membership.</div>
+                            </div>
+                            <a id="certLink" href="certificate.php" target="_blank" class="btn btn-primary"><i class="fas fa-download"></i> Open certificate</a>
+                        </div>
+                    </div>
+                    <div class="panel" id="cpdPanel" style="margin-top:1rem;">
+                        <h2><i class="fas fa-graduation-cap"></i> CPD activity</h2>
+                        <p style="font-size:0.85rem; color:var(--text-light); margin-bottom:1rem;">
+                            Continuing Professional Development points awarded by the HOSU secretariat for events, training and contributions.
+                        </p>
+                        <div id="cpdSummary" style="display:flex; align-items:center; gap:1rem; margin-bottom:1rem;">
+                            <div style="font-size:2rem; font-weight:800; color:var(--secondary-color);" id="cpdTotalBig">0</div>
+                            <div style="font-size:.85rem; color:var(--text-light);">total CPD points awarded</div>
+                        </div>
+                        <div id="cpdList"></div>
                     </div>
                 </div>
 
@@ -443,6 +461,55 @@ function renderPortal(d) {
     renderDocs(d.documents || []);
     renderPayments(d.payments || []);
     renderNotes(d.notes || []);
+
+    // Certificate block — only for active or honorary members
+    var certBlock = document.getElementById('certBlock');
+    if (certBlock) {
+        if (m.status === 'active' || m.status === 'honorary') {
+            certBlock.classList.remove('hide');
+            var link = document.getElementById('certLink');
+            if (link) link.href = 'certificate.php?member=' + (m.id || '');
+        } else {
+            certBlock.classList.add('hide');
+        }
+    }
+
+    // Load CPD history
+    loadCpdHistory();
+}
+
+function loadCpdHistory() {
+    fetch('api.php?action=list_cpd_entries', { credentials: 'same-origin' })
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d || !d.success) return;
+            var total = d.total_points || 0;
+            var totalEl = document.getElementById('cpdTotalBig');
+            if (totalEl) totalEl.textContent = total;
+            // Keep the legacy overview cell in sync
+            var ovCpd = document.getElementById('ov_cpd');
+            if (ovCpd) ovCpd.textContent = total;
+
+            var list = document.getElementById('cpdList');
+            if (!list) return;
+            var entries = d.entries || [];
+            if (!entries.length) {
+                list.innerHTML = '<div class="empty-state" style="padding:.85rem 0;"><i class="fas fa-graduation-cap"></i> No CPD activity recorded yet. Points are awarded by the secretariat after eligible events.</div>';
+                return;
+            }
+            var html = '';
+            entries.forEach(function (e) {
+                html += '<div style="display:flex; justify-content:space-between; gap:1rem; padding:.7rem 0; border-bottom:1px solid var(--border-color,#e2e8f0);">'
+                    +   '<div>'
+                    +     '<div style="font-weight:600;">' + esc(e.activity) + '</div>'
+                    +     '<div style="font-size:.78rem; color:var(--text-light);">' + esc(fmtDate(e.activity_date || e.awarded_at)) + ' &middot; ' + esc(e.source || 'manual') + '</div>'
+                    +   '</div>'
+                    +   '<div style="font-weight:700; color:var(--secondary-color);">+' + (parseInt(e.points,10) || 0) + ' pts</div>'
+                    + '</div>';
+            });
+            list.innerHTML = html;
+        })
+        .catch(function () { /* CPD is optional */ });
 }
 
 function renderDocs(docs) {

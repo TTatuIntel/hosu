@@ -73,6 +73,14 @@
             <div class="dir-grid" id="dir-grid">
                 <div class="dir-empty" style="grid-column:1/-1;"><div class="big">👥</div>Loading directory…</div>
             </div>
+
+            <section id="dir-committees-section" style="margin-top:3rem; display:none;">
+                <header class="page-hd" style="margin-bottom:1.5rem;">
+                    <h1 style="font-size:1.4rem;">Working Groups</h1>
+                    <p>HOSU members organise into discipline-specific working groups for clinical, research and advocacy work.</p>
+                </header>
+                <div class="dir-grid" id="dir-committees-grid"></div>
+            </section>
         </div>
     </main>
 
@@ -122,6 +130,26 @@
         .catch(function () {
             document.getElementById('dir-grid').innerHTML = '<div class="dir-empty" style="grid-column:1/-1;"><p>Could not load directory. Please try again later.</p></div>';
         });
+
+    // Public working groups
+    fetch('api.php?action=list_committees')
+        .then(function (r) { return r.json(); })
+        .then(function (d) {
+            if (!d.success) return;
+            var groups = (d.committees || []).filter(function (c) { return parseInt(c.is_active, 10) === 1; });
+            if (!groups.length) return;
+            document.getElementById('dir-committees-section').style.display = 'block';
+            var grid = document.getElementById('dir-committees-grid');
+            grid.innerHTML = groups.map(function (c) {
+                return '<article class="dir-card">'
+                    + '<span class="cat">' + esc(c.discipline || 'group') + '</span>'
+                    + '<h3>' + esc(c.name) + '</h3>'
+                    + (c.description ? '<p>' + esc(c.description) + '</p>' : '')
+                    + '<p style="margin-top:.5rem;"><i class="fas fa-users" style="width:1rem;color:var(--secondary-color);"></i> ' + (parseInt(c.member_count, 10) || 0) + ' member' + ((parseInt(c.member_count, 10) || 0) === 1 ? '' : 's') + '</p>'
+                    + '</article>';
+            }).join('');
+        })
+        .catch(function () { /* committees are optional */ });
     </script>
     <script src="site_bootstrap.php"></script>
     <script src="shared-components.js?v=2026061116"></script>

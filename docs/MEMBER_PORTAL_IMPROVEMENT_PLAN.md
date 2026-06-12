@@ -23,11 +23,12 @@
 | Admin approval workflow | Phase 1 | **Done** | `admin.html` → Review member · `update_member_approval` |
 | Public member directory | Phase 1 | **Done** | `directory.html` · `list_public_members` |
 | About page live stats | Phase 0 | **Done** | `get_about_stats` (DB + optional `site_stats` overrides) |
-| Renewal reminder emails | Phase 1 | **Planned** | Table `renewal_reminders` exists; cron not wired |
-| Membership PDF certificates | Phase 2 | **Planned** | Receipt only today (`receipt.php`) |
-| CPD points tracking | Phase 3 | **Planned** | Column `cpd_points` on `members`; no accrual UI |
+| Renewal reminder emails | Phase 1 | **Done** | `send_renewal_reminders.php` (CLI + admin button via `run_renewal_reminders`) |
+| Membership PDF certificates | Phase 2 | **Done** | `certificate.php` (print-to-PDF) + `verify.php` (QR verification) |
+| CPD points tracking | Phase 3 | **Done** | `cpd_entries` table · admin `add_cpd_entry` · portal CPD pane |
+| Committees / working groups | Phase 2 | **Done** | `committees` + `committee_members` tables · admin Committees tab · public directory section |
+| Bulk email broadcast | Phase 2 | **Done** | `broadcast_email_preview` / `broadcast_email_send` · admin Broadcast tab |
 | Granular admin roles | Phase 3 | **Planned** | Single `admin` / `member` role in `users` |
-| Committees / working groups | Phase 2 | **Partial** | `members.committee` column; no groups module |
 
 ### One-time setup on server (keeps existing data)
 
@@ -168,19 +169,67 @@ Auth: `auth.php` (`login`, `register_member_account`, `logout`, password reset)
 - [x] Payment tracking (PesaPal + manual)
 - [x] CSV export
 - [x] Public directory (`directory.html`)
-- [ ] Renewal reminders (cron job)
+- [x] Renewal reminders (`send_renewal_reminders.php`)
 
 ### Phase 2 — Member value-add
-- [ ] Membership certificate PDF
-- [ ] Event registration CPD linkage
-- [ ] Committees / working groups UI
-- [ ] Bulk email / SMS from admin
+- [x] Membership certificate PDF (`certificate.php` print-to-PDF + `verify.php` QR)
+- [ ] Event registration CPD linkage (manual CPD entries supported; auto-link to events still TBD)
+- [x] Committees / working groups UI (admin tab + public directory section)
+- [x] Bulk email broadcast from admin (`broadcast_email_send` + audience selector)
 
 ### Phase 3 — Society maturity
-- [ ] CPD points accrual
+- [x] CPD points accrual (`cpd_entries` table + admin award button + portal view)
 - [ ] Elections / voting
 - [ ] Resources library
 - [ ] Member mobile app
+
+---
+
+## Operational guide — new modules
+
+### Renewal reminders
+
+Reminder cadence per member (deduped via `renewal_reminders` table):
+
+| Kind | Trigger |
+|------|---------|
+| `t_minus_60` | 60 days before expiry |
+| `t_minus_30` | 30 days before |
+| `t_minus_7`  | 7 days before |
+| `t_zero`     | day of expiry |
+| `t_plus_7`   | 7 days after expiry |
+
+Wire as a daily cron (one of):
+
+```
+# Windows Task Scheduler
+php c:\xampp\htdocs\tattuintel\hosu\send_renewal_reminders.php
+
+# Linux cron (run at 07:00)
+0 7 * * * /usr/bin/php /var/www/hosu/send_renewal_reminders.php
+```
+
+Web-triggered runs require either an admin session **or** `?key=<RENEWAL_CRON_KEY>` (set in `.env`). Admins can also use **Members → Send Renewals** (with **Preview** button) to fire it manually.
+
+### Certificates
+
+`certificate.php` renders a print-optimised HTML A4-landscape certificate.
+Members access via their portal "Open certificate" button; admins via the 🏅 icon
+in the Members table. The QR code points to `verify.php`, which checks an
+HMAC token derived from the membership number + email + `CERT_HMAC_KEY` env
+variable — change this key in production.
+
+### Committees & broadcast
+
+- `Admin → Committees` tab manages working groups and rosters.
+- `Admin → Broadcast` tab composes HTML email to a chosen audience:
+  *active*, *all*, *pending*, *expired*, or one committee.
+- Personalisation tokens supported in the body: `{{name}}`, `{{first_name}}`.
+
+### CPD
+
+The 🎓 button on each member row in **Admin → Members** opens a quick CPD
+award dialog. The member sees their full history on their portal Overview.
 
 ---
 

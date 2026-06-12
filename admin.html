@@ -267,10 +267,18 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .collapse-sec.open .collapse-chevron{transform:rotate(180deg);}
 .collapse-bd{display:none;padding:.65rem .75rem;border-top:1px solid var(--border);}
 .collapse-sec.open .collapse-bd{display:block;}
-/* Homepage section sub-nav */
-.hp-subnav{display:flex;gap:.4rem;flex-wrap:wrap;padding:.65rem 1rem;background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;position:sticky;top:58px;z-index:50;box-shadow:var(--shadow);}
-.hp-subnav button{padding:.35rem .85rem;font-size:.75rem;font-weight:600;border:1.5px solid var(--border);background:var(--white);border-radius:20px;cursor:pointer;font-family:inherit;color:var(--text-light);transition:all .15s;}
-.hp-subnav button:hover,.hp-subnav button.active{border-color:var(--secondary);color:var(--secondary);background:rgba(13,69,147,.06);}
+/* Homepage section sub-nav (real tab switcher — only active section renders) */
+.hp-subnav{display:flex;gap:.4rem;flex-wrap:wrap;padding:.55rem .75rem;background:var(--white);border:1px solid var(--border);border-radius:10px;margin-bottom:1rem;position:sticky;top:58px;z-index:50;box-shadow:var(--shadow);}
+.hp-subnav button{display:inline-flex;align-items:center;gap:.3rem;padding:.4rem .9rem;font-size:.75rem;font-weight:600;border:1.5px solid var(--border);background:var(--white);border-radius:20px;cursor:pointer;font-family:inherit;color:var(--text-light);transition:all .15s;white-space:nowrap;}
+.hp-subnav button:hover{border-color:var(--secondary);color:var(--secondary);}
+.hp-subnav button.active{border-color:var(--secondary);color:#fff;background:var(--secondary);box-shadow:0 2px 6px rgba(13,69,147,.25);}
+.hp-subnav .hp-count{font-size:.65rem;font-weight:700;padding:.05rem .35rem;border-radius:8px;background:rgba(13,69,147,.1);color:var(--secondary);}
+.hp-subnav button.active .hp-count{background:rgba(255,255,255,.22);color:#fff;}
+.hp-section{display:none;}
+.hp-section.active{display:block;animation:hpFade .18s ease;}
+@keyframes hpFade{from{opacity:0;transform:translateY(4px);}to{opacity:1;transform:none;}}
+.hp-section-help{padding:.6rem .9rem;margin:0;font-size:.78rem;color:var(--text-light);line-height:1.5;background:rgba(13,69,147,.04);border-bottom:1px solid var(--border);}
+.hp-section-help strong{color:var(--text);}
 /* Clickable overview / audit rows */
 tr.ov-click-row{cursor:pointer;}
 tr.ov-click-row:hover td{background:rgba(13,69,147,.05)!important;}
@@ -398,6 +406,384 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
 /* Responsive */
 @media(max-width:900px){.res-grid{grid-template-columns:1fr;}}
 @media(max-width:700px){.form-grid{grid-template-columns:1fr;}.form-grid .full{grid-column:1;}.stats{grid-template-columns:1fr 1fr;}.ov-grid{grid-template-columns:1fr;}.res-grid{grid-template-columns:1fr;}}
+
+/* ============================================
+   PASS 1 — SIDEBAR SHELL + CONSTRAINED CONTENT
+   ============================================ */
+:root{--sb-w:236px;--sb-w-collapsed:64px;--sb-bg:#0d1f3c;--sb-bg-2:#0a1830;--sb-text:#cbd5e1;--sb-text-dim:#7a8aa6;--sb-active:#e63946;--sb-hover:rgba(255,255,255,.06);--content-max:1400px;}
+#dashboard{flex-direction:row;}
+#dashboard.show{display:flex;}
+.sidebar{width:var(--sb-w);background:linear-gradient(180deg,var(--sb-bg) 0%,var(--sb-bg-2) 100%);color:var(--sb-text);display:flex;flex-direction:column;position:fixed;top:0;left:0;bottom:0;z-index:300;transition:width .25s cubic-bezier(.22,1,.36,1);overflow:hidden;box-shadow:2px 0 12px rgba(0,0,0,.08);}
+.sidebar.collapsed{width:var(--sb-w-collapsed);}
+.sb-brand{display:flex;align-items:center;gap:.6rem;padding:.85rem 1rem;border-bottom:1px solid rgba(255,255,255,.06);min-height:58px;}
+.sb-brand img{height:34px;width:34px;object-fit:contain;border-radius:8px;background:#fff;padding:3px;flex-shrink:0;transition:transform .25s;}
+.sb-brand-text{display:flex;flex-direction:column;line-height:1.15;overflow:hidden;white-space:nowrap;}
+.sb-brand-text strong{font-size:.88rem;font-weight:800;color:#fff;letter-spacing:.3px;}
+.sb-brand-text small{font-size:.62rem;color:var(--sb-text-dim);text-transform:uppercase;letter-spacing:1px;font-weight:600;}
+.sidebar.collapsed .sb-brand-text{opacity:0;width:0;}
+.sb-toggle{position:absolute;top:14px;right:-12px;width:24px;height:24px;border-radius:50%;background:var(--white);border:1px solid var(--border);color:var(--secondary);font-size:.7rem;font-weight:800;cursor:pointer;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 8px rgba(0,0,0,.12);z-index:5;transition:transform .25s;}
+.sb-toggle:hover{background:var(--secondary);color:#fff;border-color:var(--secondary);}
+.sidebar.collapsed .sb-toggle{transform:rotate(180deg);}
+.sb-nav{flex:1;overflow-y:auto;overflow-x:hidden;padding:.65rem .5rem;display:flex;flex-direction:column;gap:.15rem;}
+.sb-nav::-webkit-scrollbar{width:4px;}
+.sb-nav::-webkit-scrollbar-thumb{background:rgba(255,255,255,.08);border-radius:4px;}
+.sb-section{font-size:.62rem;font-weight:700;color:var(--sb-text-dim);text-transform:uppercase;letter-spacing:1.2px;padding:.85rem .85rem .35rem;white-space:nowrap;overflow:hidden;}
+.sidebar.collapsed .sb-section{opacity:0;height:0;padding:0;}
+.sb-item{display:flex;align-items:center;gap:.7rem;padding:.6rem .8rem;border:none;background:transparent;color:var(--sb-text);font-size:.83rem;font-weight:500;font-family:inherit;cursor:pointer;border-radius:8px;text-align:left;white-space:nowrap;position:relative;transition:background .15s,color .15s;}
+.sb-item:hover{background:var(--sb-hover);color:#fff;}
+.sb-item.active{background:linear-gradient(90deg,rgba(230,57,70,.18),rgba(230,57,70,.04));color:#fff;}
+.sb-item.active::before{content:'';position:absolute;left:0;top:18%;bottom:18%;width:3px;background:var(--sb-active);border-radius:0 3px 3px 0;}
+.sb-icon{font-size:1.05rem;width:24px;text-align:center;flex-shrink:0;display:inline-flex;align-items:center;justify-content:center;}
+.sb-label{flex:1;overflow:hidden;text-overflow:ellipsis;transition:opacity .2s;}
+.sidebar.collapsed .sb-label{opacity:0;width:0;}
+.sb-item .t-badge{background:var(--primary);color:#fff;font-size:.58rem;font-weight:700;padding:.1rem .42rem;border-radius:10px;line-height:1;transition:opacity .2s;}
+.sidebar.collapsed .sb-item .t-badge{opacity:0;width:0;padding:0;}
+.sb-item[data-tip]{position:relative;}
+.sidebar.collapsed .sb-item:hover::after{content:attr(data-tip);position:absolute;left:calc(100% + 10px);top:50%;transform:translateY(-50%);background:#0d1f3c;color:#fff;padding:.4rem .7rem;border-radius:6px;font-size:.74rem;font-weight:600;white-space:nowrap;box-shadow:0 4px 16px rgba(0,0,0,.25);z-index:9999;pointer-events:none;}
+.sb-footer{border-top:1px solid rgba(255,255,255,.06);padding:.75rem .65rem;display:flex;flex-direction:column;gap:.4rem;}
+.sb-user{display:flex;align-items:center;gap:.6rem;padding:.5rem .65rem;border-radius:8px;background:rgba(255,255,255,.03);}
+.sb-user .tb-avatar{width:32px;height:32px;font-size:.85rem;flex-shrink:0;}
+.sb-user-meta{display:flex;flex-direction:column;line-height:1.2;overflow:hidden;}
+.sb-user-meta strong{font-size:.78rem;color:#fff;font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.sb-user-meta small{font-size:.62rem;color:var(--sb-text-dim);}
+.sidebar.collapsed .sb-user-meta{opacity:0;width:0;}
+.sb-foot-row{display:flex;gap:.35rem;}
+.sb-foot-btn{flex:1;padding:.45rem .5rem;font-size:.7rem;font-weight:600;border:1px solid rgba(255,255,255,.08);background:rgba(255,255,255,.03);color:var(--sb-text);border-radius:6px;cursor:pointer;font-family:inherit;display:inline-flex;align-items:center;justify-content:center;gap:.3rem;text-decoration:none;transition:all .15s;white-space:nowrap;}
+.sb-foot-btn:hover{background:rgba(255,255,255,.08);color:#fff;border-color:rgba(255,255,255,.18);}
+.sb-foot-btn.danger:hover{background:var(--primary);border-color:var(--primary);color:#fff;}
+.sidebar.collapsed .sb-foot-row{flex-direction:column;}
+.sidebar.collapsed .sb-foot-btn span:not(.sb-foot-ic){display:none;}
+/* CONTENT AREA next to sidebar */
+.dash-body{flex:1;margin-left:var(--sb-w);min-height:100vh;display:flex;flex-direction:column;transition:margin-left .25s cubic-bezier(.22,1,.36,1);background:var(--bg);}
+.sidebar.collapsed ~ .dash-body{margin-left:var(--sb-w-collapsed);}
+/* Slim topbar above content (kept at 58px so sticky elements like .hp-subnav still align) */
+.tophead{position:sticky;top:0;z-index:180;background:rgba(255,255,255,.92);backdrop-filter:saturate(180%) blur(8px);-webkit-backdrop-filter:saturate(180%) blur(8px);border-bottom:1px solid var(--border);display:flex;align-items:center;justify-content:space-between;gap:1rem;padding:0 1.25rem;height:58px;}
+.tophead-left{display:flex;align-items:center;gap:.85rem;min-width:0;}
+.tophead-burger{display:none;width:36px;height:36px;border:1px solid var(--border);background:var(--white);border-radius:8px;font-size:1rem;cursor:pointer;align-items:center;justify-content:center;}
+.tophead-title{font-size:.95rem;font-weight:700;color:var(--text);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;}
+.tophead-title .crumb-sep{color:var(--text-light);margin:0 .4rem;font-weight:400;}
+.tophead-search{position:relative;flex:1;max-width:380px;}
+.tophead-search input{width:100%;padding:.45rem .8rem .45rem 2rem;border:1px solid var(--border);border-radius:8px;font-size:.8rem;font-family:inherit;background:var(--bg);}
+.tophead-search input:focus{outline:none;border-color:var(--secondary);background:var(--white);box-shadow:0 0 0 3px rgba(13,69,147,.07);}
+.tophead-search::before{content:'🔍';position:absolute;left:.6rem;top:50%;transform:translateY(-50%);font-size:.75rem;pointer-events:none;}
+.tophead-right{display:flex;align-items:center;gap:.5rem;}
+.tophead-chip{display:inline-flex;align-items:center;gap:.35rem;padding:.35rem .65rem;background:rgba(22,163,74,.08);color:var(--green);border-radius:20px;font-size:.7rem;font-weight:600;}
+.tophead-chip .dot{width:6px;height:6px;border-radius:50%;background:var(--green);box-shadow:0 0 0 0 rgba(22,163,74,.6);animation:pulseDot 1.8s infinite;}
+@keyframes pulseDot{0%{box-shadow:0 0 0 0 rgba(22,163,74,.55)}70%{box-shadow:0 0 0 6px rgba(22,163,74,0)}100%{box-shadow:0 0 0 0 rgba(22,163,74,0)}}
+/* Constrain main content width and add denser padding */
+.main{padding:1.25rem 1.5rem 2rem;}
+.main-inner{max-width:var(--content-max);margin:0 auto;width:100%;}
+/* Panel fade transition */
+.panel{display:none;}
+.panel.active{display:block;animation:panelFade .26s ease;}
+@keyframes panelFade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+/* Hide the old top tabs bar (kept in DOM as off-screen so showTab() still finds .tab-btn elements) */
+.tabs-bar{position:absolute;left:-9999px;top:-9999px;height:0;width:0;overflow:hidden;visibility:hidden;}
+/* Sticky hp-subnav still anchors to the tophead */
+.hp-subnav{top:58px;}
+/* Mobile: collapse sidebar to overlay */
+.sb-backdrop{display:none;position:fixed;inset:0;background:rgba(13,31,60,.45);z-index:290;}
+.sb-backdrop.show{display:block;animation:panelFade .2s ease;}
+@media(max-width:900px){
+  .sidebar{transform:translateX(-100%);width:var(--sb-w);}
+  .sidebar.open{transform:translateX(0);box-shadow:8px 0 28px rgba(0,0,0,.25);}
+  .sidebar.collapsed{width:var(--sb-w);}
+  .sidebar .sb-toggle{display:none;}
+  .dash-body{margin-left:0!important;}
+  .tophead-burger{display:inline-flex;}
+  .tophead-search{max-width:none;}
+}
+@media(max-width:600px){
+  .tophead-search{display:none;}
+  .main{padding:1rem .9rem 1.5rem;}
+}
+
+/* ============================================
+   PASS 1.5 — ADVANCED MOBILE & TABLET POLISH
+   ============================================ */
+/* Safe-area + smooth scrolling */
+html{-webkit-text-size-adjust:100%;}
+body{overscroll-behavior-y:none;-webkit-tap-highlight-color:rgba(13,69,147,.12);}
+@supports(padding:env(safe-area-inset-top)){
+  .tophead{padding-left:max(1.25rem,env(safe-area-inset-left));padding-right:max(1.25rem,env(safe-area-inset-right));}
+  .sidebar{padding-bottom:env(safe-area-inset-bottom);}
+  .main{padding-left:max(1.5rem,env(safe-area-inset-left));padding-right:max(1.5rem,env(safe-area-inset-right));}
+  #toast{bottom:max(1.25rem,env(safe-area-inset-bottom));right:max(1.25rem,env(safe-area-inset-right));}
+}
+/* Bigger tap targets on touch */
+@media(hover:none) and (pointer:coarse){
+  .btn-sm,.btn-pill,.btn-edit,.btn-danger,.tab-btn,.sb-item,.modal-close,.tog-slider{min-height:38px;}
+  .sb-item{padding:.72rem .85rem;}
+  .tbl td,.tbl th{padding:.7rem .65rem;}
+  .ff input,.ff select,.ff textarea{font-size:16px;padding:.55rem .7rem;}
+  /* iOS won't zoom on focus if font-size >= 16px */
+}
+
+/* ===== TABLET (≤1100px) — denser sidebar, content reflow ===== */
+@media(max-width:1100px){
+  :root{--sb-w:200px;--content-max:100%;}
+  .stats{grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:.65rem;}
+  .sc{padding:.85rem .9rem;}
+  .sc .s-val{font-size:1.45rem;}
+  .ph h1{font-size:1.2rem;}
+  .ov-grid{grid-template-columns:1fr;}
+  .main{padding:1rem 1.1rem 1.5rem;}
+}
+
+/* ===== TABLET (≤900px) — sidebar overlay, header restructure ===== */
+@media(max-width:900px){
+  .tophead{padding:0 .9rem;gap:.6rem;}
+  .tophead-title{font-size:.85rem;}
+  .tophead-burger{width:38px;height:38px;flex-shrink:0;}
+  .tophead-chip{display:none;}
+  /* Page header stacks */
+  .ph{flex-direction:column;align-items:stretch;gap:.55rem;margin-bottom:1rem;}
+  .ph > div:first-child{order:0;}
+  .ph .filter-toolbar,.ph .btn-primary,.ph button{order:1;}
+  .ph .filter-toolbar{width:100%;}
+  .ph p{font-size:.74rem;}
+  /* Filter toolbar — horizontal scroll instead of wrap */
+  .filter-toolbar{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;scroll-snap-type:x proximity;padding-bottom:.3rem;margin:0 -.35rem;padding-left:.35rem;padding-right:.35rem;scrollbar-width:thin;}
+  .filter-toolbar::-webkit-scrollbar{height:4px;}
+  .filter-toolbar::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;}
+  .filter-toolbar > *{flex-shrink:0;scroll-snap-align:start;}
+  .filter-toolbar .search-wrap input{width:160px;}
+  /* Tables — horizontal scroll wrapper with sticky first column for ID-like cells */
+  .card-body-flush{position:relative;}
+  .card-body-flush > .tbl,.card-body > .tbl{display:block;overflow-x:auto;-webkit-overflow-scrolling:touch;white-space:nowrap;scrollbar-width:thin;}
+  .card-body-flush > .tbl::-webkit-scrollbar,.card-body > .tbl::-webkit-scrollbar{height:4px;}
+  .card-body-flush > .tbl::-webkit-scrollbar-thumb,.card-body > .tbl::-webkit-scrollbar-thumb{background:rgba(0,0,0,.15);border-radius:4px;}
+  /* Scroll-shadow hint on the right edge so users know there's more */
+  .card-body-flush::after,.card-body::after{content:'';position:absolute;top:0;right:0;bottom:0;width:18px;background:linear-gradient(to left,rgba(0,0,0,.06),transparent);pointer-events:none;opacity:0;transition:opacity .2s;}
+  .card-body-flush.scrollable::after,.card-body.scrollable::after{opacity:1;}
+  /* Search inputs */
+  .search-wrap input{width:160px;font-size:.85rem;}
+  /* Stat cards — denser */
+  .stats{grid-template-columns:repeat(2,1fr);gap:.55rem;margin-bottom:1rem;}
+  .sc{padding:.7rem .8rem;border-radius:10px;}
+  .sc .s-icon{font-size:1.1rem;margin-bottom:.25rem;}
+  .sc .s-val{font-size:1.25rem;}
+  .sc .s-lbl{font-size:.65rem;}
+  /* Card spacing */
+  .card{border-radius:10px;margin-bottom:.9rem;}
+  .card-hd{padding:.75rem .9rem;flex-wrap:wrap;gap:.5rem;}
+  .card-hd h2{font-size:.84rem;}
+  .card-body{padding:.85rem;}
+  /* Homepage subnav — wraps + scrolls */
+  .hp-subnav{padding:.5rem .65rem;gap:.35rem;flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;top:58px;border-radius:8px;}
+  .hp-subnav button{flex-shrink:0;padding:.4rem .75rem;font-size:.72rem;}
+  /* Modal becomes near-fullscreen sheet */
+  .modal-backdrop{padding:0;align-items:flex-end;}
+  .modal-box{max-width:100%;max-height:94vh;border-radius:16px 16px 0 0;animation:sheetUp .3s cubic-bezier(.22,1,.36,1);}
+  .modal-small,.modal-medium,.modal-box-md,.modal-box-lg,.modal-box-xl{max-width:100%;}
+  @keyframes sheetUp{from{opacity:0;transform:translateY(40px)}to{opacity:1;transform:none}}
+  .modal-hd{padding:.65rem .85rem;}
+  .modal-body{padding:.75rem .85rem 1.25rem;}
+  /* Drag-handle visual cue at top of mobile sheet */
+  .modal-hd::before{content:'';position:absolute;top:.35rem;left:50%;transform:translateX(-50%);width:38px;height:4px;background:var(--border);border-radius:2px;}
+  .modal-hd{position:sticky;padding-top:.85rem;}
+  /* Event modal tabs scroll horizontally */
+  .ev-modal-tabs{flex-wrap:nowrap;overflow-x:auto;-webkit-overflow-scrolling:touch;padding-bottom:.5rem;}
+  .ev-tab{flex-shrink:0;}
+  /* Toast wider and lower */
+  #toast{left:.9rem;right:.9rem;bottom:.9rem;text-align:center;font-size:.82rem;padding:.75rem 1rem;border-radius:10px;}
+}
+
+/* ===== PHONE (≤600px) — single column, full-bleed cards, fab footer ===== */
+@media(max-width:600px){
+  .tophead{height:54px;padding:0 .7rem;}
+  .tophead-title{font-size:.78rem;}
+  .tophead-title .crumb-sep,.tophead-title :first-child{display:none;}
+  .main{padding:.85rem .75rem 5rem;}
+  /* Sidebar full-width drawer on phones */
+  .sidebar{width:min(86vw,300px);}
+  .sb-brand{padding:.75rem .9rem;}
+  .sb-brand img{height:30px;width:30px;}
+  /* Stats — 2 cols compact */
+  .stats{grid-template-columns:repeat(2,1fr);}
+  .ph h1{font-size:1.05rem;}
+  .ph p{font-size:.72rem;line-height:1.4;}
+  /* Buttons in page header become full width */
+  .ph > .btn-primary{width:100%;justify-content:center;}
+  /* Compact card headers */
+  .card-hd{padding:.65rem .8rem;}
+  .card-hd h2{font-size:.78rem;}
+  .card-body{padding:.7rem;}
+  /* Smaller table type */
+  .tbl{font-size:.74rem;}
+  .tbl th{font-size:.62rem;padding:.5rem .55rem;}
+  .tbl td{padding:.55rem .55rem;}
+  .ev-thumb{width:38px;height:28px;}
+  .ev-name,.td-ev-title,.td-location{max-width:120px;}
+  /* Form fields */
+  .form-grid{grid-template-columns:1fr;gap:.7rem;}
+  .form-grid .full{grid-column:1;}
+  .grid-3fr,.grid-2cols{grid-template-columns:1fr;}
+  /* Action button rows wrap */
+  .col-actions,.act-row,.pem-btn-row,.pay-actions{flex-wrap:wrap;}
+  .col-actions .btn-pill,.col-actions .btn-sm,.act-row .btn-pill,.act-row .btn-sm{flex:1;min-width:84px;justify-content:center;}
+  /* Search input full width */
+  .search-wrap{width:100%;}
+  .search-wrap input{width:100%;}
+  /* Modal — true bottom sheet, larger inputs */
+  .modal-box{max-height:92vh;border-radius:14px 14px 0 0;}
+  .modal-hd h3{font-size:.86rem;}
+  /* Empty state */
+  .empty{padding:1.5rem .8rem;font-size:.78rem;}
+  .empty .big{font-size:1.8rem;}
+  /* Hide less-essential columns on tight screens (admin can scroll horizontally to see them) */
+  /* — handled via horizontal scroll above, intentionally not hiding columns to avoid data loss */
+}
+
+/* ===== SMALL PHONE (≤380px) — extreme density ===== */
+@media(max-width:380px){
+  .stats{grid-template-columns:1fr;}
+  .sc .s-val{font-size:1.15rem;}
+  .tophead-burger{width:34px;height:34px;}
+  .sb-foot-row{flex-direction:column;}
+  .sb-foot-btn{justify-content:flex-start;}
+  .sb-foot-btn span:not(.sb-foot-ic){display:inline;}
+}
+
+/* ===== LANDSCAPE PHONE — short viewport ===== */
+@media(max-height:520px) and (orientation:landscape){
+  .tophead{height:46px;}
+  .hp-subnav{top:46px;}
+  .modal-box{max-height:88vh;}
+  .stats{grid-template-columns:repeat(4,1fr);}
+}
+
+/* ===== REDUCED MOTION ===== */
+@media(prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation-duration:.001ms!important;animation-iteration-count:1!important;transition-duration:.001ms!important;scroll-behavior:auto!important;}
+}
+
+/* ===== DARK MODE FRIENDLINESS (auto via prefers-color-scheme — opt-in light by default) ===== */
+@media(prefers-color-scheme:dark){
+  /* keep admin in light theme intentionally — uncomment to enable dark */
+}
+
+/* ===== PRINT (invoices etc.) ===== */
+@media print{
+  .sidebar,.tophead,.tabs-bar,.sb-backdrop,.hp-subnav,#toast,.btn-primary,.btn-sm,.filter-toolbar{display:none!important;}
+  .dash-body{margin-left:0!important;}
+  .main{padding:0;}
+  .card{box-shadow:none;border:1px solid #ccc;break-inside:avoid;}
+}
+
+/* ============================================
+   PASS 2 — MOTION, SKELETONS, STICKY HEADERS
+   ============================================ */
+.card{transition:box-shadow .25s ease,transform .25s ease,border-color .2s;}
+.card:hover{box-shadow:0 4px 18px rgba(13,31,60,.08);}
+.sc{transition:box-shadow .2s,transform .15s,background .2s;}
+.sc:active{transform:translateY(0) scale(.98);}
+.stats .sc{opacity:0;transform:translateY(8px);animation:scIn .42s cubic-bezier(.22,1,.36,1) forwards;}
+.stats .sc:nth-child(1){animation-delay:.02s}
+.stats .sc:nth-child(2){animation-delay:.06s}
+.stats .sc:nth-child(3){animation-delay:.10s}
+.stats .sc:nth-child(4){animation-delay:.14s}
+.stats .sc:nth-child(5){animation-delay:.18s}
+.stats .sc:nth-child(6){animation-delay:.22s}
+.stats .sc:nth-child(7){animation-delay:.26s}
+@keyframes scIn{to{opacity:1;transform:none;}}
+.sc .s-val{font-variant-numeric:tabular-nums;}
+/* Sticky table headers */
+.card-body-flush .tbl thead th,.table-scroll .tbl thead th,.table-scroll-sm .tbl thead th{position:sticky;top:0;z-index:5;background:linear-gradient(to bottom,#ffffff 0%,#f8fafc 100%);box-shadow:inset 0 -1.5px 0 var(--border);}
+/* Row entry animation */
+.tbl tbody tr{animation:rowIn .22s ease both;transition:background .15s,box-shadow .15s;position:relative;}
+@keyframes rowIn{from{opacity:0;transform:translateY(3px);}to{opacity:1;transform:none;}}
+.tbl tbody tr:hover td{background:rgba(13,69,147,.04);}
+.tbl tbody tr:hover td:first-child{box-shadow:inset 3px 0 0 var(--secondary);}
+/* Button press */
+.btn-primary,.btn-sm,.btn-pill,.btn-edit,.btn-danger,.btn-green,.btn-amber{position:relative;overflow:hidden;}
+.btn-primary:active,.btn-pill:active,.btn-edit:active,.btn-danger:active,.btn-sm:active{transform:translateY(0) scale(.97);}
+/* Sidebar item */
+.sb-item{transition:background .18s,color .18s,transform .12s;}
+.sb-item:active{transform:scale(.98);}
+.sb-item.active{box-shadow:inset 0 0 0 1px rgba(255,255,255,.05);}
+/* Modal entry */
+.modal-box{animation:popIn .32s cubic-bezier(.22,1,.36,1);}
+.modal-backdrop{transition:opacity .25s;}
+.modal-backdrop.open{animation:bdFade .22s ease;}
+@keyframes bdFade{from{opacity:0}to{opacity:1}}
+/* Skeleton */
+.skeleton{background:linear-gradient(90deg,#eef2f7 0%,#f7f9fc 50%,#eef2f7 100%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;border-radius:6px;color:transparent!important;}
+.skeleton *{visibility:hidden;}
+@keyframes shimmer{0%{background-position:200% 0;}100%{background-position:-200% 0;}}
+.skeleton-bar{display:inline-block;height:10px;width:120px;border-radius:5px;background:linear-gradient(90deg,#eef2f7 0%,#f7f9fc 50%,#eef2f7 100%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;}
+.skeleton-bar.sm{width:60px;}
+.skeleton-bar.lg{width:180px;}
+.skeleton-circle{display:inline-block;width:32px;height:32px;border-radius:50%;background:linear-gradient(90deg,#eef2f7 0%,#f7f9fc 50%,#eef2f7 100%);background-size:200% 100%;animation:shimmer 1.4s linear infinite;vertical-align:middle;}
+/* Nav progress bar */
+#nav-progress{position:fixed;top:0;left:0;height:2px;background:linear-gradient(90deg,var(--secondary),var(--primary));width:0;z-index:9999;transition:width .3s ease,opacity .3s ease;pointer-events:none;border-radius:0 2px 2px 0;box-shadow:0 0 8px rgba(230,57,70,.5);}
+#nav-progress.done{opacity:0;}
+/* Toast slide */
+#toast{transform:translateY(0);transition:transform .3s cubic-bezier(.22,1,.36,1),opacity .3s;}
+#toast.hide{transform:translateY(20px);opacity:0;}
+/* General tooltip */
+[data-tt]{position:relative;}
+[data-tt]:hover::after{content:attr(data-tt);position:absolute;bottom:calc(100% + 6px);left:50%;transform:translateX(-50%);background:#0d1f3c;color:#fff;padding:.35rem .6rem;border-radius:5px;font-size:.7rem;font-weight:600;white-space:nowrap;box-shadow:0 4px 12px rgba(0,0,0,.2);z-index:9999;pointer-events:none;animation:ttFade .15s ease;}
+@keyframes ttFade{from{opacity:0;transform:translateX(-50%) translateY(2px)}to{opacity:1;transform:translateX(-50%) translateY(0)}}
+.empty{animation:emptyIn .35s ease;}
+@keyframes emptyIn{from{opacity:0;transform:scale(.97)}to{opacity:1;transform:none;}}
+
+/* ============================================
+   PASS 3 — DENSITY, TABLE POLISH, ROW MENUS
+   ============================================ */
+.tophead-density{display:inline-flex;align-items:center;gap:.25rem;padding:.35rem .55rem;background:var(--bg);border:1px solid var(--border);border-radius:8px;cursor:pointer;font-size:.7rem;font-weight:600;color:var(--text-light);font-family:inherit;}
+.tophead-density:hover{border-color:var(--secondary);color:var(--secondary);}
+.tophead-density.compact{background:rgba(13,69,147,.08);color:var(--secondary);border-color:rgba(13,69,147,.25);}
+body.density-compact .tbl th{padding:.4rem .6rem;font-size:.62rem;}
+body.density-compact .tbl td{padding:.4rem .6rem;font-size:.74rem;}
+body.density-compact .card-hd{padding:.65rem .85rem;}
+body.density-compact .card-body{padding:.75rem .85rem;}
+body.density-compact .stats{gap:.55rem;margin-bottom:.85rem;}
+body.density-compact .sc{padding:.65rem .8rem;}
+body.density-compact .sc .s-val{font-size:1.35rem;}
+body.density-compact .ev-thumb{width:36px;height:28px;}
+body.density-compact .main{padding-top:.85rem;}
+/* Row menu */
+.row-menu{position:relative;display:inline-block;}
+.row-menu-btn{width:28px;height:28px;display:inline-flex;align-items:center;justify-content:center;border:none;background:transparent;border-radius:6px;cursor:pointer;color:var(--text-light);font-size:1.1rem;font-weight:700;line-height:1;font-family:inherit;transition:background .15s;}
+.row-menu-btn:hover{background:rgba(13,69,147,.08);color:var(--secondary);}
+.row-menu-pop{display:none;position:absolute;top:calc(100% + 4px);right:0;min-width:180px;background:var(--white);border:1px solid var(--border);border-radius:10px;box-shadow:0 10px 28px rgba(13,31,60,.18);z-index:120;padding:.3rem;animation:popIn .18s cubic-bezier(.22,1,.36,1);}
+.row-menu.open .row-menu-pop{display:block;}
+.row-menu-pop button,.row-menu-pop a{display:flex;align-items:center;gap:.55rem;width:100%;padding:.5rem .65rem;background:transparent;border:none;text-align:left;font-size:.78rem;font-weight:500;color:var(--text);border-radius:6px;cursor:pointer;font-family:inherit;text-decoration:none;}
+.row-menu-pop button:hover,.row-menu-pop a:hover{background:var(--bg);}
+.row-menu-pop .danger{color:var(--primary);}
+.row-menu-pop .danger:hover{background:rgba(230,57,70,.08);}
+.row-menu-pop hr{border:none;border-top:1px solid var(--border);margin:.25rem 0;}
+.kbd{display:inline-block;padding:.05rem .35rem;background:var(--bg);border:1px solid var(--border);border-bottom-width:2px;border-radius:4px;font-size:.65rem;font-family:ui-monospace,SFMono-Regular,Menlo,monospace;color:var(--text-light);font-weight:600;margin-left:.4rem;}
+/* Command palette */
+.cmdk-backdrop{display:none;position:fixed;inset:0;background:rgba(13,31,60,.35);backdrop-filter:blur(4px);-webkit-backdrop-filter:blur(4px);z-index:9000;padding-top:10vh;justify-content:center;}
+.cmdk-backdrop.open{display:flex;animation:bdFade .2s ease;}
+.cmdk{width:min(560px,92vw);max-height:60vh;background:var(--white);border-radius:14px;box-shadow:0 24px 60px rgba(0,0,0,.3);overflow:hidden;display:flex;flex-direction:column;animation:popIn .22s cubic-bezier(.22,1,.36,1);}
+.cmdk input{width:100%;padding:1rem 1.1rem;border:none;border-bottom:1px solid var(--border);font-size:.95rem;font-family:inherit;outline:none;}
+.cmdk-list{flex:1;overflow-y:auto;padding:.35rem;}
+.cmdk-item{display:flex;align-items:center;gap:.65rem;padding:.65rem .8rem;border-radius:8px;cursor:pointer;font-size:.85rem;color:var(--text);}
+.cmdk-item:hover,.cmdk-item.sel{background:linear-gradient(90deg,rgba(13,69,147,.08),rgba(13,69,147,.02));color:var(--secondary);}
+.cmdk-item .ic{font-size:1.05rem;width:22px;text-align:center;}
+.cmdk-item .sub{font-size:.7rem;color:var(--text-light);margin-left:auto;}
+.cmdk-empty{padding:1.5rem;text-align:center;color:var(--text-light);font-size:.85rem;}
+
+/* ============================================
+   PASS 4 — UNIFIED CONTENT MANAGER STYLES
+   ============================================ */
+.cm-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:.85rem;}
+.cm-card{background:var(--white);border:1px solid var(--border);border-radius:12px;padding:.95rem 1rem;display:flex;flex-direction:column;gap:.55rem;transition:box-shadow .25s,transform .2s,border-color .2s;}
+.cm-card:hover{box-shadow:0 6px 22px rgba(13,31,60,.09);transform:translateY(-2px);border-color:rgba(13,69,147,.25);}
+.cm-card-hd{display:flex;align-items:center;gap:.55rem;}
+.cm-card-ic{width:34px;height:34px;border-radius:9px;background:linear-gradient(135deg,rgba(13,69,147,.1),rgba(230,57,70,.08));display:flex;align-items:center;justify-content:center;font-size:1.05rem;flex-shrink:0;}
+.cm-card-title{font-size:.82rem;font-weight:700;color:var(--text);flex:1;line-height:1.25;}
+.cm-card-desc{font-size:.72rem;color:var(--text-light);line-height:1.5;}
+.cm-card-foot{display:flex;align-items:center;gap:.4rem;margin-top:.25rem;flex-wrap:wrap;}
+.cm-card-meta{font-size:.66rem;color:var(--text-light);font-weight:600;text-transform:uppercase;letter-spacing:.5px;margin-right:auto;}
+.cm-status{display:inline-flex;align-items:center;gap:.3rem;padding:.18rem .5rem;border-radius:20px;font-size:.64rem;font-weight:700;text-transform:uppercase;letter-spacing:.5px;}
+.cm-status.on{background:rgba(22,163,74,.1);color:var(--green);}
+.cm-status.off{background:rgba(100,116,139,.12);color:#475569;}
+.cm-status .dot{width:5px;height:5px;border-radius:50%;background:currentColor;}
+.cm-quick-btn{padding:.32rem .55rem;font-size:.68rem;}
     </style>
 </head>
 <body>
@@ -407,32 +793,87 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
 
 <!-- ===== DASHBOARD ===== -->
 <div id="dashboard">
-    <header class="topbar">
-        <div class="tb-brand">
+    <!-- ===== SIDEBAR ===== -->
+    <aside class="sidebar" id="sidebar">
+        <button class="sb-toggle" id="sb-toggle-btn" onclick="toggleSidebar()" title="Collapse / expand" aria-label="Toggle sidebar">‹</button>
+        <div class="sb-brand">
             <img src="img/hlogo2.png" alt="HOSU">
+            <div class="sb-brand-text"><strong>HOSU</strong><small>Admin Console</small></div>
         </div>
-        <div class="tb-right">
-            <div class="tb-user"><div class="tb-avatar" id="u-av">A</div><span id="u-name">Admin</span></div>
-            <a href="index.html" class="btn-xs btn-outline-xs">View Site →</a>
-            <button class="btn-xs btn-outline-xs" onclick="openChangePassword()" title="Change Password">🔐 Password</button>
-            <button class="btn-xs btn-danger-xs" onclick="doLogout()">Sign Out</button>
+        <nav class="sb-nav" aria-label="Admin sections">
+            <div class="sb-section">Workspace</div>
+            <button class="sb-item tab-btn active" id="sb-tab-overview" data-tab="overview" data-tip="Overview" onclick="navTo('overview')"><span class="sb-icon">📊</span><span class="sb-label">Overview</span></button>
+
+            <div class="sb-section">Operations</div>
+            <button class="sb-item tab-btn" id="sb-tab-events" data-tab="events" data-tip="Events" onclick="navTo('events')"><span class="sb-icon">📅</span><span class="sb-label">Events</span><span class="t-badge" id="sb-ev-cnt">0</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-members" data-tab="members" data-tip="Members" onclick="navTo('members')"><span class="sb-icon">👥</span><span class="sb-label">Members</span><span class="t-badge" id="sb-mem-cnt">0</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-payments" data-tab="payments" data-tip="Payments" onclick="navTo('payments')"><span class="sb-icon">💳</span><span class="sb-label">Payments</span><span class="t-badge" id="sb-pay-cnt">0</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-research" data-tab="research" data-tip="Research" onclick="navTo('research')"><span class="sb-icon">🔬</span><span class="sb-label">Research</span><span class="t-badge" id="sb-res-cnt">0</span></button>
+
+            <div class="sb-section">Content</div>
+            <button class="sb-item tab-btn" id="sb-tab-content" data-tab="content" data-tip="Content Manager" onclick="navTo('content')"><span class="sb-icon">🗂️</span><span class="sb-label">Content Manager</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-homepage" data-tab="homepage" data-tip="Homepage" onclick="navTo('homepage')"><span class="sb-icon">🏠</span><span class="sb-label">Homepage</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-sitecontent" data-tab="sitecontent" data-tip="Site Content" onclick="navTo('sitecontent')"><span class="sb-icon">🎨</span><span class="sb-label">Site Content</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-blog" data-tab="blog" data-tip="Blog" onclick="navTo('blog')"><span class="sb-icon">📝</span><span class="sb-label">Blog</span><span class="t-badge" id="sb-blog-cnt">0</span></button>
+            <button class="sb-item tab-btn" id="sb-tab-leadership" data-tab="leadership" data-tip="Leadership" onclick="navTo('leadership')"><span class="sb-icon">👔</span><span class="sb-label">Leadership</span><span class="t-badge" id="sb-lead-cnt">0</span></button>
+        </nav>
+        <div class="sb-footer">
+            <div class="sb-user">
+                <div class="tb-avatar" id="u-av">A</div>
+                <div class="sb-user-meta"><strong id="u-name">Admin</strong><small>Signed in</small></div>
+            </div>
+            <div class="sb-foot-row">
+                <a href="index.html" class="sb-foot-btn" title="View public site"><span class="sb-foot-ic">🌐</span><span>Site</span></a>
+                <button class="sb-foot-btn" onclick="openChangePassword()" title="Change password"><span class="sb-foot-ic">🔐</span><span>Pass</span></button>
+                <button class="sb-foot-btn danger" onclick="doLogout()" title="Sign out"><span class="sb-foot-ic">⎋</span><span>Out</span></button>
+            </div>
+        </div>
+    </aside>
+    <div class="sb-backdrop" id="sb-backdrop" onclick="closeSidebarMobile()"></div>
+
+    <div class="dash-body">
+    <header class="tophead">
+        <div class="tophead-left">
+            <button class="tophead-burger" onclick="openSidebarMobile()" aria-label="Open menu">☰</button>
+            <div class="tophead-title" id="tophead-title">Dashboard <span class="crumb-sep">/</span> Overview</div>
+        </div>
+        <div class="tophead-search">
+            <input type="text" id="global-search" placeholder="Quick search… (members, events, payments)" oninput="globalSearch(this.value)" autocomplete="off">
+        </div>
+        <div class="tophead-right">
+            <button class="tophead-density" id="density-toggle" onclick="toggleDensity()" data-tt="Toggle compact density">⇕ <span id="density-label">Comfy</span></button>
+            <button class="tophead-density" onclick="openCmdK()" data-tt="Command palette">⌘ <span class="kbd" style="margin-left:.15rem">K</span></button>
+            <span class="tophead-chip" title="Connected"><span class="dot"></span>Live</span>
         </div>
     </header>
+    <div id="nav-progress"></div>
 
-    <!-- TABS -->
-    <nav class="tabs-bar">
+    <!-- Command Palette -->
+    <div class="cmdk-backdrop" id="cmdk" onclick="if(event.target===this)closeCmdK()">
+        <div class="cmdk">
+            <input type="text" id="cmdk-input" placeholder="Jump to section, search action…" autocomplete="off">
+            <div class="cmdk-list" id="cmdk-list"></div>
+        </div>
+    </div>
+
+    <!-- TABS (kept off-screen — showTab() still references these IDs) -->
+    <nav class="tabs-bar" aria-hidden="true">
         <button class="tab-btn active" id="tab-overview" onclick="showTab('overview')">📊 Overview</button>
+        <button class="tab-btn" id="tab-content" onclick="showTab('content')">🗂️ Content</button>
         <button class="tab-btn" id="tab-events" onclick="showTab('events')">📅 Events <span class="t-badge" id="tab-ev-cnt">0</span></button>
         <button class="tab-btn" id="tab-members" onclick="showTab('members')">👥 Members <span class="t-badge" id="tab-mem-cnt">0</span></button>
         <button class="tab-btn" id="tab-payments" onclick="showTab('payments')">💳 Payments <span class="t-badge" id="tab-pay-cnt">0</span></button>
         <button class="tab-btn" id="tab-research" onclick="showTab('research')">🔬 Research <span class="t-badge" id="tab-res-cnt">0</span></button>
         <button class="tab-btn" id="tab-leadership" onclick="showTab('leadership')">👔 Leadership <span class="t-badge" id="tab-lead-cnt">0</span></button>
         <button class="tab-btn" id="tab-blog" onclick="showTab('blog')">📝 Blog <span class="t-badge" id="tab-blog-cnt">0</span></button>
+        <button class="tab-btn" id="tab-committees" onclick="showTab('committees')">🧑‍🤝‍🧑 Committees <span class="t-badge" id="tab-com-cnt">0</span></button>
+        <button class="tab-btn" id="tab-broadcast" onclick="showTab('broadcast')">📣 Broadcast</button>
         <button class="tab-btn" id="tab-homepage" onclick="showTab('homepage')">🏠 Homepage</button>
         <button class="tab-btn" id="tab-sitecontent" onclick="showTab('sitecontent')">🎨 Site Content</button>
     </nav>
 
     <main class="main">
+    <div class="main-inner">
 
         <!-- ===== OVERVIEW ===== -->
         <div class="panel active" id="panel-overview">
@@ -487,6 +928,32 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
             </div>
         </div>
 
+        <!-- ===== CONTENT MANAGER (Pass 4) ===== -->
+        <div class="panel" id="panel-content">
+            <div class="ph">
+                <div><h1>🗂️ Content Manager</h1><p>One place to edit, hide, reorder, or remove every block of content on the public website.</p></div>
+                <div class="filter-toolbar">
+                    <div class="search-wrap"><input type="text" id="cm-search" placeholder="Search content sections…" oninput="renderContentManager()"></div>
+                    <a href="index.html" target="_blank" class="btn-sm btn-nodecor">View Live Site →</a>
+                </div>
+            </div>
+            <div class="stats stats-compact">
+                <div class="sc" onclick="navTo('homepage')"><div class="s-icon">🏠</div><div class="s-val" id="cm-stat-hero">0</div><div class="s-lbl">Hero Slides</div></div>
+                <div class="sc" onclick="navTo('homepage')"><div class="s-icon">📢</div><div class="s-val" id="cm-stat-spot">0</div><div class="s-lbl">Spotlights</div></div>
+                <div class="sc" onclick="navTo('events')"><div class="s-icon">📅</div><div class="s-val" id="cm-stat-ev">0</div><div class="s-lbl">Events</div></div>
+                <div class="sc" onclick="navTo('blog')"><div class="s-icon">📝</div><div class="s-val" id="cm-stat-blog">0</div><div class="s-lbl">Blog Posts</div></div>
+                <div class="sc" onclick="navTo('leadership')"><div class="s-icon">👔</div><div class="s-val" id="cm-stat-lead">0</div><div class="s-lbl">Leaders</div></div>
+                <div class="sc" onclick="navTo('research')"><div class="s-icon">🔬</div><div class="s-val" id="cm-stat-pub">0</div><div class="s-lbl">Publications</div></div>
+            </div>
+            <div class="card">
+                <div class="card-hd"><h2>Quick Edit — Public Site Content</h2><button class="btn-sm" onclick="renderContentManager()">↻ Refresh</button></div>
+                <div class="card-body">
+                    <p style="font-size:.78rem;color:var(--text-light);margin:0 0 .9rem;line-height:1.5;">Each card opens the matching editor. Use the toggle to show/hide sections without deleting data, or jump straight to reorder &amp; remove items.</p>
+                    <div class="cm-grid" id="cm-grid"></div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== EVENTS LIST ===== -->
         <div class="panel" id="panel-events">
             <div class="ph">
@@ -526,6 +993,8 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                         <option value="suspended">⏸ Suspended</option>
                     </select>
                     <div class="search-wrap"><input type="text" id="mem-search" placeholder="Search members…" oninput="filterMembers()"></div>
+                    <button class="btn-sm" style="background:#fff8e1;color:#92400e;border:1px solid #fcd34d;" onclick="runRenewalReminders(true)" title="Preview which members would be sent renewal reminders today (no emails sent)">👁 Preview Renewals</button>
+                    <button class="btn-sm" style="background:#dcfce7;color:#166534;border:1px solid #86efac;" onclick="runRenewalReminders(false)" title="Send today's renewal reminder emails">📧 Send Renewals</button>
                     <a href="api.php?action=export_csv" class="btn-primary btn-nodecor" id="csv-btn">📥 Export CSV</a>
                 </div>
             </div>
@@ -682,6 +1151,80 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
             <tbody id="cm-body"><tr><td colspan="5" class="empty"><div class="big">💬</div>No comments yet.</td></tr></tbody></table></div></div>
         </div>
 
+        <!-- ===== COMMITTEES / WORKING GROUPS ===== -->
+        <div class="panel" id="panel-committees">
+            <div class="ph">
+                <div><h1>🧑‍🤝‍🧑 Committees &amp; Working Groups</h1><p>Manage HOSU working groups (Plan §4.3, §10 Phase 2). Add committees, assign members and roles.</p></div>
+                <button class="btn-primary" onclick="openCommitteeModal()">+ New Committee</button>
+            </div>
+            <div class="stats grid-3fr">
+                <div class="sc"><div class="s-icon">🧑‍🤝‍🧑</div><div class="s-val" id="com-total">0</div><div class="s-lbl">Total Groups</div></div>
+                <div class="sc"><div class="s-icon">✅</div><div class="s-val" id="com-active">0</div><div class="s-lbl">Active Groups</div></div>
+                <div class="sc"><div class="s-icon">👥</div><div class="s-val" id="com-members">0</div><div class="s-lbl">Total Memberships</div></div>
+            </div>
+            <div class="card">
+                <div class="card-hd"><h2>Working Groups (<span id="com-count">0</span>)</h2></div>
+                <div class="card-body card-body-flush">
+                    <table class="tbl"><thead><tr><th>Name</th><th>Discipline</th><th>Members</th><th>Status</th><th>Actions</th></tr></thead>
+                    <tbody id="com-body"><tr><td colspan="5" class="empty"><div class="big">🧑‍🤝‍🧑</div>Loading committees…</td></tr></tbody></table>
+                </div>
+            </div>
+            <div class="card hidden" id="com-roster-card" style="margin-top:1rem;">
+                <div class="card-hd">
+                    <h2 id="com-roster-title">Members of —</h2>
+                    <div class="filter-toolbar">
+                        <button class="btn-sm" onclick="document.getElementById('com-roster-card').classList.add('hidden')">✕ Close</button>
+                        <button class="btn-primary" onclick="openCommitteeAddMember()">+ Add Member</button>
+                    </div>
+                </div>
+                <div class="card-body card-body-flush">
+                    <table class="tbl"><thead><tr><th>Name</th><th>Category</th><th>Institution</th><th>Role</th><th>Joined</th><th>Actions</th></tr></thead>
+                    <tbody id="com-roster-body"><tr><td colspan="6" class="empty">Loading…</td></tr></tbody></table>
+                </div>
+            </div>
+        </div>
+
+        <!-- ===== BROADCAST (BULK EMAIL) ===== -->
+        <div class="panel" id="panel-broadcast">
+            <div class="ph">
+                <div><h1>📣 Broadcast Email</h1><p>Send announcements to members. Use <code>{{name}}</code> or <code>{{first_name}}</code> as personalisation placeholders (Plan §10 Phase 2).</p></div>
+            </div>
+            <div class="card">
+                <div class="card-hd"><h2>Compose</h2></div>
+                <div class="card-body" style="padding:1rem 1.2rem; display:grid; gap:.85rem;">
+                    <div style="display:grid; grid-template-columns:1fr 1fr; gap:.85rem;">
+                        <label style="display:flex; flex-direction:column; gap:.35rem; font-size:.82rem; font-weight:600;">
+                            Audience
+                            <select id="bc-audience" class="btn-sm" onchange="onBroadcastAudienceChange()">
+                                <option value="active">✅ Active members</option>
+                                <option value="all">👥 All members (excl. suspended/rejected)</option>
+                                <option value="pending">⏳ Pending / needs correction</option>
+                                <option value="expired">⌛ Expired members</option>
+                                <option value="committee">🧑‍🤝‍🧑 A specific committee…</option>
+                            </select>
+                        </label>
+                        <label id="bc-committee-wrap" class="hidden" style="display:flex; flex-direction:column; gap:.35rem; font-size:.82rem; font-weight:600;">
+                            Committee
+                            <select id="bc-committee" class="btn-sm"></select>
+                        </label>
+                    </div>
+                    <label style="display:flex; flex-direction:column; gap:.35rem; font-size:.82rem; font-weight:600;">
+                        Subject
+                        <input id="bc-subject" type="text" maxlength="200" class="field" placeholder="e.g. HOSU Annual Conference — Registration is open">
+                    </label>
+                    <label style="display:flex; flex-direction:column; gap:.35rem; font-size:.82rem; font-weight:600;">
+                        Body (HTML allowed — use {{name}} or {{first_name}} for personalisation)
+                        <textarea id="bc-body" rows="12" class="field" placeholder="Dear {{first_name}},&#10;&#10;We are pleased to invite you to..."></textarea>
+                    </label>
+                    <div style="display:flex; gap:.6rem; align-items:center; flex-wrap:wrap;">
+                        <button class="btn-sm" onclick="broadcastPreview()">👁 Count recipients</button>
+                        <button class="btn-primary" onclick="broadcastSend()">📧 Send broadcast</button>
+                        <div id="bc-status" style="font-size:.82rem; color:var(--text-light);"></div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
         <!-- ===== HOMEPAGE EDITOR ===== -->
         <div class="panel" id="panel-homepage">
             <div class="ph">
@@ -693,14 +1236,14 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
             </div>
 
             <nav class="hp-subnav" id="hp-subnav" aria-label="Homepage sections">
-                <button type="button" data-hp-sec="overview" class="active" onclick="goToHomepageSection('overview')">📋 Overview</button>
-                <button type="button" data-hp-sec="hero" onclick="goToHomepageSection('hero')">🖼 Hero Carousel</button>
-                <button type="button" data-hp-sec="ongoing" onclick="goToHomepageSection('ongoing')">🔴 Ongoing Now</button>
-                <button type="button" data-hp-sec="spotlight" onclick="goToHomepageSection('spotlight')">📢 Spotlights</button>
+                <button type="button" data-hp-sec="overview" class="active" onclick="goToHomepageSection('overview')">📋 Overview <span class="hp-count" id="hp-tab-count-overview">0</span></button>
+                <button type="button" data-hp-sec="hero" onclick="goToHomepageSection('hero')">🖼 Hero Carousel <span class="hp-count" id="hp-tab-count-hero">0</span></button>
+                <button type="button" data-hp-sec="ongoing" onclick="goToHomepageSection('ongoing')">🔴 Ongoing Now <span class="hp-count" id="hp-tab-count-ongoing">0</span></button>
+                <button type="button" data-hp-sec="spotlight" onclick="goToHomepageSection('spotlight')">📢 Spotlights <span class="hp-count" id="hp-tab-count-spotlight">0</span></button>
                 <button type="button" data-hp-sec="sections" onclick="goToHomepageSection('sections')">🤝 Partners &amp; CTA</button>
             </nav>
 
-            <div class="card" id="hp-section-overview">
+            <div class="card hp-section active" id="hp-section-overview">
                 <div class="card-hd">
                     <h2>📋 What&apos;s on the Homepage</h2>
                     <div class="filter-toolbar">
@@ -709,7 +1252,7 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                     </div>
                 </div>
                 <div class="card-body card-body-flush table-scroll-sm">
-                    <p style="padding:.75rem 1rem;margin:0;font-size:.8rem;color:var(--text-light);line-height:1.5;">Edit, hide, or delete any homepage item from here. Hidden items stay in the database — turn them back on anytime.</p>
+                    <p class="hp-section-help">Edit, hide, or delete any homepage item from here. Hidden items stay in the database — turn them back on anytime.</p>
                     <table class="tbl">
                         <thead><tr><th>Section</th><th>Title</th><th>Details</th><th>Status</th><th>Actions</th></tr></thead>
                         <tbody id="hp-overview-body"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody>
@@ -718,7 +1261,7 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                 </div>
             </div>
 
-            <div class="card" id="hp-section-hero">
+            <div class="card hp-section" id="hp-section-hero">
                 <div class="card-hd"><h2>🖼 Hero Carousel (<span id="sc-hero-count">0</span> slides)</h2>
                     <div class="filter-toolbar">
                         <button class="btn-primary" onclick="openHeroSlideModal()">+ Add Hero Slide</button>
@@ -726,13 +1269,13 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                     </div>
                 </div>
                 <div class="card-body card-body-flush table-scroll-sm">
-                    <p style="padding:.75rem 1rem;margin:0;font-size:.8rem;color:var(--text-light);">The large rotating banner at the top of the homepage. Add unlimited slides with custom titles, body text, images, pills, popup content, and buttons. HTML is allowed.</p>
+                    <p class="hp-section-help">The large rotating banner at the top of the homepage. Add unlimited slides with custom titles, body text, images, pills, popup content, and buttons. HTML is allowed.</p>
                     <table class="tbl"><thead><tr><th>Preview</th><th>Title</th><th>Order</th><th>Display</th><th>CTA</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-hero-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table>
                 </div>
             </div>
 
-            <div class="card" id="hp-section-ongoing">
+            <div class="card hp-section" id="hp-section-ongoing">
                 <div class="card-hd"><h2>🔴 Ongoing Now — Live on Homepage</h2>
                     <div class="filter-toolbar">
                         <button class="btn-primary" onclick="showTab('events')">📅 Edit Live Event</button>
@@ -740,58 +1283,76 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
                     </div>
                 </div>
                 <div class="card-body card-body-flush table-scroll-sm">
-                    <p style="padding:.75rem 1rem;margin:0;font-size:.8rem;color:var(--text-light);line-height:1.5;"><strong>This is what visitors see</strong> below the partners strip. It is <em>not</em> the hero banner at the top. Open a live event → <strong>Content Blocks</strong> tab → paste your Google Drive <strong>folder</strong> link in <strong>Primary Button URL</strong>, turn on <strong>Show in Ongoing Now</strong>, then save.</p>
+                    <p class="hp-section-help"><strong>This is what visitors see</strong> below the partners strip. It is <em>not</em> the hero banner at the top. Open a live event → <strong>Content Blocks</strong> tab → paste your Google Drive <strong>folder</strong> link in <strong>Primary Button URL</strong>, turn on <strong>Show in Ongoing Now</strong>, then save.</p>
                     <table class="tbl"><thead><tr><th>Event</th><th>Status</th><th>Drive Photos</th><th>Ongoing Now</th><th>Actions</th></tr></thead>
                     <tbody id="sc-ongoing-body"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table>
                 </div>
             </div>
 
-            <div class="card" id="hp-section-spotlight">
+            <div class="card hp-section" id="hp-section-spotlight">
                 <div class="card-hd"><h2>📢 Extra Spotlight Items (<span id="sc-spotlight-count">0</span>) <small style="font-weight:400;color:var(--text-light);">optional</small></h2>
                     <div class="filter-toolbar">
                         <button class="btn-primary" onclick="openSpotlightModal()">+ Add Spotlight Item</button>
                     </div>
                 </div>
                 <div class="card-body card-body-flush table-scroll-sm">
-                    <p style="padding:.75rem 1rem;margin:0;font-size:.8rem;color:var(--text-light);">Optional custom announcements for the hero only. <strong>Ongoing Now live photos are managed from Events</strong> (see card above) — not from this list.</p>
-                    <p style="padding:0 1rem .75rem;margin:0;font-size:.72rem;color:var(--text-light);"><strong>Showcase order:</strong> highest <em>Priority</em> first, then lowest <em>Sort Order</em>, then newest.</p>
+                    <p class="hp-section-help">Optional custom announcements for the hero only. <strong>Ongoing Now live photos are managed from Events</strong> (see card above) — not from this list. <strong>Showcase order:</strong> highest <em>Priority</em> first, then lowest <em>Sort Order</em>, then newest.</p>
                     <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Priority</th><th>Display</th><th>Spotlight</th><th>Hero</th><th>Linked Event</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-spotlight-tbody"><tr><td colspan="9" class="empty">Loading...</td></tr></tbody></table>
                 </div>
             </div>
 
-            <div class="card" id="hp-section-sections">
+            <div class="card hp-section" id="hp-section-sections">
                 <div class="card-hd"><h2>🤝 Partners &amp; Call-to-Action</h2>
                     <button class="btn-primary" onclick="saveHomepageExtras()"><span id="hp-extras-save-text">💾 Save Homepage Sections</span></button>
                 </div>
-                <div class="card-body" style="padding:1rem;">
-                    <p style="font-size:.8rem;color:var(--text-light);margin:0 0 1rem;">Edit the partner logo strip and the “Make a Difference” section at the bottom of the homepage.</p>
-                    <div class="pricing-row" style="margin-bottom:1rem;">
-                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-partners-visible" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show partners section on homepage</span></div>
-                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-cta-visible" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show call-to-action section on homepage</span></div>
-                    </div>
-                    <div class="ff"><label>Partners Section Title</label><input type="text" id="hp-partners-title" placeholder="Our Partners"></div>
-                    <div style="margin:1rem 0;">
-                        <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
-                            <label style="font-weight:600;font-size:.85rem;">Partner Logos</label>
-                            <button type="button" class="btn-sm" onclick="addHomePartnerRow()">+ Add Partner</button>
-                        </div>
-                        <div id="hp-partners-list"></div>
-                    </div>
-                    <hr style="margin:1.25rem 0;border:none;border-top:1px solid var(--border);">
-                    <div class="ff"><label>CTA Title</label><input type="text" id="hp-cta-title" placeholder="Make a Difference"></div>
-                    <div class="ff"><label>CTA Body</label><textarea id="hp-cta-body" rows="3" placeholder="Supporting text — HTML allowed"></textarea></div>
-                    <div class="aef-grid grid-2cols">
-                        <div class="ff"><label>Primary Button Label</label><input type="text" id="hp-cta-primary-label"></div>
-                        <div class="ff"><label>Primary Button URL</label><input type="text" id="hp-cta-primary-url" placeholder="about.html"></div>
-                    </div>
-                    <div class="aef-grid grid-2cols">
-                        <div class="ff"><label>Secondary Button Label</label><input type="text" id="hp-cta-secondary-label"></div>
-                        <div class="ff"><label>Secondary Action</label>
-                            <select id="hp-cta-secondary-action"><option value="donate">Open Donate Popup</option><option value="link">Link to URL</option></select>
+                <div class="card-body" style="padding:0;">
+                    <p class="hp-section-help">Edit the partner logo strip and the “Make a Difference” section. Each block below is collapsible — keep what you’re editing open.</p>
+                    <div style="padding:.85rem 1rem;border-bottom:1px solid var(--border);background:#fafbfc;">
+                        <div class="pricing-row" style="margin:0;">
+                            <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-partners-visible" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show partners section on homepage</span></div>
+                            <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-cta-visible" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show call-to-action section on homepage</span></div>
                         </div>
                     </div>
-                    <div class="ff" id="hp-cta-secondary-url-wrap"><label>Secondary Button URL</label><input type="text" id="hp-cta-secondary-url" placeholder="membership.html"></div>
+                    <div style="padding:1rem;">
+                        <div class="collapse-sec open" style="margin-bottom:.75rem;">
+                            <div class="collapse-hd" onclick="toggleCollapse(this)">
+                                <span>🤝 Partners Section</span>
+                                <span class="collapse-chevron">▼</span>
+                            </div>
+                            <div class="collapse-bd">
+                                <div class="ff"><label>Partners Section Title</label><input type="text" id="hp-partners-title" placeholder="Our Partners"></div>
+                                <div style="margin-top:.85rem;">
+                                    <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:.5rem;">
+                                        <label style="font-weight:600;font-size:.85rem;">Partner Logos</label>
+                                        <button type="button" class="btn-sm" onclick="addHomePartnerRow()">+ Add Partner</button>
+                                    </div>
+                                    <div id="hp-partners-list"></div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="collapse-sec" style="margin-bottom:0;">
+                            <div class="collapse-hd" onclick="toggleCollapse(this)">
+                                <span>📣 Call-to-Action Block</span>
+                                <span class="collapse-chevron">▼</span>
+                            </div>
+                            <div class="collapse-bd">
+                                <div class="ff"><label>CTA Title</label><input type="text" id="hp-cta-title" placeholder="Make a Difference"></div>
+                                <div class="ff"><label>CTA Body</label><textarea id="hp-cta-body" rows="3" placeholder="Supporting text — HTML allowed"></textarea></div>
+                                <div class="aef-grid grid-2cols">
+                                    <div class="ff"><label>Primary Button Label</label><input type="text" id="hp-cta-primary-label"></div>
+                                    <div class="ff"><label>Primary Button URL</label><input type="text" id="hp-cta-primary-url" placeholder="about.html"></div>
+                                </div>
+                                <div class="aef-grid grid-2cols">
+                                    <div class="ff"><label>Secondary Button Label</label><input type="text" id="hp-cta-secondary-label"></div>
+                                    <div class="ff"><label>Secondary Action</label>
+                                        <select id="hp-cta-secondary-action"><option value="donate">Open Donate Popup</option><option value="link">Link to URL</option></select>
+                                    </div>
+                                </div>
+                                <div class="ff" id="hp-cta-secondary-url-wrap"><label>Secondary Button URL</label><input type="text" id="hp-cta-secondary-url" placeholder="membership.html"></div>
+                            </div>
+                        </div>
+                    </div>
                 </div>
             </div>
         </div>
@@ -901,7 +1462,9 @@ tr.audit-row[data-aud-type]:hover td{background:rgba(13,69,147,.06)!important;}
             </div>
         </div>
 
+    </div><!-- /.main-inner -->
     </main>
+    </div><!-- /.dash-body -->
 </div>
 
 <!-- Blog Modal -->
@@ -2101,6 +2664,7 @@ fetch('auth.php?action=check_session',{credentials:'same-origin'})
     .catch(()=>{});
 
 /* -- TABS ----------------------------------- */
+var ADMIN_TAB_LABELS={overview:'Overview',content:'Content Manager',events:'Events',members:'Members',payments:'Payments',research:'Research',leadership:'Leadership',blog:'Blog',homepage:'Homepage',sitecontent:'Site Content'};
 function showTab(name, opts){
     opts=opts||{};
     document.querySelectorAll('.panel').forEach(p=>p.classList.remove('active'));
@@ -2110,15 +2674,263 @@ function showTab(name, opts){
     var tabBtn=document.getElementById('tab-'+name);
     if(tabBtn){
         tabBtn.classList.add('active');
-        tabBtn.scrollIntoView({behavior:'smooth',block:'nearest',inline:'center'});
     }
+    var sbBtn=document.getElementById('sb-tab-'+name);
+    if(sbBtn)sbBtn.classList.add('active');
+    var crumb=document.getElementById('tophead-title');
+    if(crumb){var lbl=ADMIN_TAB_LABELS[name]||name;crumb.innerHTML='Dashboard <span class="crumb-sep">/</span> '+lbl;}
     if(!opts.silent&&window.history&&history.replaceState){
         history.replaceState(null,'','#tab-'+name);
     }
     var main=document.querySelector('.main');
     if(main&&!opts.noScroll)main.scrollTop=0;
     window.scrollTo({top:0,behavior:'smooth'});
+    closeSidebarMobile();
 }
+function navTo(name){showTab(name);}
+function toggleSidebar(){
+    var sb=document.getElementById('sidebar');
+    if(!sb)return;
+    sb.classList.toggle('collapsed');
+    try{localStorage.setItem('adminSidebarCollapsed',sb.classList.contains('collapsed')?'1':'0');}catch(e){}
+}
+function openSidebarMobile(){
+    var sb=document.getElementById('sidebar'),bd=document.getElementById('sb-backdrop');
+    if(sb)sb.classList.add('open');
+    if(bd)bd.classList.add('show');
+    document.body.style.overflow='hidden';
+}
+function closeSidebarMobile(){
+    var sb=document.getElementById('sidebar'),bd=document.getElementById('sb-backdrop');
+    if(sb)sb.classList.remove('open');
+    if(bd)bd.classList.remove('show');
+    document.body.style.overflow='';
+}
+/* Escape closes mobile sidebar + any open modal-friendly UI */
+document.addEventListener('keydown',function(e){
+    if(e.key==='Escape'){
+        var sb=document.getElementById('sidebar');
+        if(sb&&sb.classList.contains('open'))closeSidebarMobile();
+    }
+});
+/* Swipe-left on sidebar to close (touch) */
+(function(){
+    var startX=0,startY=0,tracking=false;
+    document.addEventListener('touchstart',function(e){
+        var sb=document.getElementById('sidebar');
+        if(!sb||!sb.classList.contains('open'))return;
+        var t=e.touches[0];startX=t.clientX;startY=t.clientY;tracking=true;
+    },{passive:true});
+    document.addEventListener('touchmove',function(e){
+        if(!tracking)return;
+        var t=e.touches[0],dx=t.clientX-startX,dy=Math.abs(t.clientY-startY);
+        if(dx<-50&&dy<40){closeSidebarMobile();tracking=false;}
+    },{passive:true});
+    document.addEventListener('touchend',function(){tracking=false;},{passive:true});
+})();
+/* Detect overflowing tables — toggle .scrollable on parent so scroll-shadow appears */
+function refreshTableScrollHints(){
+    document.querySelectorAll('.card-body-flush, .card-body').forEach(function(wrap){
+        var tbl=wrap.querySelector(':scope > .tbl');
+        if(!tbl){wrap.classList.remove('scrollable');return;}
+        wrap.classList.toggle('scrollable', tbl.scrollWidth > tbl.clientWidth + 2);
+    });
+}
+window.addEventListener('resize',refreshTableScrollHints);
+window.addEventListener('load',refreshTableScrollHints);
+setInterval(refreshTableScrollHints,1500);
+
+/* =========================================================
+   PASS 2/3/4 — DENSITY, CMD-K, PROGRESS, CONTENT MANAGER
+   ========================================================= */
+/* --- Density toggle --- */
+function toggleDensity(){
+    var compact=document.body.classList.toggle('density-compact');
+    var btn=document.getElementById('density-toggle');
+    var lbl=document.getElementById('density-label');
+    if(btn)btn.classList.toggle('compact',compact);
+    if(lbl)lbl.textContent=compact?'Compact':'Comfy';
+    try{localStorage.setItem('adminDensity',compact?'compact':'comfy');}catch(e){}
+}
+try{
+    if(localStorage.getItem('adminDensity')==='compact'){
+        document.body.classList.add('density-compact');
+        document.addEventListener('DOMContentLoaded',function(){
+            var btn=document.getElementById('density-toggle');var lbl=document.getElementById('density-label');
+            if(btn)btn.classList.add('compact');if(lbl)lbl.textContent='Compact';
+        });
+    }
+}catch(e){}
+
+/* --- Top progress bar for navigation/load feel --- */
+var _navP=null;
+function navProgressStart(){
+    var bar=document.getElementById('nav-progress');if(!bar)return;
+    clearTimeout(_navP);bar.classList.remove('done');bar.style.width='12%';
+    setTimeout(function(){bar.style.width='65%';},120);
+}
+function navProgressDone(){
+    var bar=document.getElementById('nav-progress');if(!bar)return;
+    bar.style.width='100%';
+    _navP=setTimeout(function(){bar.classList.add('done');setTimeout(function(){bar.style.width='0';bar.classList.remove('done');},320);},180);
+}
+/* Hook into showTab so every navigation feels responsive */
+(function(){
+    var orig=window.showTab;if(typeof orig!=='function')return;
+    window.showTab=function(name,opts){
+        navProgressStart();
+        var r=orig.apply(this,arguments);
+        if(name==='content')try{renderContentManager();}catch(e){}
+        setTimeout(navProgressDone,260);
+        return r;
+    };
+})();
+
+/* --- Command Palette (Cmd/Ctrl-K) --- */
+var CMDK_ITEMS=[
+    {ic:'📊',label:'Overview',sub:'Dashboard',action:function(){showTab('overview');}},
+    {ic:'🗂️',label:'Content Manager',sub:'Edit all site content',action:function(){showTab('content');}},
+    {ic:'📅',label:'Events',sub:'Create / edit events',action:function(){showTab('events');}},
+    {ic:'➕',label:'Add New Event',sub:'Open event form',action:function(){showTab('events');setTimeout(function(){try{openAddEventModal();}catch(e){}},200);}},
+    {ic:'👥',label:'Members',sub:'Review applications',action:function(){showTab('members');}},
+    {ic:'💳',label:'Payments',sub:'Verify and reconcile',action:function(){showTab('payments');}},
+    {ic:'🔄',label:'Sync Pending Payments',sub:'PesaPal',action:function(){showTab('payments');setTimeout(function(){try{syncAllPending();}catch(e){}},200);}},
+    {ic:'🔬',label:'Research',sub:'Publications & Grants',action:function(){showTab('research');}},
+    {ic:'📝',label:'Blog',sub:'Posts & comments',action:function(){showTab('blog');}},
+    {ic:'➕',label:'New Blog Post',sub:'Blog',action:function(){showTab('blog');setTimeout(function(){try{openBlogModal();}catch(e){}},200);}},
+    {ic:'👔',label:'Leadership',sub:'About page bios',action:function(){showTab('leadership');}},
+    {ic:'🏠',label:'Homepage Editor',sub:'Hero / Spotlights / Partners',action:function(){showTab('homepage');}},
+    {ic:'🖼',label:'Hero Slides',sub:'Homepage',action:function(){showTab('homepage');setTimeout(function(){try{goToHomepageSection('hero');}catch(e){}},200);}},
+    {ic:'🤝',label:'Partners & CTA',sub:'Homepage',action:function(){showTab('homepage');setTimeout(function(){try{goToHomepageSection('sections');}catch(e){}},200);}},
+    {ic:'🎨',label:'Site Content',sub:'Navbar / Footer / SEO',action:function(){showTab('sitecontent');}},
+    {ic:'🔐',label:'Change Password',sub:'Account',action:function(){try{openChangePassword();}catch(e){}}},
+    {ic:'⎋',label:'Sign Out',sub:'Account',action:function(){try{doLogout();}catch(e){}}},
+    {ic:'⇕',label:'Toggle Density',sub:'View',action:toggleDensity}
+];
+var _cmdkSel=0,_cmdkFiltered=CMDK_ITEMS;
+function openCmdK(){
+    var bd=document.getElementById('cmdk');if(!bd)return;
+    bd.classList.add('open');
+    var inp=document.getElementById('cmdk-input');if(inp){inp.value='';setTimeout(function(){inp.focus();},30);}
+    _cmdkSel=0;renderCmdK('');
+}
+function closeCmdK(){var bd=document.getElementById('cmdk');if(bd)bd.classList.remove('open');}
+function renderCmdK(q){
+    q=(q||'').trim().toLowerCase();
+    var list=document.getElementById('cmdk-list');if(!list)return;
+    _cmdkFiltered=q?CMDK_ITEMS.filter(function(it){return (it.label+' '+it.sub).toLowerCase().indexOf(q)>-1;}):CMDK_ITEMS;
+    if(!_cmdkFiltered.length){list.innerHTML='<div class="cmdk-empty">No matches</div>';return;}
+    list.innerHTML=_cmdkFiltered.map(function(it,i){return '<div class="cmdk-item'+(i===_cmdkSel?' sel':'')+'" data-cmdk-i="'+i+'"><span class="ic">'+it.ic+'</span><span>'+it.label+'</span><span class="sub">'+it.sub+'</span></div>';}).join('');
+    Array.prototype.forEach.call(list.querySelectorAll('.cmdk-item'),function(el){
+        el.addEventListener('click',function(){runCmdK(parseInt(el.getAttribute('data-cmdk-i'),10));});
+        el.addEventListener('mouseenter',function(){_cmdkSel=parseInt(el.getAttribute('data-cmdk-i'),10);highlightCmdK();});
+    });
+}
+function highlightCmdK(){var list=document.getElementById('cmdk-list');if(!list)return;Array.prototype.forEach.call(list.querySelectorAll('.cmdk-item'),function(el,i){el.classList.toggle('sel',i===_cmdkSel);});}
+function runCmdK(i){var it=_cmdkFiltered[i];if(it&&typeof it.action==='function'){closeCmdK();setTimeout(it.action,80);}}
+document.addEventListener('keydown',function(e){
+    var bd=document.getElementById('cmdk');var open=bd&&bd.classList.contains('open');
+    if((e.ctrlKey||e.metaKey)&&(e.key==='k'||e.key==='K')){e.preventDefault();open?closeCmdK():openCmdK();return;}
+    if(!open)return;
+    if(e.key==='Escape'){e.preventDefault();closeCmdK();}
+    else if(e.key==='ArrowDown'){e.preventDefault();_cmdkSel=Math.min(_cmdkSel+1,_cmdkFiltered.length-1);highlightCmdK();}
+    else if(e.key==='ArrowUp'){e.preventDefault();_cmdkSel=Math.max(_cmdkSel-1,0);highlightCmdK();}
+    else if(e.key==='Enter'){e.preventDefault();runCmdK(_cmdkSel);}
+});
+(function(){var inp=document.getElementById('cmdk-input');if(inp)inp.addEventListener('input',function(){_cmdkSel=0;renderCmdK(this.value);});})();
+
+/* --- Skeleton helper (additive — call before slow loads if desired) --- */
+function fillSkeletonRows(tbodyId,cols,rows){
+    var tb=document.getElementById(tbodyId);if(!tb)return;
+    rows=rows||4;
+    var html='';
+    for(var r=0;r<rows;r++){
+        html+='<tr class="skeleton-row">';
+        for(var c=0;c<cols;c++){html+='<td><span class="skeleton-bar '+(c%3===0?'lg':c%3===1?'':'sm')+'"></span></td>';}
+        html+='</tr>';
+    }
+    tb.innerHTML=html;
+}
+
+/* --- Row menu helper (⋯) --- */
+function rowMenuHTML(items){
+    var inner=items.map(function(it){
+        if(it==='-')return '<hr>';
+        var cls=it.danger?'danger':'';
+        return '<button class="'+cls+'" onclick="closeRowMenus();('+it.fn+')()"><span>'+(it.ic||'•')+'</span><span>'+it.label+'</span></button>';
+    }).join('');
+    return '<div class="row-menu" onclick="event.stopPropagation()"><button class="row-menu-btn" onclick="toggleRowMenu(this)" aria-label="More">⋯</button><div class="row-menu-pop">'+inner+'</div></div>';
+}
+function toggleRowMenu(btn){
+    var menu=btn.parentElement;
+    var wasOpen=menu.classList.contains('open');
+    closeRowMenus();
+    if(!wasOpen)menu.classList.add('open');
+}
+function closeRowMenus(){document.querySelectorAll('.row-menu.open').forEach(function(m){m.classList.remove('open');});}
+document.addEventListener('click',function(e){
+    if(!e.target.closest('.row-menu'))closeRowMenus();
+});
+
+/* --- Content Manager renderer (Pass 4) --- */
+var CM_SECTIONS=[
+    {ic:'🖼',title:'Hero Carousel',desc:'Main rotating banner on the homepage. Edit slides, captions, links, order.',meta:'Homepage',tab:'homepage',sec:'hero',countId:'sc-hero-count'},
+    {ic:'📢',title:'Spotlights',desc:'Optional extra hero announcements.',meta:'Homepage',tab:'homepage',sec:'spotlight',countId:'sc-spotlight-count'},
+    {ic:'🔴',title:'Ongoing Now',desc:'Live event strip with photos pulled from Drive folder.',meta:'Homepage',tab:'homepage',sec:'ongoing'},
+    {ic:'🤝',title:'Partners & CTA',desc:'Logo strip + bottom call-to-action block.',meta:'Homepage',tab:'homepage',sec:'sections'},
+    {ic:'🌐',title:'Navbar & Footer',desc:'Logo, links, contact, social icons across every page.',meta:'Site-wide',tab:'sitecontent'},
+    {ic:'❤️',title:'Donate Popup',desc:'Floating donate button + preset amounts.',meta:'Site-wide',tab:'sitecontent'},
+    {ic:'📊',title:'Site Stats',desc:'Numbers shown on Membership / About / Research pages.',meta:'Site-wide',tab:'sitecontent'},
+    {ic:'🖼️',title:'Media Gallery',desc:'Shared images library reused across the site.',meta:'Site-wide',tab:'sitecontent'},
+    {ic:'📅',title:'Events',desc:'Create, edit, hide, or delete events.',meta:'Operations',tab:'events',countId:'tab-ev-cnt'},
+    {ic:'📝',title:'Blog Posts',desc:'Articles on the public blog. Edit, hide, comments.',meta:'Content',tab:'blog',countId:'tab-blog-cnt'},
+    {ic:'👔',title:'Leadership Bios',desc:'About page leader cards, photos, and bios.',meta:'About page',tab:'leadership',countId:'tab-lead-cnt'},
+    {ic:'📄',title:'Publications',desc:'Journal/conference papers on the Research page.',meta:'Research',tab:'research'},
+    {ic:'🎓',title:'Grants',desc:'Open/closing grants and applicant tracker.',meta:'Research',tab:'research'}
+];
+function renderContentManager(){
+    var grid=document.getElementById('cm-grid');if(!grid)return;
+    var q=(document.getElementById('cm-search')||{}).value||'';q=q.toLowerCase();
+    var items=q?CM_SECTIONS.filter(function(s){return (s.title+' '+s.desc+' '+s.meta).toLowerCase().indexOf(q)>-1;}):CM_SECTIONS;
+    if(!items.length){grid.innerHTML='<div class="empty"><div class="big">🔍</div>No matching sections.</div>';return;}
+    grid.innerHTML=items.map(function(s){
+        var cnt='';if(s.countId){var el=document.getElementById(s.countId);if(el)cnt='<span class="cm-status on"><span class="dot"></span>'+esc(el.textContent||'0')+'</span>';}
+        var openFn=s.sec?("function(){showTab('"+s.tab+"');setTimeout(function(){try{goToHomepageSection('"+s.sec+"');}catch(e){}},220);}"):("function(){showTab('"+s.tab+"');}");
+        return '<div class="cm-card">'+
+            '<div class="cm-card-hd"><div class="cm-card-ic">'+s.ic+'</div><div class="cm-card-title">'+esc(s.title)+'</div></div>'+
+            '<div class="cm-card-desc">'+esc(s.desc)+'</div>'+
+            '<div class="cm-card-foot"><span class="cm-card-meta">'+esc(s.meta)+'</span>'+cnt+
+            '<button class="btn-sm cm-quick-btn" onclick="('+openFn+')()">Open ↗</button></div>'+
+        '</div>';
+    }).join('');
+    /* refresh quick stats */
+    var map={'cm-stat-hero':'sc-hero-count','cm-stat-spot':'sc-spotlight-count','cm-stat-ev':'tab-ev-cnt','cm-stat-blog':'tab-blog-cnt','cm-stat-lead':'tab-lead-cnt','cm-stat-pub':'rs-pubs'};
+    Object.keys(map).forEach(function(k){var dst=document.getElementById(k),src=document.getElementById(map[k]);if(dst&&src)dst.textContent=src.textContent;});
+}
+window.addEventListener('load',function(){setTimeout(renderContentManager,400);});
+setInterval(function(){if(document.querySelector('#panel-content.active'))renderContentManager();},2500);
+/* Mirror badge counts from hidden top tabs into the sidebar items */
+function syncSidebarBadges(){
+    var pairs=[['tab-ev-cnt','sb-ev-cnt'],['tab-mem-cnt','sb-mem-cnt'],['tab-pay-cnt','sb-pay-cnt'],['tab-res-cnt','sb-res-cnt'],['tab-lead-cnt','sb-lead-cnt'],['tab-blog-cnt','sb-blog-cnt']];
+    pairs.forEach(function(p){var src=document.getElementById(p[0]),dst=document.getElementById(p[1]);if(src&&dst&&dst.textContent!==src.textContent)dst.textContent=src.textContent;});
+}
+setInterval(syncSidebarBadges,800);
+/* Global quick-search — filters tables on the current panel by typing in the topbar */
+function globalSearch(q){
+    q=(q||'').trim().toLowerCase();
+    var active=document.querySelector('.panel.active');
+    if(!active)return;
+    var tbody=active.querySelector('tbody');
+    if(!tbody)return;
+    var rows=tbody.querySelectorAll('tr');
+    rows.forEach(function(r){
+        if(!q){r.style.display='';return;}
+        var txt=(r.textContent||'').toLowerCase();
+        r.style.display=txt.indexOf(q)>-1?'':'none';
+    });
+}
+/* Restore collapsed state on load */
+try{if(localStorage.getItem('adminSidebarCollapsed')==='1'){var _sb=document.getElementById('sidebar');if(_sb)_sb.classList.add('collapsed');}}catch(e){}
 function toggleCollapse(btn){
     var sec=btn&&btn.closest?btn.closest('.collapse-sec'):null;
     if(sec)sec.classList.toggle('open');
@@ -2126,6 +2938,22 @@ function toggleCollapse(btn){
 function setHpSubnavActive(section){
     document.querySelectorAll('#hp-subnav [data-hp-sec]').forEach(function(b){
         b.classList.toggle('active',b.getAttribute('data-hp-sec')===section);
+    });
+    document.querySelectorAll('#panel-homepage .hp-section').forEach(function(s){
+        s.classList.toggle('active',s.id==='hp-section-'+section);
+    });
+    try{sessionStorage.setItem('hp_active_section',section||'overview');}catch(e){}
+}
+function updateHpTabCounts(){
+    var map={
+        overview:document.querySelectorAll('#hp-overview-body tr[data-hp-id]').length || (Array.isArray(window._heroSlides)?_heroSlides.length:0),
+        hero:Array.isArray(window._heroSlides)?_heroSlides.length:0,
+        ongoing:document.querySelectorAll('#sc-ongoing-body tr[data-ev-id]').length,
+        spotlight:Array.isArray(window._spotlights)?_spotlights.length:0
+    };
+    Object.keys(map).forEach(function(k){
+        var el=document.getElementById('hp-tab-count-'+k);
+        if(el)el.textContent=map[k]||0;
     });
 }
 
@@ -3475,6 +4303,8 @@ function renderMembers(){
             +'<td style="font-size:.76rem;">'+expiresAt+'</td>'
             +'<td style="white-space:nowrap;">'
             +'<button class="btn-sm" onclick="reviewMember('+m.id+')" title="Review application">✏️</button> '
+            +'<button class="btn-sm" onclick="awardCpd('+m.id+',\''+esc(m.full_name).replace(/\\\'/g,"\\'")+'\')" title="Award CPD points">🎓</button> '
+            +((derived==='active'||derived==='honorary')?'<a class="btn-sm btn-nodecor" style="background:#dbeafe;color:#1e40af;border:1px solid #c7d7fa;" href="certificate.php?member='+m.id+'" target="_blank" title="Open certificate">🏅</a> ':'')
             +'<button class="btn-sm btn-icon-del" onclick="deleteMember('+m.id+')" title="Delete member permanently">🗑️</button>'
             +'</td></tr>';
     });
@@ -4463,7 +5293,10 @@ window.showTab=function(name, opts){
     if(name==='leadership')loadLeaders();
     if(name==='blog')loadBlogPosts();
     if(name==='sitecontent'){loadSiteChromeForm();loadSiteStats();loadSiteMedia();}
-    if(name==='homepage'){loadHomepageOverview();loadHeroSlides();loadOngoingNowPanel();loadSpotlights();loadHomepageExtrasForm();}
+    if(name==='homepage'){
+        loadHomepageOverview();loadHeroSlides();loadOngoingNowPanel();loadSpotlights();loadHomepageExtrasForm();
+        try{var _hpLast=sessionStorage.getItem('hp_active_section')||'overview';setHpSubnavActive(_hpLast);}catch(e){}
+    }
     if(name==='overview')loadAuditLogs();
 };
 function applyAdminHashTab(){
@@ -4476,11 +5309,12 @@ function applyAdminHashTab(){
 function goToHomepageSection(section){
     showTab('homepage');
     setHpSubnavActive(section||'overview');
-    setTimeout(function(){
-        var el=document.getElementById('hp-section-'+(section||'overview'));
-        if(el)el.scrollIntoView({behavior:'smooth',block:'start'});
-        if(section==='hero'&&!_heroSlides.length)openHeroSlideModal();
-    },150);
+    var main=document.querySelector('.main');
+    if(main)main.scrollTop=0;
+    window.scrollTo({top:0,behavior:'auto'});
+    if(section==='hero'&&Array.isArray(window._heroSlides)&&!_heroSlides.length){
+        setTimeout(function(){try{openHeroSlideModal();}catch(e){}},150);
+    }
 }
 
 var _homepageExtras={partners:{title:'',items:[]},cta:{}};
@@ -4798,6 +5632,7 @@ function adminThumbSrc(img){
 }
 function renderHeroSlideTable(){
     document.getElementById('sc-hero-count').textContent=_heroSlides.length;
+    try{updateHpTabCounts();}catch(e){}
     var tb=document.getElementById('sc-hero-body');
     if(!_heroSlides.length){tb.innerHTML='<tr><td colspan="7" class="empty"><div class="big">🖼</div>No hero slides yet. Add slides to build the homepage carousel.</td></tr>';return;}
     tb.innerHTML=_heroSlides.map(function(s){
@@ -5161,8 +5996,10 @@ function loadOngoingNowPanel(){
         });
         if(!enabled.length){
             tb.innerHTML='<tr><td colspan="5" class="empty"><div class="big">🔴</div>No events enabled for Ongoing Now. Open <strong>Events</strong> → edit a live event → <strong>Content Blocks</strong> → turn on <strong>Show in Ongoing Now</strong> and paste your Drive folder link.</td></tr>';
+            var oC0=document.getElementById('hp-tab-count-ongoing');if(oC0)oC0.textContent='0';
             return;
         }
+        var oC=document.getElementById('hp-tab-count-ongoing');if(oC)oC.textContent=enabled.length;
         var slideByEvent={};
         (spot.spotlight_slides||[]).forEach(function(s){if(s.event_id)slideByEvent[s.event_id]=s;});
         tb.innerHTML=enabled.map(function(ev){
@@ -5198,6 +6035,7 @@ function loadSpotlights(){
 }
 function renderSpotlightTable(){
     document.getElementById('sc-spotlight-count').textContent=_spotlights.length;
+    try{updateHpTabCounts();}catch(e){}
     var tb=document.getElementById('sc-spotlight-tbody');
     if(!_spotlights.length){tb.innerHTML='<tr><td colspan="9" class="empty"><div class="big">🔴</div>No spotlight items yet. Add announcements or important info.</td></tr>';return;}
     tb.innerHTML=_spotlights.map(function(s){
@@ -5797,6 +6635,7 @@ function loadHomepageOverview(){
             return;
         }
         var items=d.items||[];
+        var ovC=document.getElementById('hp-tab-count-overview');if(ovC)ovC.textContent=items.length;
         if(!items.length){
             tb.innerHTML='<tr><td colspan="5" class="empty"><div class="big">🏠</div>No homepage content configured yet. Add hero slides, enable a live event, or edit partners below.</td></tr>';
         } else {
@@ -5864,6 +6703,278 @@ function previewHomepage(){
         }).join('')+'</div>';
     }).catch(function(){if(box)box.innerHTML='<p class="empty">Preview failed — check connection.</p>';});
 }
+
+/* ─────────────────────────────────────────────────────────────────────
+ * RENEWAL REMINDERS — trigger the dispatcher from the admin UI.
+ * ───────────────────────────────────────────────────────────────────── */
+function runRenewalReminders(dryRun){
+    var verb=dryRun?'Preview':'Send';
+    if(!dryRun && !confirm('Send today\'s renewal reminder emails to eligible members?')) return;
+    var form=new FormData();
+    form.append('action','run_renewal_reminders');
+    if(dryRun) form.append('dry_run','1');
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert('Renewals: '+(d.error||'failed'));return;}
+            var msg=verb+' complete.\n\n'
+                +'Candidates: '+d.candidates+'\n'
+                +(dryRun?'Would send: ':'Sent: ')+d.sent+'\n'
+                +'Already-sent (skipped): '+d.skipped+'\n'
+                +'Failed: '+d.failed;
+            alert(msg);
+        })
+        .catch(function(){alert('Renewals: network error.');});
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * COMMITTEES / WORKING GROUPS
+ * ───────────────────────────────────────────────────────────────────── */
+var _committees=[]; var _currentCommitteeId=null;
+function loadCommittees(){
+    fetch('api.php?action=list_committees_admin',{credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success)return;
+            _committees=d.committees||[];
+            renderCommittees();
+        }).catch(function(){});
+}
+function renderCommittees(){
+    var body=document.getElementById('com-body');
+    var cnt=document.getElementById('com-count');
+    var tabCnt=document.getElementById('tab-com-cnt');
+    var total=_committees.length;
+    var active=_committees.filter(function(c){return parseInt(c.is_active,10)===1;}).length;
+    var memberTot=_committees.reduce(function(s,c){return s+(parseInt(c.member_count,10)||0);},0);
+    var t=document.getElementById('com-total'); if(t)t.textContent=total;
+    var a=document.getElementById('com-active'); if(a)a.textContent=active;
+    var mc=document.getElementById('com-members'); if(mc)mc.textContent=memberTot;
+    if(cnt)cnt.textContent=total;
+    if(tabCnt)tabCnt.textContent=total;
+    if(!body) return;
+    if(!total){
+        body.innerHTML='<tr><td colspan="5" class="empty"><div class="big">🧑‍🤝‍🧑</div>No working groups yet. Create one to get started.</td></tr>';
+        return;
+    }
+    body.innerHTML=_committees.map(function(c){
+        var act=parseInt(c.is_active,10)===1;
+        return '<tr>'
+            +'<td><strong>'+esc(c.name)+'</strong><div style="font-size:.72rem;color:var(--text-light);">'+esc(c.slug||'')+'</div></td>'
+            +'<td>'+esc(c.discipline||'—')+'</td>'
+            +'<td>'+esc(String(c.member_count||0))+'</td>'
+            +'<td>'+(act?'<span class="badge" style="background:#dcfce7;color:#166534;">Active</span>':'<span class="badge" style="background:#fee2e2;color:#991b1b;">Hidden</span>')+'</td>'
+            +'<td>'
+            +  '<button class="btn-sm" onclick="openCommitteeRoster('+c.id+')">👥 Members</button> '
+            +  '<button class="btn-sm" onclick="openCommitteeModal('+c.id+')">✏</button> '
+            +  '<button class="btn-sm" style="background:#fee2e2;color:#991b1b;" onclick="deleteCommittee('+c.id+')">🗑</button>'
+            +'</td>'
+            +'</tr>';
+    }).join('');
+}
+function openCommitteeModal(id){
+    var c=id?(_committees.find(function(x){return x.id==id;})||{}):{};
+    var name=prompt('Working group name:', c.name||'');
+    if(name===null) return;
+    if(!name.trim()){alert('Name is required.');return;}
+    var description=prompt('Short description (optional):', c.description||'')||'';
+    var discipline=prompt('Discipline (e.g. medical-oncology, hematology, palliative):', c.discipline||'general')||'general';
+    var form=new FormData();
+    form.append('action','save_committee');
+    if(id) form.append('id', id);
+    form.append('name', name.trim());
+    form.append('description', description);
+    form.append('discipline', discipline);
+    form.append('is_active','1');
+    form.append('sort_order', String((c.sort_order||0)));
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert(d.error||'Failed to save');return;}
+            loadCommittees();
+        });
+}
+function deleteCommittee(id){
+    var c=_committees.find(function(x){return x.id==id;});
+    if(!c) return;
+    if(!confirm('Delete the "'+c.name+'" working group?\nMembers will be removed from this group but their member records are kept.')) return;
+    var form=new FormData();
+    form.append('action','delete_committee');
+    form.append('id', id);
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert(d.error||'Failed');return;}
+            if(_currentCommitteeId==id){_currentCommitteeId=null;var rc=document.getElementById('com-roster-card');if(rc)rc.classList.add('hidden');}
+            loadCommittees();
+        });
+}
+function openCommitteeRoster(id){
+    _currentCommitteeId=id;
+    var c=_committees.find(function(x){return x.id==id;})||{name:'—'};
+    var t=document.getElementById('com-roster-title'); if(t)t.textContent='Members of '+c.name;
+    var card=document.getElementById('com-roster-card'); if(card)card.classList.remove('hidden');
+    var body=document.getElementById('com-roster-body');
+    if(body)body.innerHTML='<tr><td colspan="6" class="empty">Loading…</td></tr>';
+    fetch('api.php?action=list_committee_members&committee_id='+id,{credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){if(body)body.innerHTML='<tr><td colspan="6" class="empty">Could not load.</td></tr>';return;}
+            var rows=d.members||[];
+            if(!rows.length){if(body)body.innerHTML='<tr><td colspan="6" class="empty">No members assigned yet.</td></tr>';return;}
+            if(!body) return;
+            body.innerHTML=rows.map(function(r){
+                return '<tr>'
+                    +'<td><strong>'+esc(r.full_name||'')+'</strong><div style="font-size:.72rem;color:var(--text-light);">'+esc(r.membership_number||'')+'</div></td>'
+                    +'<td>'+esc(r.category_name||'—')+'</td>'
+                    +'<td>'+esc(r.institution||'—')+'</td>'
+                    +'<td><span class="badge" style="background:#dbeafe;color:#1e40af;">'+esc(r.role||'member')+'</span></td>'
+                    +'<td>'+esc((r.joined_at||'').slice(0,10))+'</td>'
+                    +'<td><button class="btn-sm" style="background:#fee2e2;color:#991b1b;" onclick="removeCommitteeMember('+r.id+')">✕</button></td>'
+                    +'</tr>';
+            }).join('');
+        });
+}
+function openCommitteeAddMember(){
+    if(!_currentCommitteeId){alert('Open a committee first.');return;}
+    if(!window._members||!_members.length){alert('Member list not loaded yet. Open Members tab once and retry.');return;}
+    var query=prompt('Search member by name or email (type a few characters):');
+    if(!query) return;
+    var q=query.toLowerCase().trim();
+    var matches=_members.filter(function(m){
+        return (m.full_name||'').toLowerCase().indexOf(q)!==-1 || (m.email||'').toLowerCase().indexOf(q)!==-1;
+    });
+    if(!matches.length){alert('No matching member found.');return;}
+    var pick;
+    if(matches.length===1){
+        pick=matches[0];
+    } else {
+        var list=matches.slice(0,10).map(function(m,i){return (i+1)+'. '+m.full_name+' <'+m.email+'>';}).join('\n');
+        var idx=prompt('Multiple matches — pick a number:\n\n'+list);
+        if(idx===null) return;
+        pick=matches[parseInt(idx,10)-1];
+        if(!pick){alert('Invalid choice.');return;}
+    }
+    var role=prompt('Role (member, chair, co-chair, secretary, treasurer):','member')||'member';
+    var form=new FormData();
+    form.append('action','add_committee_member');
+    form.append('committee_id', _currentCommitteeId);
+    form.append('member_id', pick.id);
+    form.append('role', role);
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert(d.error||'Failed');return;}
+            openCommitteeRoster(_currentCommitteeId);
+            loadCommittees();
+        });
+}
+function removeCommitteeMember(rowId){
+    if(!confirm('Remove this member from the committee?')) return;
+    var form=new FormData();
+    form.append('action','remove_committee_member');
+    form.append('id', rowId);
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert(d.error||'Failed');return;}
+            if(_currentCommitteeId) openCommitteeRoster(_currentCommitteeId);
+            loadCommittees();
+        });
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * BROADCAST EMAIL
+ * ───────────────────────────────────────────────────────────────────── */
+function onBroadcastAudienceChange(){
+    var v=document.getElementById('bc-audience').value;
+    var wrap=document.getElementById('bc-committee-wrap');
+    if(v==='committee'){
+        wrap.classList.remove('hidden');
+        var sel=document.getElementById('bc-committee');
+        sel.innerHTML=_committees.map(function(c){return '<option value="'+c.id+'">'+esc(c.name)+'</option>';}).join('');
+    } else {
+        wrap.classList.add('hidden');
+    }
+}
+function broadcastPreview(){
+    var form=new FormData();
+    form.append('action','broadcast_email_preview');
+    form.append('audience', document.getElementById('bc-audience').value);
+    var cid=document.getElementById('bc-committee').value;
+    if(cid) form.append('committee_id', cid);
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            var s=document.getElementById('bc-status');
+            if(!d.success){s.textContent='Preview failed: '+(d.error||'');s.style.color='#dc2626';return;}
+            var sample=(d.sample||[]).map(function(x){return x.name;}).slice(0,5).join(', ');
+            s.style.color='var(--text-light)';
+            s.textContent=d.recipient_count+' recipient(s) — sample: '+(sample||'—');
+        }).catch(function(){
+            var s=document.getElementById('bc-status');
+            if(s)s.textContent='Preview failed.';
+        });
+}
+function broadcastSend(){
+    var subj=document.getElementById('bc-subject').value.trim();
+    var body=document.getElementById('bc-body').value.trim();
+    if(!subj||!body){alert('Subject and body are required.');return;}
+    if(!confirm('Send this broadcast to the selected audience? This cannot be undone.')) return;
+    var s=document.getElementById('bc-status');
+    s.textContent='Sending… please wait.';s.style.color='var(--text-light)';
+    var form=new FormData();
+    form.append('action','broadcast_email_send');
+    form.append('audience', document.getElementById('bc-audience').value);
+    var cid=document.getElementById('bc-committee').value;
+    if(cid) form.append('committee_id', cid);
+    form.append('subject', subj);
+    form.append('body', body);
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){s.textContent='Send failed: '+(d.error||'');s.style.color='#dc2626';return;}
+            s.style.color='#166534';
+            s.textContent='Sent '+d.sent+' / '+d.total+' message(s). Failed: '+d.failed+'.';
+        }).catch(function(){
+            s.textContent='Network error.';s.style.color='#dc2626';
+        });
+}
+
+/* ─────────────────────────────────────────────────────────────────────
+ * CPD POINTS — quick-award from the members table
+ * ───────────────────────────────────────────────────────────────────── */
+function awardCpd(memberId, memberName){
+    var activity=prompt('CPD activity description (for '+(memberName||'member')+'):');
+    if(!activity) return;
+    var points=parseInt(prompt('Points to award:','5'),10);
+    if(!points||points<=0){alert('Enter a positive integer.');return;}
+    var date=prompt('Activity date (YYYY-MM-DD):', new Date().toISOString().slice(0,10));
+    if(!date) return;
+    var form=new FormData();
+    form.append('action','add_cpd_entry');
+    form.append('member_id', memberId);
+    form.append('activity', activity);
+    form.append('points', points);
+    form.append('activity_date', date);
+    form.append('source','manual');
+    fetch('api.php',{method:'POST',body:form,credentials:'same-origin'})
+        .then(function(r){return r.json();})
+        .then(function(d){
+            if(!d.success){alert(d.error||'Failed');return;}
+            alert('Awarded '+points+' CPD point(s).');
+            try{loadMembers();}catch(e){}
+        });
+}
+
+/* Auto-load committees alongside the rest of admin data */
+(function(){
+    var origLoad=window.loadAll;
+    window.loadAll=function(){
+        try{origLoad&&origLoad();}catch(e){}
+        try{loadCommittees();}catch(e){}
+    };
+})();
 </script>
 </body>
 </html>
