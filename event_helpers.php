@@ -2982,7 +2982,7 @@ function defaultSiteChrome(): array
             'social_title' => 'Stay Connected',
             'social_blurb' => 'Follow us for updates.',
             'social' => [
-                'linkedin' => '',
+                'linkedin' => 'https://www.linkedin.com/company/hematology-oncology-society-of-uganda',
                 'twitter' => 'https://x.com/Hem0nc_Uganda',
                 'facebook' => '',
                 'youtube' => '',
@@ -3000,17 +3000,37 @@ function defaultSiteChrome(): array
     ];
 }
 
+function isListArray(array $arr): bool
+{
+    if ($arr === []) {
+        return true;
+    }
+
+    return array_keys($arr) === range(0, count($arr) - 1);
+}
+
 function mergeSiteChrome(array $defaults, array $saved): array
 {
     foreach ($defaults as $key => $val) {
-        if (!isset($saved[$key])) {
+        if (!array_key_exists($key, $saved) || $saved[$key] === null) {
             $saved[$key] = $val;
             continue;
         }
-        if (is_array($val) && is_array($saved[$key]) && array_keys($val) !== range(0, count($val) - 1)) {
-            $saved[$key] = mergeSiteChrome($val, $saved[$key]);
+        if (!is_array($val) || !is_array($saved[$key])) {
+            if (is_string($val) && is_string($saved[$key]) && trim($saved[$key]) === '' && trim($val) !== '') {
+                $saved[$key] = $val;
+            }
+            continue;
         }
+        if (isListArray($val)) {
+            if (empty($saved[$key]) && !empty($val)) {
+                $saved[$key] = $val;
+            }
+            continue;
+        }
+        $saved[$key] = mergeSiteChrome($val, $saved[$key]);
     }
+
     return $saved;
 }
 
@@ -3362,6 +3382,14 @@ function repairEmptyHomepageSettings(PDO $pdo): array
         if (empty(trim((string) ($cta['title'] ?? '')))) {
             saveHomepageSetting($pdo, 'cta', defaultHomepageCta());
             $repaired[] = 'cta';
+        }
+    }
+    if (homepageSettingKeyExists($pdo, 'site_chrome')) {
+        $saved = loadHomepageSetting($pdo, 'site_chrome', []);
+        $merged = mergeSiteChrome(defaultSiteChrome(), is_array($saved) ? $saved : []);
+        if (json_encode($merged) !== json_encode($saved)) {
+            saveHomepageSetting($pdo, 'site_chrome', $merged);
+            $repaired[] = 'site_chrome (footer/nav repaired)';
         }
     }
     return $repaired;

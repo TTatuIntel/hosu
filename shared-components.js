@@ -131,16 +131,63 @@
             website: 'https://hosu.or.ug',
             social_title: 'Stay Connected',
             social_blurb: 'Follow us for updates.',
-            social: { twitter: 'https://x.com/Hem0nc_Uganda' },
+            social: {
+                linkedin: 'https://www.linkedin.com/company/hematology-oncology-society-of-uganda',
+                twitter: 'https://x.com/Hem0nc_Uganda',
+                facebook: '',
+                youtube: ''
+            },
             support_title: 'Support',
             support_name: 'Official HOSU Support'
         }
     };
 
+    function isList(val) {
+        return Array.isArray(val);
+    }
+
+    function mergeChromeWithDefaults(chrome) {
+        var defaults = DEFAULT_CHROME;
+        if (!chrome || typeof chrome !== 'object') {
+            return JSON.parse(JSON.stringify(defaults));
+        }
+        var out = JSON.parse(JSON.stringify(chrome));
+        function merge(def, saved) {
+            Object.keys(def).forEach(function (key) {
+                if (!(key in saved) || saved[key] === null || saved[key] === undefined) {
+                    saved[key] = def[key];
+                    return;
+                }
+                if (typeof def[key] === 'object' && def[key] !== null && !isList(def[key])) {
+                    if (typeof saved[key] !== 'object' || saved[key] === null || isList(saved[key])) {
+                        saved[key] = def[key];
+                    } else {
+                        merge(def[key], saved[key]);
+                    }
+                    return;
+                }
+                if (isList(def[key])) {
+                    if ((!saved[key] || !saved[key].length) && def[key].length) {
+                        saved[key] = def[key].slice();
+                    }
+                    return;
+                }
+                if (typeof def[key] === 'string' && (!saved[key] || !String(saved[key]).trim()) && def[key]) {
+                    saved[key] = def[key];
+                }
+            });
+            return saved;
+        }
+        merge(defaults, out);
+        return out;
+    }
+
     function getChrome() {
         var boot = window.__HOSU_SITE_CHROME;
-        if (boot && boot.success && boot.chrome) return boot.chrome;
-        return DEFAULT_CHROME;
+        if (boot && boot.success && boot.chrome) {
+            return mergeChromeWithDefaults(boot.chrome);
+        }
+        return JSON.parse(JSON.stringify(DEFAULT_CHROME));
     }
 
     function buildNavbarHtml(chrome) {
@@ -175,7 +222,7 @@
     }
 
     function buildFooterHtml(chrome) {
-        var ft = (chrome && chrome.footer) || {};
+        var ft = (mergeChromeWithDefaults(chrome || {}).footer) || {};
         var quickLinks = (ft.quick_links || []).map(function (l) {
             return '<li><a href="' + esc(l.url) + '">' + esc(l.label) + '</a></li>';
         }).join('');
@@ -187,11 +234,11 @@
         var email = ft.email || '';
         var website = ft.website || '';
         var social = ft.social || {};
+        var defaultSocial = DEFAULT_CHROME.footer.social || {};
         var socialHtml = '';
         ['linkedin', 'twitter', 'facebook', 'youtube'].forEach(function (p) {
-            if (social[p]) {
-                socialHtml += '<a href="' + esc(social[p]) + '" target="_blank" rel="noopener" aria-label="' + p + '">' + socialIcon(p) + '</a>';
-            }
+            var url = social[p] || defaultSocial[p] || '#';
+            socialHtml += '<a href="' + esc(url) + '" target="_blank" rel="noopener" aria-label="' + p + '">' + socialIcon(p) + '</a>';
         });
         return (
             '<div class="footer-content">' +
