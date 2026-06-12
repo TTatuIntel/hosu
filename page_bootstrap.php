@@ -30,6 +30,8 @@ try {
             'spotlight_slides' => $spotlight['spotlight_slides'],
             'hero_spotlights' => $spotlight['hero_spotlights'],
             'has_live' => $spotlight['has_live'] ?? false,
+            'ongoing_settings' => $spotlight['ongoing_settings'] ?? defaultOngoingNowSettings(),
+            'ongoing_mode' => $spotlight['ongoing_mode'] ?? 'empty',
             'featured' => fetchHomeFeaturedPayload($pdo),
             'slides' => loadHomepageHeroSlides($pdo, true),
             'homepage_extras' => fetchHomepageExtrasPayload($pdo),

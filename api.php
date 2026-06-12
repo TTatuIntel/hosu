@@ -1982,7 +1982,7 @@ HTML;
             $isFree = !empty($isFreeRaw) && $isFreeRaw !== '0' ? 1 : 0;
             $eventFee = $isFree ? 0 : max(0, (float)$mergeField('event_fee', $existing['event_fee'] ?? 0));
 
-            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?, speakers=?, highlights=?, announcements=?, display_start=?, display_end=?, display_for_event=?, pinned=?, home_priority=?, post_event_display_days=?, live_message=?, live_cta_label=?, live_cta_url=?, drive_folder_url=?, show_live_on_home=?";
+            $fields = "type=?, status=?, imageAlt=?, countdown=?, date=?, title=?, description=?, location=?, featured=?, category=?, is_free=?, event_fee=?, date_start=?, date_end=?, speakers=?, highlights=?, announcements=?, display_start=?, display_end=?, display_for_event=?, pinned=?, home_priority=?, post_event_display_days=?, live_message=?, live_cta_label=?, live_cta_url=?, drive_folder_url=?, show_live_on_home=?, show_upcoming_in_ongoing=?";
             $vals = [
                 $mergeField('type', $existing['type'] ?? ''),
                 $status,
@@ -2012,6 +2012,7 @@ HTML;
                 $liveFields['live_cta_url'],
                 $liveFields['drive_folder_url'],
                 $liveFields['show_live_on_home'],
+                $liveFields['show_upcoming_in_ongoing'],
             ];
             if ($imagePath !== null) {
                 $fields .= ', image=?';
@@ -2828,7 +2829,7 @@ HTML;
             if (!$id) { echo json_encode(['success' => false, 'error' => 'Missing event id']); break; }
             migrateEventSchema($pdo);
             $now = (new DateTimeImmutable())->format('Y-m-d H:i:s');
-            $stmt = $pdo->prepare('UPDATE events SET featured = 0, pinned = 0, show_live_on_home = 0, display_end = ?, display_for_event = 0, post_event_display_days = 0 WHERE id = ?');
+            $stmt = $pdo->prepare('UPDATE events SET featured = 0, pinned = 0, show_live_on_home = 0, show_upcoming_in_ongoing = 0, display_end = ?, display_for_event = 0, post_event_display_days = 0 WHERE id = ?');
             $stmt->execute([$now, $id]);
             auditLog($pdo, 'remove_event_from_home', 'event', $id);
             echo json_encode(['success' => true]);
@@ -3224,6 +3225,81 @@ HTML;
         }
         break;
 
+    case 'get_ongoing_admin_panel':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            echo json_encode(['success' => true] + fetchOngoingAdminPanel($pdo));
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_spotlight_ongoing':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = (int) ($_POST['id'] ?? 0);
+            $show = !empty($_POST['show_in_spotlight']) && $_POST['show_in_spotlight'] !== '0' ? 1 : 0;
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE homepage_spotlights SET show_in_spotlight = ? WHERE id = ?')->execute([$show, $id]);
+            auditLog($pdo, 'toggle_spotlight_ongoing', 'spotlight', (string) $id, $show ? 'in_lineup' : 'out');
+            echo json_encode(['success' => true, 'show_in_spotlight' => $show]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'toggle_event_upcoming_ongoing':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            $id = trim((string) ($_POST['id'] ?? ''));
+            $show = !empty($_POST['show_upcoming_in_ongoing']) && $_POST['show_upcoming_in_ongoing'] !== '0' ? 1 : 0;
+            if ($id === '') { http_response_code(400); echo json_encode(['error' => 'Invalid id']); break; }
+            $pdo->prepare('UPDATE events SET show_upcoming_in_ongoing = ? WHERE id = ?')->execute([$show, $id]);
+            auditLog($pdo, 'toggle_event_upcoming_ongoing', 'event', $id, $show ? 'in_lineup' : 'out');
+            echo json_encode(['success' => true, 'show_upcoming_in_ongoing' => $show]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'save_ongoing_settings':
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            migrateEventSchema($pdo);
+            if ($_SERVER['REQUEST_METHOD'] !== 'POST') {
+                http_response_code(405); echo json_encode(['error' => 'POST required']); break;
+            }
+            $defaults = defaultOngoingNowSettings();
+            $settings = normalizeOngoingNowSettings([
+                'section_title' => trim((string) ($_POST['section_title'] ?? $defaults['section_title'])),
+                'section_subtitle' => trim((string) ($_POST['section_subtitle'] ?? $defaults['section_subtitle'])),
+                'subtitle_upcoming' => trim((string) ($_POST['subtitle_upcoming'] ?? $defaults['subtitle_upcoming'])),
+                'eyebrow_live' => trim((string) ($_POST['eyebrow_live'] ?? $defaults['eyebrow_live'])),
+                'eyebrow_upcoming' => trim((string) ($_POST['eyebrow_upcoming'] ?? $defaults['eyebrow_upcoming'])),
+                'eyebrow_updates' => trim((string) ($_POST['eyebrow_updates'] ?? $defaults['eyebrow_updates'])),
+                'show_upcoming_events' => !isset($_POST['show_upcoming_events']) || $_POST['show_upcoming_events'] === '1',
+                'show_past_events' => !isset($_POST['show_past_events']) || $_POST['show_past_events'] === '1',
+                'show_curated' => !isset($_POST['show_curated']) || $_POST['show_curated'] === '1',
+                'past_hide_when_upcoming' => !empty($_POST['past_hide_when_upcoming']) && $_POST['past_hide_when_upcoming'] === '1',
+                'arrangement' => ($_POST['arrangement'] ?? 'priority') === 'random' ? 'random' : 'priority',
+            ]);
+            saveHomepageSetting($pdo, 'ongoing_now', $settings);
+            auditLog($pdo, 'save_ongoing_settings', 'homepage', 'ongoing_now', $settings['section_title']);
+            echo json_encode(['success' => true, 'ongoing_settings' => $settings]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
     // ── Home Featured Content ─────────────────────────────────────────
     case 'get_home_featured':
         try {
@@ -3320,6 +3396,8 @@ HTML;
                 'spotlight_slides' => $payload['spotlight_slides'],
                 'hero_spotlights' => $payload['hero_spotlights'],
                 'has_live' => $payload['has_live'] ?? false,
+                'ongoing_settings' => $payload['ongoing_settings'] ?? defaultOngoingNowSettings(),
+                'ongoing_mode' => $payload['ongoing_mode'] ?? 'empty',
             ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);

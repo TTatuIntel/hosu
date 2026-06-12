@@ -1276,16 +1276,90 @@ body.density-compact .main{padding-top:.85rem;}
             </div>
 
             <div class="card hp-section" id="hp-section-ongoing">
-                <div class="card-hd"><h2>🔴 Ongoing Now — Live on Homepage</h2>
+                <div class="card-hd"><h2>🔴 Ongoing Now — Homepage Section</h2>
                     <div class="filter-toolbar">
-                        <button class="btn-primary" onclick="showTab('events')">📅 Edit Live Event</button>
+                        <button class="btn-primary" onclick="openSpotlightModal()">+ Add Curated Item</button>
+                        <button class="btn-primary" onclick="showTab('events')">📅 Edit Event</button>
+                        <button class="btn-sm" id="hp-ongoing-save-btn" onclick="saveOngoingSettings()"><span id="hp-ongoing-save-text">💾 Save Section Settings</span></button>
                         <a href="index.html#home-ongoing" target="_blank" class="btn-sm btn-nodecor">Preview Section →</a>
                     </div>
                 </div>
-                <div class="card-body card-body-flush table-scroll-sm">
-                    <p class="hp-section-help"><strong>This is what visitors see</strong> below the partners strip. It is <em>not</em> the hero banner at the top. Open a live event → <strong>Content Blocks</strong> tab → paste your Google Drive <strong>folder</strong> link in <strong>Primary Button URL</strong>, turn on <strong>Show in Ongoing Now</strong>, then save.</p>
-                    <table class="tbl"><thead><tr><th>Event</th><th>Status</th><th>Drive Photos</th><th>Ongoing Now</th><th>Actions</th></tr></thead>
-                    <tbody id="sc-ongoing-body"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table>
+                <div class="card-body">
+                    <p class="hp-section-help"><strong>You control what appears.</strong> Live events go on automatically on event day. Everything else — blogs, announcements, upcoming previews — must be <em>added to your lineup</em> below. Section toggles only enable each <em>type</em>; they do not dump all content from the site.</p>
+
+                    <div class="collapse-sec open" style="margin-bottom:1rem;">
+                        <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>👁 What visitors see right now</span><span class="collapse-chevron">▼</span></button>
+                        <div class="collapse-bd">
+                            <p class="hp-section-help" style="margin-top:0;">Exact preview of the homepage carousel. Empty when nothing is scheduled or section toggles block the content.</p>
+                            <div class="table-scroll-sm">
+                            <table class="tbl"><thead><tr><th>Content</th><th>Type</th><th>Status</th><th>Media</th><th>Actions</th></tr></thead>
+                            <tbody id="sc-ongoing-preview"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapse-sec open" style="margin-bottom:1rem;">
+                        <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>📋 Your lineup — items you chose</span><span class="collapse-chevron">▼</span></button>
+                        <div class="collapse-bd">
+                            <p class="hp-section-help" style="margin-top:0;">Shown when no event is <strong>live</strong>. Remove items here or add from the pool below. Edit content anytime.</p>
+                            <div class="filter-toolbar" style="margin-bottom:.5rem;">
+                                <button type="button" class="btn-primary" onclick="openSpotlightModal()">+ Add custom card</button>
+                            </div>
+                            <div class="table-scroll-sm">
+                            <table class="tbl"><thead><tr><th>Content</th><th>Kind</th><th>Priority</th><th>On homepage</th><th>Actions</th></tr></thead>
+                            <tbody id="sc-ongoing-lineup"><tr><td colspan="5" class="empty">Loading…</td></tr></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapse-sec" style="margin-bottom:1rem;">
+                        <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>➕ Add to lineup</span><span class="collapse-chevron">▼</span></button>
+                        <div class="collapse-bd">
+                            <p class="hp-section-help" style="margin-top:0;">Saved cards not yet in the lineup. Click <strong>Add</strong> to show them when the section is not live.</p>
+                            <div class="table-scroll-sm">
+                            <table class="tbl"><thead><tr><th>Content</th><th>Type</th><th>Actions</th></tr></thead>
+                            <tbody id="sc-ongoing-available"><tr><td colspan="3" class="empty">Loading…</td></tr></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapse-sec" style="margin-bottom:1rem;">
+                        <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>🔴 Automatic live (event day)</span><span class="collapse-chevron">▼</span></button>
+                        <div class="collapse-bd">
+                            <p class="hp-section-help" style="margin-top:0;">Events with <strong>Auto-live on event day</strong> take over the whole section when dates are reached — no manual publish needed.</p>
+                            <div class="table-scroll-sm">
+                            <table class="tbl"><thead><tr><th>Event</th><th>Status</th><th>When</th><th>Actions</th></tr></thead>
+                            <tbody id="sc-ongoing-auto-live"><tr><td colspan="4" class="empty">Loading…</td></tr></tbody></table>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="collapse-sec" style="margin-bottom:1rem;">
+                        <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>⚙ Section appearance &amp; rules</span><span class="collapse-chevron">▼</span></button>
+                        <div class="collapse-bd">
+                    <div class="aef-grid grid-2cols" style="margin-bottom:.75rem;">
+                        <div class="ff"><label>Section Title</label><input type="text" id="hp-ongoing-title" placeholder="Ongoing Now"></div>
+                        <div class="ff"><label>Display Arrangement</label>
+                            <select id="hp-ongoing-arrangement">
+                                <option value="priority">Priority order (admin sort)</option>
+                                <option value="random">Random shuffle (hourly)</option>
+                            </select>
+                        </div>
+                        <div class="ff full"><label>Subtitle (live &amp; mixed)</label><input type="text" id="hp-ongoing-subtitle" placeholder="Live updates, recent events, and announcements from HOSU."></div>
+                        <div class="ff full"><label>Subtitle (upcoming only)</label><input type="text" id="hp-ongoing-subtitle-upcoming" placeholder="Upcoming HOSU events — save the date and register early."></div>
+                        <div class="ff"><label>Eyebrow when live</label><input type="text" id="hp-ongoing-eyebrow-live" placeholder="Live · Right Now"></div>
+                        <div class="ff"><label>Eyebrow when upcoming</label><input type="text" id="hp-ongoing-eyebrow-upcoming" placeholder="Upcoming · Save the Date"></div>
+                        <div class="ff full"><label>Eyebrow when mixed content</label><input type="text" id="hp-ongoing-eyebrow-updates" placeholder="Updates · From HOSU"></div>
+                    </div>
+                    <p class="hp-section-help" style="margin-bottom:.65rem;">These switches allow each <em>type</em> in your lineup — they never auto-add blogs or every event.</p>
+                    <div class="pricing-row" style="margin-bottom:1rem;flex-wrap:wrap;gap:1rem;">
+                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-ongoing-show-upcoming"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Allow upcoming previews (countdown)</span></div>
+                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-ongoing-show-past" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Allow past event recaps</span></div>
+                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-ongoing-show-curated" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Allow custom cards in lineup</span></div>
+                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="hp-ongoing-past-hide-upcoming"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Hide past recaps when upcoming events show (except “keep with upcoming”)</span></div>
+                    </div>
+                        </div>
+                    </div>
                 </div>
             </div>
 
@@ -1296,7 +1370,7 @@ body.density-compact .main{padding-top:.85rem;}
                     </div>
                 </div>
                 <div class="card-body card-body-flush table-scroll-sm">
-                    <p class="hp-section-help">Optional custom announcements for the hero only. <strong>Ongoing Now live photos are managed from Events</strong> (see card above) — not from this list. <strong>Showcase order:</strong> highest <em>Priority</em> first, then lowest <em>Sort Order</em>, then newest.</p>
+                    <p class="hp-section-help">Create cards here, then add them to the lineup in <strong>Ongoing Now</strong> above — nothing appears on the homepage until you click <strong>Add to lineup</strong>. Live events are automatic from <strong>Events</strong>.</p>
                     <table class="tbl"><thead><tr><th>Title</th><th>Type</th><th>Priority</th><th>Display</th><th>Spotlight</th><th>Hero</th><th>Linked Event</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-spotlight-tbody"><tr><td colspan="9" class="empty">Loading...</td></tr></tbody></table>
                 </div>
@@ -1757,7 +1831,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                     <div class="aef-grid grid-2cols">
                         <div class="ff"><label>Badge Label</label><input type="text" id="sc-spotlight-badge" value="Important"></div>
                         <div class="ff"><label>Content Type</label>
-                            <select id="sc-spotlight-type"><option value="announcement">Announcement</option><option value="custom">Custom Info</option><option value="alert">Alert</option><option value="live">Live Notice</option></select>
+                            <select id="sc-spotlight-type"><option value="announcement">Announcement</option><option value="blog">Blog / Article</option><option value="upcoming_event">Upcoming Event</option><option value="feature">Featured Highlight</option><option value="custom">Custom Info</option><option value="alert">Alert</option><option value="live">Live Notice</option></select>
                         </div>
                     </div>
                 </div>
@@ -1816,7 +1890,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <select id="sc-spotlight-event-id"><option value="">— Standalone spotlight —</option></select>
                     </div>
                     <div class="pricing-row" style="margin-top:.5rem;flex-wrap:wrap;gap:.75rem;">
-                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="sc-spotlight-carousel" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show in spotlight carousel</span></div>
+                        <div class="tog-wrap"><label class="tog"><input type="checkbox" id="sc-spotlight-carousel" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show in Ongoing Now</span></div>
                         <div class="tog-wrap"><label class="tog"><input type="checkbox" id="sc-spotlight-hero"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show in hero strip</span></div>
                         <div class="tog-wrap"><label class="tog"><input type="checkbox" id="sc-spotlight-active" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Active on site</span></div>
                     </div>
@@ -2022,10 +2096,11 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <div class="ff"><label>Button opens (URL)</label><input type="text" id="ev-live-cta-url" placeholder="Same folder link or events.html#…"><small>Leave blank to use the Drive folder link above.</small></div>
                     </div>
                 </div>
-                <div class="pricing-row" style="margin:.75rem 0;">
-                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-show-live-home" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show in Ongoing Now (live events only)</span></div>
-                    <small class="fee-hint">When the event is live, gallery photos rotate on the homepage. Turn off to hide even while live.</small>
+                <div class="pricing-row" style="margin:.75rem 0;flex-wrap:wrap;gap:1rem;">
+                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-show-live-home" checked><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Auto-live on event day (Ongoing Now)</span></div>
+                    <div class="tog-wrap"><label class="tog"><input type="checkbox" id="ev-show-upcoming-ongoing"><span class="tog-slider"></span></label><span class="tog-lbl tog-lbl-sm">Show as upcoming preview (countdown)</span></div>
                 </div>
+                <small class="fee-hint">Live = automatic on event day. Upcoming = only if you add it in Homepage → Ongoing Now lineup and enable upcoming previews there.</small>
                 <div style="font-size:.75rem;font-weight:600;color:var(--text-light);margin:.5rem 0 .4rem;">Content blocks <small style="font-weight:400;">(add, edit, remove anytime)</small></div>
                 <div id="ev-live-content-list" style="display:flex;flex-direction:column;gap:.5rem;"></div>
                 <button type="button" class="btn-sm" style="margin-top:.5rem;" onclick="addLiveContentItem()">➕ Add Content Block</button>
@@ -2065,12 +2140,16 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                             <label>Keep in spotlight after event ends</label>
                             <select id="ev-post-event-days">
                                 <option value="0">Hide immediately when event ends</option>
+                                <option value="1">1 day (Just Ended tag)</option>
                                 <option value="4">4 days</option>
-                                <option value="7">1 week</option>
+                                <option value="7">1 week (recommended)</option>
                                 <option value="14">2 weeks</option>
                                 <option value="28">4 weeks</option>
+                                <option value="-2">Hide when an upcoming event appears in section</option>
+                                <option value="-3">Keep with upcoming events (recap + register)</option>
+                                <option value="-1">Keep until I turn off auto-live</option>
                             </select>
-                            <small class="fee-hint">Content auto-disappears after this grace period. Use “Remove from Homepage” or set Display Until to hide sooner.</small>
+                            <small class="fee-hint">Badge shows <em>Just Ended</em> → <em>Yesterday</em> → <em>Past Event · date</em>. Choose <strong>Keep with upcoming</strong> so visitors still see photos while the next event is promoted.</small>
                         </div>
                         <button type="button" class="btn-sm" id="ev-remove-home-btn" style="margin-top:.75rem;display:none;" onclick="removeEventFromHome()">🚫 Remove from Homepage Now</button>
                     </div>
@@ -2948,7 +3027,7 @@ function updateHpTabCounts(){
     var map={
         overview:document.querySelectorAll('#hp-overview-body tr[data-hp-id]').length || (Array.isArray(window._heroSlides)?_heroSlides.length:0),
         hero:Array.isArray(window._heroSlides)?_heroSlides.length:0,
-        ongoing:document.querySelectorAll('#sc-ongoing-body tr[data-ev-id]').length,
+        ongoing:document.querySelectorAll('#sc-ongoing-preview tr[data-ongoing-row]').length,
         spotlight:Array.isArray(window._spotlights)?_spotlights.length:0
     };
     Object.keys(map).forEach(function(k){
@@ -3111,7 +3190,7 @@ function toggleHomeSpotlight(eventId){
     adminEnsureCsrf().then(function(){
         return fetch('api.php',{method:'POST',body:fd,credentials:'same-origin'});
     }).then(r=>r.json()).then(d=>{
-        if(d.success){toast(newVal?'Ongoing Now enabled':'Ongoing Now disabled','success');loadHomepageOverview();}
+        if(d.success){toast(newVal?'Ongoing Now enabled':'Ongoing Now disabled','success');bumpOngoingRevision();loadOngoingNowPanel();loadHomepageOverview();}
         else{ev.show_live_on_home=prev;renderEvents();loadOngoingNowPanel();toast(d.error||'Failed.','error');}
     }).catch(function(){ev.show_live_on_home=prev;renderEvents();loadOngoingNowPanel();toast('Connection error.','error');});
 }
@@ -3980,6 +4059,7 @@ function populateEditEvent(ev){
     document.getElementById('ev-live-cta-url').value=ev.live_cta_url||'';
     previewDriveFolder();
     document.getElementById('ev-show-live-home').checked=ev.show_live_on_home!==false&&ev.show_live_on_home!==0&&ev.show_live_on_home!=='0';
+    var evUp=document.getElementById('ev-show-upcoming-ongoing');if(evUp)evUp.checked=!!(ev.show_upcoming_in_ongoing==1||ev.show_upcoming_in_ongoing===true);
     _evLiveContentItems=(ev.live_content||ev.content_blocks||[]).map(function(it){
         var media=[];
         if(it.media_items&&it.media_items.length){
@@ -4183,6 +4263,7 @@ function saveEvent(){
     fd.append('drive_folder_url',driveFolder);
     fd.append('live_cta_url',btnUrl||driveFolder);
     fd.append('show_live_on_home',document.getElementById('ev-show-live-home').checked?'1':'0');
+    fd.append('show_upcoming_in_ongoing',document.getElementById('ev-show-upcoming-ongoing')&&document.getElementById('ev-show-upcoming-ongoing').checked?'1':'0');
     fd.append('live_content_json',getLiveContentJson());
     var videoUrls=parseUrlLines(document.getElementById('ev-video-urls').value);
     videoUrls.forEach(function(u){fd.append('video_urls[]',u);});
@@ -4230,7 +4311,7 @@ function saveEvent(){
                         if(idx>=0)_events[idx]=d.event;else _events.push(d.event);
                         renderEvents();renderOvEvents();
                     }else loadEvents();
-                    loadOngoingNowPanel();
+                    bumpOngoingRevision();loadOngoingNowPanel();
                 }
                 else toast(d.error||'Failed.','error');
             }).catch(function(err){
@@ -4247,6 +4328,7 @@ function saveEvent(){
                     toast(msg,'success');closeModal('event-modal');resetEvForm();
                     if(d.event){_events.push(d.event);renderEvents();renderOvEvents();}
                     else loadEvents();
+                    bumpOngoingRevision();loadOngoingNowPanel();
                 }
                 else toast(d.error||'Failed to save.','error');
             }).catch(function(err){
@@ -5982,48 +6064,155 @@ function toggleHeroSlideActive(id,active){
     });
 }
 
-function loadOngoingNowPanel(){
-    var tb=document.getElementById('sc-ongoing-body');
-    if(!tb)return;
-    Promise.all([
-        adminJsonFetch('api.php?action=get_home_spotlight'),
-        adminJsonFetch('api.php?action=list_events_admin')
-    ]).then(function(results){
-        var spot=results[0]||{};
-        var events=(results[1]&&results[1].events)||_events||[];
-        var enabled=events.filter(function(ev){
-            return ev.show_live_on_home==1||ev.show_live_on_home===true||ev.show_live_on_home==='1';
-        });
-        if(!enabled.length){
-            tb.innerHTML='<tr><td colspan="5" class="empty"><div class="big">🔴</div>No events enabled for Ongoing Now. Open <strong>Events</strong> → edit a live event → <strong>Content Blocks</strong> → turn on <strong>Show in Ongoing Now</strong> and paste your Drive folder link.</td></tr>';
-            var oC0=document.getElementById('hp-tab-count-ongoing');if(oC0)oC0.textContent='0';
-            return;
+function loadOngoingSettingsForm(){
+    adminJsonFetch('api.php?action=get_homepage_settings').then(function(d){
+        if(!d.success)return;
+        var s=d.ongoing_settings||{};
+        var el=function(id,val){var n=document.getElementById(id);if(n)n.value=val||'';};
+        el('hp-ongoing-title',s.section_title||'Ongoing Now');
+        el('hp-ongoing-subtitle',s.section_subtitle||'');
+        el('hp-ongoing-eyebrow-live',s.eyebrow_live||'');
+        el('hp-ongoing-subtitle-upcoming',s.subtitle_upcoming||'');
+        el('hp-ongoing-eyebrow-upcoming',s.eyebrow_upcoming||'');
+        el('hp-ongoing-eyebrow-updates',s.eyebrow_updates||'');
+        var arr=document.getElementById('hp-ongoing-arrangement');
+        if(arr)arr.value=(s.arrangement==='random')?'random':'priority';
+        var up=document.getElementById('hp-ongoing-show-upcoming');if(up)up.checked=!!s.show_upcoming_events;
+        var pa=document.getElementById('hp-ongoing-show-past');if(pa)pa.checked=s.show_past_events!==false;
+        var cu=document.getElementById('hp-ongoing-show-curated');if(cu)cu.checked=s.show_curated!==false;
+        var ph=document.getElementById('hp-ongoing-past-hide-upcoming');if(ph)ph.checked=!!s.past_hide_when_upcoming;
+    }).catch(function(){});
+}
+function bumpOngoingRevision(){
+    try{localStorage.setItem('hosu_ongoing_rev',String(Date.now()));}catch(e){}
+}
+function saveOngoingSettings(){
+    var fd=new FormData();
+    fd.append('action','save_ongoing_settings');
+    fd.append('section_title',document.getElementById('hp-ongoing-title').value.trim());
+    fd.append('section_subtitle',document.getElementById('hp-ongoing-subtitle').value.trim());
+    fd.append('subtitle_upcoming',document.getElementById('hp-ongoing-subtitle-upcoming').value.trim());
+    fd.append('eyebrow_live',document.getElementById('hp-ongoing-eyebrow-live').value.trim());
+    fd.append('eyebrow_upcoming',document.getElementById('hp-ongoing-eyebrow-upcoming').value.trim());
+    fd.append('eyebrow_updates',document.getElementById('hp-ongoing-eyebrow-updates').value.trim());
+    fd.append('show_upcoming_events',document.getElementById('hp-ongoing-show-upcoming').checked?'1':'0');
+    fd.append('show_past_events',document.getElementById('hp-ongoing-show-past').checked?'1':'0');
+    fd.append('show_curated',document.getElementById('hp-ongoing-show-curated').checked?'1':'0');
+    fd.append('past_hide_when_upcoming',document.getElementById('hp-ongoing-past-hide-upcoming').checked?'1':'0');
+    fd.append('arrangement',document.getElementById('hp-ongoing-arrangement').value||'priority');
+    setSaveBtnLoading('hp-ongoing-save-btn','hp-ongoing-save-text',true,'💾 Save Section Settings');
+    adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+        if(d.success){toast('Ongoing Now section settings saved.','success');bumpOngoingRevision();loadOngoingNowPanel();}
+        else toast(d.error||'Save failed.','error');
+    }).catch(function(err){
+        if(err&&err.message!=='auth')toast('Save failed.','error');
+    }).finally(function(){
+        setSaveBtnLoading('hp-ongoing-save-btn','hp-ongoing-save-text',false,'💾 Save Section Settings');
+    });
+}
+function toggleSpotlightOngoing(id,inLineup){
+    adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','toggle_spotlight_ongoing');fd.append('id',id);fd.append('show_in_spotlight',inLineup?'1':'0');return fd;})()}).then(function(d){
+        if(d.success){toast(inLineup?'Added to lineup.':'Removed from lineup.','success');bumpOngoingRevision();loadOngoingNowPanel();loadSpotlights();}
+        else toast(d.error||'Failed.','error');
+    }).catch(function(err){if(err&&err.message!=='auth')toast('Update failed.','error');});
+}
+function toggleEventUpcomingOngoing(eventId,inLineup){
+    adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','toggle_event_upcoming_ongoing');fd.append('id',eventId);fd.append('show_upcoming_in_ongoing',inLineup?'1':'0');return fd;})()}).then(function(d){
+        if(d.success){toast(inLineup?'Upcoming preview enabled.':'Upcoming preview removed.','success');bumpOngoingRevision();loadOngoingNowPanel();loadEvents();}
+        else toast(d.error||'Failed.','error');
+    }).catch(function(err){if(err&&err.message!=='auth')toast('Update failed.','error');});
+}
+function renderOngoingPreviewRows(slides){
+    if(!slides||!slides.length){
+        return '<tr><td colspan="5" class="empty"><div class="big">—</div>Nothing on the homepage right now. Add items to your lineup or wait for a live event.</td></tr>';
+    }
+    return slides.map(function(slide){
+        var isLive=!!slide.is_live;
+        var photos=slide.media?slide.media.length:0;
+        var type=slide.type||slide.source||'item';
+        var badge=slide.badge||'—';
+        var countdown=slide.countdown_label||(slide.meta&&slide.meta.status)||'';
+        var statusBadge=isLive?'<span class="badge" style="background:#c62828;color:#fff;">LIVE</span>'
+            :(slide.ongoing_phase==='just_ended'?'<span class="badge" style="background:#047857;color:#fff;">✨ '+esc(badge)+'</span>'
+            :(slide.ongoing_phase==='upcoming'&&countdown?'<span class="badge" style="background:#0d4593;color:#fff;">⏳ '+esc(countdown)+'</span>'
+            :('<span class="badge">'+esc(badge)+'</span>')));
+        var actions='';
+        if(slide.source==='custom'||String(slide.id||'').indexOf('spotlight-')===0){
+            var sid=String(slide.id||'').replace('spotlight-','');
+            actions='<button class="btn-sm" onclick="editSpotlight('+esc(sid)+')">✏️ Edit</button>';
+        }else if(slide.event_id){
+            actions='<button class="btn-sm" onclick="openEditEvent(\''+esc(slide.event_id)+'\');switchEvTab(\'content\');">✏️ Edit</button>';
         }
-        var oC=document.getElementById('hp-tab-count-ongoing');if(oC)oC.textContent=enabled.length;
-        var slideByEvent={};
-        (spot.spotlight_slides||[]).forEach(function(s){if(s.event_id)slideByEvent[s.event_id]=s;});
-        tb.innerHTML=enabled.map(function(ev){
-            var slide=slideByEvent[ev.id];
-            var isLive=!!(slide&&slide.is_live);
-            var photos=slide&&slide.media?slide.media.length:0;
-            var drive='—';
-            var folder=ev.drive_folder_url||'';
-            if(!folder&&ev.live_cta_url&&/folders\//i.test(ev.live_cta_url))folder=ev.live_cta_url;
-            if(folder){
-                drive=photos>0?(photos+' synced'):'⚠️ folder linked — 0 photos (check sharing)';
-            }
-            return '<tr><td><strong>'+esc(ev.title)+'</strong><br><small style="color:var(--text-light);">'+esc(truncateStr(ev.live_message||'',60))+'</small></td>'
-                +'<td>'+(isLive?'<span class="badge" style="background:#c62828;color:#fff;">LIVE</span>':'<span class="badge">Not in date range</span>')+'</td>'
-                +'<td>'+drive+'</td>'
-                +'<td>'+(isLive?(photos+' photos rotating'):'—')+'</td>'
-                +'<td style="white-space:nowrap;">'
-                +'<button class="btn-sm" onclick="openEditEvent(\''+esc(ev.id)+'\');switchEvTab(\'content\');" title="Edit photos &amp; Drive link">✏️ Edit</button> '
-                +'<button class="btn-sm" onclick="toggleHomeSpotlight(\''+esc(ev.id)+'\')" title="Hide from Ongoing Now">⏸ Hide</button> '
-                +'<button class="btn-sm btn-icon-del" onclick="deleteEvent(\''+esc(ev.id)+'\')" title="Delete event">🗑️</button>'
-                +'</td></tr>';
+        return '<tr data-ongoing-row="1"><td><strong>'+esc(slide.title||'')+'</strong><br><small style="color:var(--text-light);">'+esc(truncateStr(slide.headline||'',60))+'</small></td>'
+            +'<td><span class="badge">'+esc(type)+'</span></td><td>'+statusBadge+'</td>'
+            +'<td>'+(photos?photos+' item(s)':'—')+'</td>'
+            +'<td style="white-space:nowrap;">'+actions+'</td></tr>';
+    }).join('');
+}
+function loadOngoingNowPanel(){
+    loadOngoingSettingsForm();
+    var preview=document.getElementById('sc-ongoing-preview');
+    var lineup=document.getElementById('sc-ongoing-lineup');
+    var available=document.getElementById('sc-ongoing-available');
+    var autoLive=document.getElementById('sc-ongoing-auto-live');
+    if(!preview)return;
+    adminJsonFetch('api.php?action=get_ongoing_admin_panel').then(function(d){
+        if(!d.success)throw new Error('load failed');
+        var onSite=d.displaying_now||[];
+        var oC=document.getElementById('hp-tab-count-ongoing');if(oC)oC.textContent=String(onSite.length);
+        preview.innerHTML=renderOngoingPreviewRows(onSite);
+
+        var lineupRows=[];
+        (d.lineup&&d.lineup.curated||[]).forEach(function(item){
+            lineupRows.push('<tr><td><strong>'+esc(item.title)+'</strong><br><small style="color:var(--text-light);">'+esc(truncateStr(item.headline||'',50))+'</small></td>'
+                +'<td><span class="badge">'+esc(item.content_type||'card')+'</span></td>'
+                +'<td>'+(item.priority||0)+'</td>'
+                +'<td>'+(item.on_homepage?'✅ Now':'—')+'</td>'
+                +'<td style="white-space:nowrap;"><button class="btn-sm" onclick="editSpotlight('+item.id+')">✏️ Edit</button> '
+                +'<button class="btn-sm" onclick="toggleSpotlightOngoing('+item.id+',0)">Remove</button></td></tr>');
+        });
+        (d.lineup&&d.lineup.upcoming_events||[]).forEach(function(item){
+            lineupRows.push('<tr><td><strong>'+esc(item.title)+'</strong><br><small style="color:var(--text-light);">'+esc(item.date||'')+'</small></td>'
+                +'<td><span class="badge">upcoming</span></td><td>—</td>'
+                +'<td>'+(item.on_homepage?'✅ Now':'—')+'</td>'
+                +'<td style="white-space:nowrap;"><button class="btn-sm" onclick="openEditEvent(\''+esc(item.id)+'\');switchEvTab(\'content\');">✏️ Edit</button> '
+                +'<button class="btn-sm" onclick="toggleEventUpcomingOngoing(\''+esc(item.id)+'\',0)">Remove</button></td></tr>');
+        });
+        (d.lineup&&d.lineup.past_events||[]).forEach(function(item){
+            var pastBadge=item.badge?'<span class="badge">'+esc(item.badge)+'</span>':'';
+            lineupRows.push('<tr><td><strong>'+esc(item.title)+'</strong><br><small style="color:var(--text-light);">'+esc(item.post_event_mode||item.note||'')+'</small></td>'
+                +'<td><span class="badge">past recap</span> '+pastBadge+'</td><td>—</td>'
+                +'<td>'+(item.on_homepage?'✅ Now':'—')+'</td>'
+                +'<td style="white-space:nowrap;"><button class="btn-sm" onclick="openEditEvent(\''+esc(item.id)+'\');switchEvTab(\'homepage\');">✏️ Edit</button></td></tr>');
+        });
+        if(lineup)lineup.innerHTML=lineupRows.length?lineupRows.join(''):'<tr><td colspan="5" class="empty">Lineup is empty. Add custom cards or upcoming events below.</td></tr>';
+
+        var availRows=[];
+        (d.available&&d.available.curated||[]).forEach(function(item){
+            availRows.push('<tr><td><strong>'+esc(item.title)+'</strong><br><small style="color:var(--text-light);">'+esc(truncateStr(item.headline||'',50))+'</small></td>'
+                +'<td><span class="badge">'+esc(item.content_type||'card')+'</span></td>'
+                +'<td><button class="btn-sm btn-primary" onclick="toggleSpotlightOngoing('+item.id+',1)">+ Add to lineup</button> '
+                +'<button class="btn-sm" onclick="editSpotlight('+item.id+')">✏️ Edit</button></td></tr>');
+        });
+        (d.available&&d.available.upcoming_events||[]).forEach(function(item){
+            availRows.push('<tr><td><strong>'+esc(item.title)+'</strong><br><small style="color:var(--text-light);">'+esc(item.countdown||item.date||'')+'</small></td>'
+                +'<td><span class="badge">upcoming event</span></td>'
+                +'<td><button class="btn-sm btn-primary" onclick="toggleEventUpcomingOngoing(\''+esc(item.id)+'\',1)">+ Add to lineup</button> '
+                +'<button class="btn-sm" onclick="openEditEvent(\''+esc(item.id)+'\');switchEvTab(\'content\');">✏️ Edit</button></td></tr>');
+        });
+        if(available)available.innerHTML=availRows.length?availRows.join(''):'<tr><td colspan="3" class="empty">No saved cards or upcoming events waiting — create a card or open an event to add a preview.</td></tr>';
+
+        var autoRows=(d.automatic_live||[]).map(function(item){
+            var st=item.phase==='live'?'<span class="badge" style="background:#c62828;color:#fff;">LIVE</span>':'<span class="badge">'+esc(item.note||'Scheduled')+'</span>';
+            return '<tr><td><strong>'+esc(item.title)+'</strong></td><td>'+st+'</td><td style="font-size:.78rem;">'+esc(item.countdown||item.date||'')+'</td>'
+                +'<td><button class="btn-sm" onclick="openEditEvent(\''+esc(item.id)+'\');switchEvTab(\'content\');">✏️ Edit</button></td></tr>';
         }).join('');
+        if(autoLive)autoLive.innerHTML=autoRows||'<tr><td colspan="4" class="empty">No events set for auto-live. Enable <strong>Auto-live on event day</strong> in the event editor.</td></tr>';
     }).catch(function(){
-        tb.innerHTML='<tr><td colspan="5" class="empty">Could not load Ongoing Now status.</td></tr>';
+        preview.innerHTML='<tr><td colspan="5" class="empty">Could not load Ongoing Now panel.</td></tr>';
+        if(lineup)lineup.innerHTML='<tr><td colspan="5" class="empty">—</td></tr>';
+        if(available)available.innerHTML='<tr><td colspan="3" class="empty">—</td></tr>';
+        if(autoLive)autoLive.innerHTML='<tr><td colspan="4" class="empty">—</td></tr>';
     });
 }
 
@@ -6087,7 +6276,7 @@ function openSpotlightModal(sp){
     document.getElementById('sc-spotlight-priority').value=sp?sp.priority:0;
     document.getElementById('sc-spotlight-sort').value=sp?sp.sort_order:0;
     document.getElementById('sc-spotlight-hero').checked=sp?!!(sp.show_in_hero==1||sp.show_in_hero===true):false;
-    document.getElementById('sc-spotlight-carousel').checked=sp?!((sp.show_in_spotlight===0||sp.show_in_spotlight===false||sp.show_in_spotlight==='0')):true;
+    document.getElementById('sc-spotlight-carousel').checked=sp?!((sp.show_in_spotlight===0||sp.show_in_spotlight===false||sp.show_in_spotlight==='0')):false;
     document.getElementById('sc-spotlight-active').checked=sp?!((sp.is_active===0||sp.is_active===false||sp.is_active==='0')):true;
     if(sp&&sp.event_id)document.getElementById('sc-spotlight-event-id').value=sp.event_id;
     document.getElementById('sc-spotlight-form-title').textContent=sp?'✏️ Edit Spotlight':'🔴 Add Spotlight';
@@ -6140,7 +6329,7 @@ function saveSpotlight(){
                 if(idx>=0)_spotlights[idx]=d.spotlight;else _spotlights.push(d.spotlight);
                 renderSpotlightTable();
             }else{loadSpotlights();}
-            closeModal('spotlight-modal');
+            bumpOngoingRevision();loadOngoingNowPanel();closeModal('spotlight-modal');
         }else toast(d.error||'Failed.','error');
     }).catch(function(err){
         if(err&&err.message!=='auth')toast(err.message||'Network error.','error');
@@ -6170,7 +6359,7 @@ function toggleSpotlightActive(id,active){
     sp.is_active=active?1:0;
     renderSpotlightTable();
     adminJsonFetch('api.php',{method:'POST',body:(function(){var fd=new FormData();fd.append('action','toggle_spotlight');fd.append('id',id);fd.append('is_active',active);return fd;})()}).then(function(d){
-        if(d.success){toast(active?'Spotlight visible on site.':'Spotlight hidden from site.','success');loadHomepageOverview();}
+        if(d.success){toast(active?'Spotlight visible on site.':'Spotlight hidden from site.','success');bumpOngoingRevision();loadOngoingNowPanel();loadHomepageOverview();}
         else{sp.is_active=prev;renderSpotlightTable();toast(d.error||'Failed.','error');}
     }).catch(function(err){sp.is_active=prev;renderSpotlightTable();if(err&&err.message!=='auth')toast('Update failed.','error');});
 }

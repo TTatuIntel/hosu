@@ -119,8 +119,8 @@ try {
         id, type, status, image, imageAlt, countdown, date, date_start, date_end,
         title, description, location, featured, category, is_free, event_fee,
         speakers, highlights, announcements, display_start, display_end, display_for_event, pinned, home_priority,
-        post_event_display_days, live_message, live_cta_label, live_cta_url, show_live_on_home
-    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+        post_event_display_days, live_message, live_cta_label, live_cta_url, show_live_on_home, show_upcoming_in_ongoing
+    ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
 
     $success = $stmt->execute([
         $_POST['id'],
@@ -152,6 +152,7 @@ try {
         $liveFields['live_cta_label'],
         $liveFields['live_cta_url'],
         $liveFields['show_live_on_home'],
+        $liveFields['show_upcoming_in_ongoing'],
     ]);
 
     if (!$success) {

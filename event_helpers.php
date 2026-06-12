@@ -29,6 +29,7 @@ function migrateEventSchema(PDO $pdo): void
         'live_cta_url VARCHAR(500) NULL',
         'drive_folder_url VARCHAR(500) NULL',
         'show_live_on_home TINYINT(1) NOT NULL DEFAULT 1',
+        'show_upcoming_in_ongoing TINYINT(1) NOT NULL DEFAULT 0',
         'post_event_display_days INT NOT NULL DEFAULT 0',
     ] as $colDef) {
         $colName = explode(' ', $colDef)[0];
@@ -504,6 +505,7 @@ function enrichEventRow(array &$ev, ?DateTimeImmutable $today = null): void
     $ev['is_live'] = eventIsLive($ev, $today);
     $ev['is_display_active'] = eventIsDisplayActive($ev);
     $ev['show_live_on_home'] = !isset($ev['show_live_on_home']) || (bool)$ev['show_live_on_home'];
+    $ev['show_upcoming_in_ongoing'] = !empty($ev['show_upcoming_in_ongoing']);
     $ev['live_cta_label'] = !empty($ev['live_cta_label']) ? $ev['live_cta_label'] : 'Register & Join Now';
     $ev['post_event_display_days'] = (int)($ev['post_event_display_days'] ?? 0);
     $ev['in_spotlight'] = eventInSpotlightPeriod($ev, $today);
@@ -800,6 +802,7 @@ function appendEventAssets(PDO $pdo, string $eventId, array $post, array $files)
 function parseLiveFields(array $post): array
 {
     $showLive = !isset($post['show_live_on_home']) || $post['show_live_on_home'] === '' || $post['show_live_on_home'] === '1';
+    $showUpcoming = !empty($post['show_upcoming_in_ongoing']) && $post['show_upcoming_in_ongoing'] !== '0';
     $cta = trim($post['live_cta_label'] ?? '');
 
     $folder = trim($post['drive_folder_url'] ?? '');
@@ -814,6 +817,7 @@ function parseLiveFields(array $post): array
         'live_cta_url' => $ctaUrl !== '' ? $ctaUrl : $folder,
         'drive_folder_url' => $folder,
         'show_live_on_home' => $showLive ? 1 : 0,
+        'show_upcoming_in_ongoing' => $showUpcoming ? 1 : 0,
     ];
 }
 
@@ -1166,7 +1170,7 @@ function parseDisplayFields(array $post): array
     }
 
     $postEventDays = (int)($post['post_event_display_days'] ?? 0);
-    if ($postEventDays < 0) {
+    if ($postEventDays < -3) {
         $postEventDays = 0;
     }
 
@@ -1231,6 +1235,9 @@ function eventInSpotlightPeriod(array $ev, ?DateTimeImmutable $today = null): bo
     }
 
     $days = (int)($ev['post_event_display_days'] ?? 0);
+    if ($days === -1 || $days === -3 || $days === -2) {
+        return !empty($ev['show_live_on_home']);
+    }
     if ($days <= 0) {
         return false;
     }
@@ -1916,14 +1923,17 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
     $isPast = $end && $today > $end;
 
     $type = $isLive ? 'live_event' : ($isPast ? 'post_event' : 'upcoming_event');
-    $badge = $overrides['badge'] ?? ($isLive ? 'Live Now' : ($isPast ? 'Recent' : 'Featured Event'));
+    $badgeInfo = computeOngoingEventBadge($ev, $today);
+    $badge = $overrides['badge'] ?? $badgeInfo['label'];
+    $ongoingPhase = $overrides['ongoing_phase'] ?? $badgeInfo['phase'];
 
     $image = $overrides['image'] ?? ((($ev['image_urls'] ?? [])[0] ?? null) ?: ($ev['image'] ?? ''));
     $headline = $overrides['headline'] ?? ($isLive
         ? truncatePlain($ev['live_message'] ?: 'Sessions are live — join us today.', 82)
         : truncatePlain($ev['announcements'] ?: ($ev['description'] ?? ''), 82));
 
-    $statusLabel = $isLive ? 'Happening Now' : ($ev['countdown'] ?? '');
+    $countdownLabel = computeEventCountdown($ev, $today);
+    $statusLabel = $isLive ? 'Happening Now' : ($ongoingPhase === 'upcoming' ? $countdownLabel : ($ev['countdown'] ?? $countdownLabel));
     $media = !empty($overrides['media'])
         ? dedupeSpotlightMedia($overrides['media'])
         : collectEventSpotlightMedia($ev, [], false);
@@ -1941,9 +1951,14 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
     return [
         'id' => $overrides['id'] ?? ('event-' . $ev['id']),
         'event_id' => $ev['id'],
+        'source' => 'event',
         'type' => $overrides['type'] ?? $type,
         'badge' => $badge,
-        'is_live' => $isLive,
+        'ongoing_phase' => $ongoingPhase,
+        'is_live' => array_key_exists('is_live', $overrides) ? (bool) $overrides['is_live'] : $isLive,
+        'countdown_label' => $ongoingPhase === 'upcoming' ? $countdownLabel : '',
+        'date_start' => $ev['date_start'] ?? '',
+        'date_end' => $ev['date_end'] ?? '',
         'title' => $overrides['title'] ?? $ev['title'],
         'headline' => $headline,
         'body' => $overrides['body'] ?? '',
@@ -1963,7 +1978,10 @@ function buildSpotlightSlideFromEvent(array $ev, array $overrides = []): array
         ),
         'cta_secondary' => $overrides['cta_secondary'] ?? '',
         'cta_secondary_url' => $overrides['cta_secondary_url'] ?? '',
-        'priority' => (int)($ev['home_priority'] ?? 0) + ($isLive ? 1000 : ($ev['pinned'] ? 500 : 0)),
+        'priority' => (int) ($overrides['priority'] ?? (
+            (int) ($ev['home_priority'] ?? 0)
+            + ($isLive ? 1000 : ($ongoingPhase === 'upcoming' ? ongoingEventUpcomingPriority($ev) : ($ev['pinned'] ? 500 : 0)))
+        )),
         'show_in_hero' => $isLive && !empty($ev['show_live_on_home']),
         'updates' => $overrides['updates'] ?? [],
     ];
@@ -1989,12 +2007,16 @@ function buildSpotlightSlideFromCustom(array $row): array
         $coverUrl = $media[0]['display_url'] ?? $media[0]['url'] ?? '';
     }
 
+    $contentType = $row['content_type'] ?? 'announcement';
+
     return [
         'id' => 'spotlight-' . $row['id'],
         'event_id' => $row['event_id'] ?? null,
-        'type' => $row['content_type'] ?? 'announcement',
+        'source' => 'custom',
+        'type' => $contentType,
         'badge' => $row['badge_label'] ?: 'Important Update',
-        'is_live' => ($row['content_type'] ?? '') === 'live',
+        'ongoing_phase' => $contentType,
+        'is_live' => $contentType === 'live',
         'title' => $row['title'],
         'headline' => truncatePlain($row['headline'] ?? '', 100),
         'body' => '',
@@ -2025,43 +2047,229 @@ function truncatePlain(string $text, int $len): string
     return substr($text, 0, $len) . '…';
 }
 
-function buildSpotlightSlides(array $events, array $customSpotlights = [], bool $liveOnly = false): array
+function defaultOngoingNowSettings(): array
 {
-    $slides = [];
-    $today = new DateTimeImmutable('today');
+    return [
+        'section_title' => 'Ongoing Now',
+        'section_subtitle' => 'Live updates, recent events, and announcements from HOSU.',
+        'subtitle_upcoming' => 'Upcoming HOSU events — save the date and register early.',
+        'eyebrow_live' => 'Live · Right Now',
+        'eyebrow_upcoming' => 'Upcoming · Save the Date',
+        'eyebrow_updates' => 'Updates · From HOSU',
+        'show_upcoming_events' => false,
+        'show_past_events' => true,
+        'show_curated' => true,
+        'past_hide_when_upcoming' => false,
+        'arrangement' => 'priority',
+    ];
+}
+
+function describePostEventDisplayMode(int $days): string
+{
+    return match ($days) {
+        0 => 'Hidden after event ends',
+        1 => '1 day (just ended / yesterday)',
+        4 => '4 days',
+        7 => '1 week',
+        14 => '2 weeks',
+        28 => '4 weeks',
+        -1 => 'Until auto-live is turned off',
+        -2 => 'Until an upcoming event appears in this section',
+        -3 => 'Keep with upcoming events (until turned off)',
+        default => $days > 0 ? ($days . ' days') : 'Custom',
+    };
+}
+
+function normalizeOngoingNowSettings(array $settings = []): array
+{
+    $merged = array_merge(defaultOngoingNowSettings(), $settings);
+    $merged['show_upcoming_events'] = !empty($merged['show_upcoming_events']);
+    $merged['show_past_events'] = !isset($merged['show_past_events']) || !empty($merged['show_past_events']);
+    $merged['show_curated'] = !isset($merged['show_curated']) || !empty($merged['show_curated']);
+    $merged['past_hide_when_upcoming'] = !empty($merged['past_hide_when_upcoming']);
+    $merged['arrangement'] = ($merged['arrangement'] ?? 'priority') === 'random' ? 'random' : 'priority';
+    return $merged;
+}
+
+function fetchOngoingNowSettings(PDO $pdo): array
+{
+    $saved = loadHomepageSetting($pdo, 'ongoing_now', defaultOngoingNowSettings());
+    return normalizeOngoingNowSettings(is_array($saved) ? $saved : []);
+}
+
+function computeOngoingEventBadge(array $ev, ?DateTimeImmutable $today = null): array
+{
+    $today = $today ?? new DateTimeImmutable('today');
+    if (eventIsLive($ev, $today)) {
+        return ['phase' => 'live', 'label' => 'Live Now'];
+    }
+
+    $start = !empty($ev['date_start']) ? new DateTimeImmutable($ev['date_start']) : null;
+    $end = !empty($ev['date_end']) ? new DateTimeImmutable($ev['date_end']) : $start;
+
+    if ($start && $today < $start) {
+        $countdown = computeEventCountdown($ev, $today);
+        return ['phase' => 'upcoming', 'label' => $countdown ?: 'Coming Soon'];
+    }
+
+    if ($end && $today > $end) {
+        $yesterday = $today->modify('-1 day');
+        if ($end->format('Y-m-d') === $yesterday->format('Y-m-d')) {
+            return ['phase' => 'just_ended', 'label' => 'Just Ended'];
+        }
+        $twoDaysAgo = $today->modify('-2 days');
+        if ($end->format('Y-m-d') === $twoDaysAgo->format('Y-m-d')) {
+            return ['phase' => 'yesterday', 'label' => 'Yesterday'];
+        }
+        $dateLabel = trim((string) ($ev['date'] ?? ''));
+        if ($dateLabel === '') {
+            $dateLabel = $end->format('j M Y');
+        }
+        return ['phase' => 'past', 'label' => 'Past Event · ' . $dateLabel];
+    }
+
+    return ['phase' => 'featured', 'label' => 'Featured'];
+}
+
+function eventPassesAdminDisplayWindow(array $ev, ?DateTimeImmutable $now = null): bool
+{
+    $now = $now ?? new DateTimeImmutable();
+    if (!empty($ev['display_start'])) {
+        try {
+            if ($now < new DateTimeImmutable($ev['display_start'])) {
+                return false;
+            }
+        } catch (Exception $e) { /* ignore */ }
+    }
+    if (!empty($ev['display_end'])) {
+        try {
+            if ($now > new DateTimeImmutable($ev['display_end'])) {
+                return false;
+            }
+        } catch (Exception $e) { /* ignore */ }
+    }
+    return true;
+}
+
+function eventInOngoingUpcomingPeriod(array $ev, ?DateTimeImmutable $today = null): bool
+{
+    $today = $today ?? new DateTimeImmutable('today');
+    if (empty($ev['show_upcoming_in_ongoing'])) {
+        return false;
+    }
+    if (eventIsLive($ev, $today)) {
+        return false;
+    }
+    $start = !empty($ev['date_start']) ? new DateTimeImmutable($ev['date_start']) : null;
+    if (!$start || $today >= $start) {
+        return false;
+    }
+    return eventPassesAdminDisplayWindow($ev);
+}
+
+function ongoingEventUpcomingPriority(array $ev): int
+{
+    $base = (int) ($ev['home_priority'] ?? 0) + ($ev['pinned'] ? 200 : 0);
+    if (empty($ev['date_start'])) {
+        return $base;
+    }
+    try {
+        $start = new DateTimeImmutable($ev['date_start']);
+        $days = (new DateTimeImmutable('today'))->diff($start)->days;
+        return $base + max(0, 365 - (int) $days);
+    } catch (Exception $e) {
+        return $base;
+    }
+}
+
+function enrichOngoingSlideFromLinkedEvent(array $slide, array $eventsById, ?DateTimeImmutable $today = null): array
+{
+    $today = $today ?? new DateTimeImmutable('today');
+    $eid = $slide['event_id'] ?? null;
+    if (!$eid || !isset($eventsById[$eid])) {
+        return $slide;
+    }
+    $ev = $eventsById[$eid];
+    if (eventIsLive($ev, $today)) {
+        return $slide;
+    }
+    $start = !empty($ev['date_start']) ? new DateTimeImmutable($ev['date_start']) : null;
+    if ($start && $today < $start) {
+        $countdown = computeEventCountdown($ev, $today);
+        $slide['ongoing_phase'] = 'upcoming';
+        $slide['countdown_label'] = $countdown;
+        $slide['date_start'] = $ev['date_start'] ?? '';
+        $slide['date_end'] = $ev['date_end'] ?? '';
+        $slide['meta'] = is_array($slide['meta'] ?? null) ? $slide['meta'] : [];
+        $slide['meta']['status'] = $countdown;
+        $slide['meta']['date'] = $slide['meta']['date'] ?? ($ev['date'] ?? '');
+        $slide['meta']['location'] = $slide['meta']['location'] ?? truncatePlain($ev['location'] ?? '', 40);
+        if (($slide['type'] ?? '') === 'upcoming_event' || empty($slide['badge']) || $slide['badge'] === 'Important Update') {
+            $slide['badge'] = $countdown ?: 'Coming Soon';
+        }
+        $slide['priority'] = max((int) ($slide['priority'] ?? 0), ongoingEventUpcomingPriority($ev));
+    }
+    return $slide;
+}
+
+function eventInOngoingPostEventPeriod(
+    array $ev,
+    ?DateTimeImmutable $today = null,
+    bool $hasUpcomingInSection = false,
+    array $settings = []
+): bool {
+    $today = $today ?? new DateTimeImmutable('today');
     $now = new DateTimeImmutable();
+    $settings = normalizeOngoingNowSettings($settings);
 
-    foreach ($events as $ev) {
-        if (empty($ev['show_live_on_home']) || !eventIsLive($ev, $today)) {
-            continue;
+    if (empty($ev['show_live_on_home']) || eventIsLive($ev, $today)) {
+        return false;
+    }
+
+    $end = !empty($ev['date_end']) ? new DateTimeImmutable($ev['date_end']) : null;
+    if (!$end || $today <= $end) {
+        return false;
+    }
+
+    if (!eventPassesAdminDisplayWindow($ev, $now)) {
+        return false;
+    }
+
+    $days = (int) ($ev['post_event_display_days'] ?? 0);
+    if ($days === 0) {
+        return false;
+    }
+
+    if ($hasUpcomingInSection) {
+        if ($days === -2) {
+            return false;
         }
-
-        if (!empty($ev['display_start'])) {
-            try {
-                if ($now < new DateTimeImmutable($ev['display_start'])) {
-                    continue;
-                }
-            } catch (Exception $e) {}
+        if (!empty($settings['past_hide_when_upcoming']) && $days !== -3) {
+            return false;
         }
-        if (!empty($ev['display_end'])) {
-            try {
-                if ($now > new DateTimeImmutable($ev['display_end'])) {
-                    continue;
-                }
-            } catch (Exception $e) {}
-        }
+    }
 
-        $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, 'live');
-        $feedBlocks = array_values(array_filter($blocks, fn($b) => !empty($b['title']) || !empty($b['body'])));
+    if ($days === -1 || $days === -3) {
+        return true;
+    }
+    if ($days === -2) {
+        return true;
+    }
 
-        // One slide per live event — all gallery images + block media rotate together.
-        $eventMedia = collectEventSpotlightMedia($ev, $blocks, true);
-        $slides[] = buildSpotlightSlideFromEvent($ev, [
-            'type' => 'live_event',
-            'badge' => 'Live Now',
-            'updates' => $feedBlocks,
-            'media' => $eventMedia,
-        ]);
+    $graceEnd = $end->modify('+' . $days . ' days')->setTime(23, 59, 59);
+    return $now <= $graceEnd;
+}
+
+function sortOngoingSlides(array $slides, string $arrangement = 'priority'): array
+{
+    if ($arrangement === 'random' && count($slides) > 1) {
+        $seed = crc32(date('Y-m-d-H'));
+        usort($slides, function ($a, $b) use ($seed) {
+            $ha = crc32(($a['id'] ?? '') . ':' . $seed) % 10000;
+            $hb = crc32(($b['id'] ?? '') . ':' . $seed) % 10000;
+            return $ha <=> $hb;
+        });
+        return $slides;
     }
 
     usort($slides, function ($a, $b) {
@@ -2075,6 +2283,276 @@ function buildSpotlightSlides(array $events, array $customSpotlights = [], bool 
 }
 
 /**
+ * Ongoing Now carousel: live events take over on event day; otherwise mix per admin settings.
+ */
+function buildOngoingNowSlides(array $events, array $customSpotlights = [], $settings = []): array
+{
+    $settings = is_string($settings)
+        ? normalizeOngoingNowSettings(['arrangement' => $settings])
+        : normalizeOngoingNowSettings(is_array($settings) ? $settings : []);
+    $arrangement = $settings['arrangement'];
+    $today = new DateTimeImmutable('today');
+    $now = new DateTimeImmutable();
+    $liveSlides = [];
+    $mixedSlides = [];
+    $eventsById = [];
+    foreach ($events as $ev) {
+        if (!empty($ev['id'])) {
+            $eventsById[(string) $ev['id']] = $ev;
+        }
+    }
+
+    foreach ($events as $ev) {
+        if (empty($ev['show_live_on_home']) || !eventPassesAdminDisplayWindow($ev, $now)) {
+            continue;
+        }
+        if (!eventIsLive($ev, $today)) {
+            continue;
+        }
+
+        $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, 'live');
+        $feedBlocks = array_values(array_filter($blocks, fn($b) => !empty($b['title']) || !empty($b['body'])));
+        $eventMedia = collectEventSpotlightMedia($ev, $blocks, true);
+        $badge = computeOngoingEventBadge($ev, $today);
+
+        $liveSlides[] = buildSpotlightSlideFromEvent($ev, [
+            'type' => 'live_event',
+            'badge' => $badge['label'],
+            'ongoing_phase' => $badge['phase'],
+            'updates' => $feedBlocks,
+            'media' => $eventMedia,
+        ]);
+    }
+
+    if (!empty($liveSlides)) {
+        return sortOngoingSlides($liveSlides, $arrangement);
+    }
+
+    $upcomingSlides = [];
+    if (!empty($settings['show_upcoming_events'])) {
+        foreach ($events as $ev) {
+            if (!eventInOngoingUpcomingPeriod($ev, $today)) {
+                continue;
+            }
+            $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, 'homepage');
+            $eventMedia = collectEventSpotlightMedia($ev, $blocks, false);
+            $badge = computeOngoingEventBadge($ev, $today);
+
+            $upcomingSlides[] = buildSpotlightSlideFromEvent($ev, [
+                'type' => 'upcoming_event',
+                'badge' => $badge['label'],
+                'ongoing_phase' => $badge['phase'],
+                'is_live' => false,
+                'headline' => truncatePlain($ev['announcements'] ?: ($ev['description'] ?? ''), 82),
+                'cta_primary' => 'View & Register',
+                'media' => $eventMedia,
+            ]);
+        }
+    }
+    $mixedSlides = array_merge($mixedSlides, $upcomingSlides);
+    $hasUpcomingInSection = !empty($upcomingSlides);
+
+    if (!empty($settings['show_past_events'])) {
+        foreach ($events as $ev) {
+            if (!eventInOngoingPostEventPeriod($ev, $today, $hasUpcomingInSection, $settings)) {
+                continue;
+            }
+
+            $blocks = filterEventContentBlocks($ev['live_content'] ?? [], $ev, 'homepage');
+            $eventMedia = collectEventSpotlightMedia($ev, $blocks, true);
+            $badge = computeOngoingEventBadge($ev, $today);
+
+            $mixedSlides[] = buildSpotlightSlideFromEvent($ev, [
+                'type' => 'post_event',
+                'badge' => $badge['label'],
+                'ongoing_phase' => $badge['phase'],
+                'is_live' => false,
+                'headline' => truncatePlain($ev['highlights'] ?: $ev['announcements'] ?: ($ev['description'] ?? ''), 82),
+                'cta_primary' => 'See What Happened',
+                'media' => $eventMedia,
+            ]);
+        }
+    }
+
+    if (!empty($settings['show_curated'])) {
+        foreach ($customSpotlights as $row) {
+            if (empty($row['show_in_spotlight']) || !spotlightRowIsActive($row, $now)) {
+                continue;
+            }
+            $slide = buildSpotlightSlideFromCustom($row);
+            $mixedSlides[] = enrichOngoingSlideFromLinkedEvent($slide, $eventsById, $today);
+        }
+    }
+
+    return sortOngoingSlides($mixedSlides, $arrangement);
+}
+
+/**
+ * Admin planner: what is on the homepage vs what is in the admin's lineup pool.
+ *
+ * @return array<string, mixed>
+ */
+function fetchOngoingAdminPanel(PDO $pdo): array
+{
+    migrateEventSchema($pdo);
+    autoExpirePastEvents($pdo);
+
+    $settings = fetchOngoingNowSettings($pdo);
+    $payload = fetchHomeSpotlightPayload($pdo);
+    $today = new DateTimeImmutable('today');
+    $now = new DateTimeImmutable();
+
+    $evRows = $pdo->query(
+        'SELECT * FROM events
+         WHERE show_live_on_home = 1 OR show_upcoming_in_ongoing = 1
+         ORDER BY home_priority DESC, updated_at DESC'
+    )->fetchAll(PDO::FETCH_ASSOC);
+    $events = [];
+    foreach ($evRows as $ev) {
+        enrichEventRow($ev, $today);
+        $events[] = $ev;
+    }
+    $ids = array_column($events, 'id');
+    attachGalleryToEvents($events, loadEventGalleries($pdo, $ids));
+    attachMediaToEvents($events, loadEventMedia($pdo, $ids));
+    attachLiveContentToEvents($events, loadLiveContent($pdo, $ids, true), true);
+
+    $spotlights = loadHomepageSpotlights($pdo, false);
+    $displayingIds = [];
+    foreach ($payload['spotlight_slides'] as $slide) {
+        if (!empty($slide['event_id'])) {
+            $displayingIds['event:' . $slide['event_id']] = true;
+        } elseif (!empty($slide['id']) && strpos((string) $slide['id'], 'spotlight-') === 0) {
+            $displayingIds['spotlight:' . str_replace('spotlight-', '', (string) $slide['id'])] = true;
+        }
+    }
+
+    $lineupCurated = [];
+    $availableCurated = [];
+    foreach ($spotlights as $row) {
+        $active = spotlightRowIsActive($row, $now);
+        $inLineup = !empty($row['show_in_spotlight']);
+        $item = [
+            'id' => (int) $row['id'],
+            'title' => $row['title'] ?? '',
+            'headline' => truncatePlain($row['headline'] ?? '', 80),
+            'content_type' => $row['content_type'] ?? 'announcement',
+            'priority' => (int) ($row['priority'] ?? 0),
+            'is_active' => !empty($row['is_active']),
+            'in_lineup' => $inLineup,
+            'on_homepage' => isset($displayingIds['spotlight:' . $row['id']]),
+            'event_id' => $row['event_id'] ?? null,
+        ];
+        if ($inLineup) {
+            $lineupCurated[] = $item;
+        } elseif ($active) {
+            $availableCurated[] = $item;
+        }
+    }
+
+    $lineupUpcoming = [];
+    $availableUpcoming = [];
+    $automaticLive = [];
+    $lineupPast = [];
+
+    foreach ($events as $ev) {
+        $eid = (string) $ev['id'];
+        $onHome = isset($displayingIds['event:' . $eid]);
+        $countdown = computeEventCountdown($ev, $today);
+        $base = [
+            'id' => $eid,
+            'title' => $ev['title'] ?? '',
+            'date' => $ev['date'] ?? '',
+            'countdown' => $countdown,
+            'show_live_on_home' => !empty($ev['show_live_on_home']),
+            'show_upcoming_in_ongoing' => !empty($ev['show_upcoming_in_ongoing']),
+            'on_homepage' => $onHome,
+        ];
+
+        if (!empty($ev['show_live_on_home'])) {
+            $automaticLive[] = array_merge($base, [
+                'phase' => !empty($ev['is_live']) ? 'live' : (eventInOngoingUpcomingPeriod($ev, $today) ? 'waiting' : 'scheduled'),
+                'note' => !empty($ev['is_live']) ? 'Live now — homepage shows this automatically' : 'Goes live automatically on event day',
+            ]);
+        }
+
+        if (eventInOngoingUpcomingPeriod($ev, $today)) {
+            $lineupUpcoming[] = array_merge($base, ['phase' => 'upcoming']);
+        } elseif (!empty($ev['date_start'])) {
+            try {
+                $start = new DateTimeImmutable($ev['date_start']);
+                if ($today < $start && eventPassesAdminDisplayWindow($ev, $now) && empty($ev['show_upcoming_in_ongoing'])) {
+                    $availableUpcoming[] = array_merge($base, [
+                        'phase' => 'upcoming',
+                        'note' => 'Add to lineup for countdown preview',
+                    ]);
+                }
+            } catch (Exception $e) { /* ignore */ }
+        }
+
+        $hasUpcoming = !empty($lineupUpcoming);
+        if (eventInOngoingPostEventPeriod($ev, $today, $hasUpcoming, $settings) && !empty($settings['show_past_events'])) {
+            $badge = computeOngoingEventBadge($ev, $today);
+            $days = (int) ($ev['post_event_display_days'] ?? 0);
+            $lineupPast[] = array_merge($base, [
+                'phase' => $badge['phase'],
+                'badge' => $badge['label'],
+                'post_event_mode' => describePostEventDisplayMode($days),
+                'note' => describePostEventDisplayMode($days),
+            ]);
+        }
+    }
+
+    usort($lineupCurated, fn($a, $b) => ($b['priority'] <=> $a['priority']) ?: strcmp($a['title'], $b['title']));
+    usort($availableCurated, fn($a, $b) => ($b['priority'] <=> $a['priority']) ?: strcmp($a['title'], $b['title']));
+
+    return [
+        'settings' => $settings,
+        'displaying_now' => $payload['spotlight_slides'],
+        'ongoing_mode' => $payload['ongoing_mode'] ?? 'empty',
+        'has_live' => $payload['has_live'] ?? false,
+        'lineup' => [
+            'curated' => $lineupCurated,
+            'upcoming_events' => $lineupUpcoming,
+            'past_events' => $lineupPast,
+        ],
+        'available' => [
+            'curated' => $availableCurated,
+            'upcoming_events' => $availableUpcoming,
+        ],
+        'automatic_live' => $automaticLive,
+    ];
+}
+
+function computeOngoingSectionMode(array $slides, bool $hasLive): string
+{
+    if ($hasLive) {
+        return 'live';
+    }
+    if (empty($slides)) {
+        return 'empty';
+    }
+    $phases = [];
+    foreach ($slides as $slide) {
+        $phases[] = $slide['ongoing_phase'] ?? 'other';
+    }
+    $phases = array_values(array_unique($phases));
+    if (count($phases) === 1 && $phases[0] === 'upcoming') {
+        return 'upcoming';
+    }
+    if (!empty(array_intersect($phases, ['past', 'yesterday'])) && !in_array('upcoming', $phases, true)) {
+        return 'past';
+    }
+    return 'mixed';
+}
+
+function buildSpotlightSlides(array $events, array $customSpotlights = [], bool $liveOnly = false): array
+{
+    unset($liveOnly);
+    return buildOngoingNowSlides($events, $customSpotlights, defaultOngoingNowSettings());
+}
+
+/**
  * Lightweight payload for homepage spotlight + hero bridge (no full event listing).
  */
 function fetchHomeSpotlightPayload(PDO $pdo): array
@@ -2082,23 +2560,18 @@ function fetchHomeSpotlightPayload(PDO $pdo): array
     migrateEventSchema($pdo);
     autoExpirePastEvents($pdo);
 
-    $stmt = $pdo->query("
+    $stmt = $pdo->query('
         SELECT * FROM events
         WHERE show_live_on_home = 1
-          AND date_start IS NOT NULL
-          AND date_start <= CURDATE()
-          AND (date_end IS NULL OR date_end >= CURDATE())
         ORDER BY home_priority DESC, updated_at DESC, created_at DESC
-    ");
+    ');
     $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
     $today = new DateTimeImmutable('today');
     $events = [];
 
     foreach ($rows as $ev) {
         enrichEventRow($ev, $today);
-        if ($ev['is_live']) {
-            $events[] = $ev;
-        }
+        $events[] = $ev;
     }
 
     $ids = array_column($events, 'id');
@@ -2106,14 +2579,19 @@ function fetchHomeSpotlightPayload(PDO $pdo): array
     attachMediaToEvents($events, loadEventMedia($pdo, $ids));
     attachLiveContentToEvents($events, loadLiveContent($pdo, $ids, true), true);
 
-    $spotlightSlides = buildSpotlightSlides($events);
-    $hasLiveEvent = !empty($spotlightSlides);
+    $settings = fetchOngoingNowSettings($pdo);
+    $customSpotlights = loadHomepageSpotlights($pdo, true);
+    $spotlightSlides = buildOngoingNowSlides($events, $customSpotlights, $settings);
+    $hasLiveEvent = !empty(array_filter($spotlightSlides, fn($s) => !empty($s['is_live'])));
+    $ongoingMode = computeOngoingSectionMode($spotlightSlides, $hasLiveEvent);
     $heroSpotlights = array_values(array_filter($spotlightSlides, fn($s) => !empty($s['show_in_hero'])));
 
     return [
         'spotlight_slides' => $spotlightSlides,
         'hero_spotlights' => $heroSpotlights,
         'has_live' => $hasLiveEvent,
+        'ongoing_mode' => $ongoingMode,
+        'ongoing_settings' => $settings,
     ];
 }
 
@@ -2393,7 +2871,11 @@ function fetchHomepageExtrasPayload(PDO $pdo): array
     if (empty($cta['title'])) {
         $cta = defaultHomepageCta();
     }
-    return ['partners' => $partners, 'cta' => $cta];
+    return [
+        'partners' => $partners,
+        'cta' => $cta,
+        'ongoing_settings' => fetchOngoingNowSettings($pdo),
+    ];
 }
 
 function defaultSiteChrome(): array

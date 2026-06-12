@@ -1,5 +1,6 @@
 /**
- * Homepage Ongoing Now — live events only; gallery images rotate dynamically per event.
+ * Homepage Ongoing Now — live events (exclusive when active), post-event highlights,
+ * and admin-curated spotlights in one carousel.
  */
 (function () {
     'use strict';
@@ -9,7 +10,8 @@
         return (typeof ms === 'number' && ms >= 3000) ? ms : 6000;
     }
 
-    var REFRESH_MS = 45000;
+    var REFRESH_MS = 20000;
+    var _ongoingRevKey = 'hosu_ongoing_rev';
     var _carouselTimer = null;
     var _mediaTimers = {};
     var _slideIndex = 0;
@@ -114,23 +116,101 @@
         return truncate(firstLine(value), max);
     }
 
-    function shortBadge() {
-        return 'LIVE NOW';
+    function slideBadge(slide) {
+        if (slide && slide.badge) return String(slide.badge).toUpperCase();
+        if (slide && slide.is_live) return 'LIVE NOW';
+        return 'UPDATE';
+    }
+
+    function defaultOngoingSettings() {
+        return {
+            section_title: 'Ongoing Now',
+            section_subtitle: 'Live updates, recent events, and announcements from HOSU.',
+            subtitle_upcoming: 'Upcoming HOSU events — save the date and register early.',
+            eyebrow_live: 'Live · Right Now',
+            eyebrow_upcoming: 'Upcoming · Save the Date',
+            eyebrow_updates: 'Updates · From HOSU',
+            show_upcoming_events: false,
+            show_past_events: true,
+            show_curated: true,
+            past_hide_when_upcoming: false,
+            arrangement: 'priority',
+        };
+    }
+
+    function checkOngoingRevision(force) {
+        var rev;
+        try { rev = localStorage.getItem(_ongoingRevKey); } catch (e) { return; }
+        if (!rev) return;
+        if (force || rev !== window.__HOSU_ONGOING_REV) {
+            window.__HOSU_ONGOING_REV = rev;
+            if (window.HOSU_SPOTLIGHT && typeof window.HOSU_SPOTLIGHT.reload === 'function') {
+                window.HOSU_SPOTLIGHT.reload();
+            }
+        }
+    }
+
+    function resolveOngoingHeader(settings, mode, hasLive) {
+        settings = settings || defaultOngoingSettings();
+        if (hasLive) {
+            return {
+                eyebrow: settings.eyebrow_live || 'Live · Right Now',
+                subtitle: settings.section_subtitle || '',
+                pulse: true,
+            };
+        }
+        if (mode === 'upcoming') {
+            return {
+                eyebrow: settings.eyebrow_upcoming || 'Upcoming · Save the Date',
+                subtitle: settings.subtitle_upcoming || settings.section_subtitle || '',
+                pulse: false,
+            };
+        }
+        return {
+            eyebrow: settings.eyebrow_updates || 'Updates · From HOSU',
+            subtitle: settings.section_subtitle || '',
+            pulse: false,
+        };
+    }
+
+    function slideCountdownLabel(slide) {
+        if (!slide) return '';
+        return slide.countdown_label || (slide.meta && slide.meta.status) || slide.countdown || '';
+    }
+
+    function renderCountdownBlock(slide) {
+        if (!slide || slide.ongoing_phase !== 'upcoming') return '';
+        var label = slideCountdownLabel(slide);
+        if (!label) return '';
+        return '<div class="on-countdown" aria-live="polite">' +
+            '<span class="on-countdown__icon" aria-hidden="true">⏳</span>' +
+            '<div class="on-countdown__copy">' +
+            '<span class="on-countdown__label">Starts in</span>' +
+            '<span class="on-countdown__value">' + esc(label) + '</span>' +
+            '</div></div>';
     }
 
     function pickDescription(slide) {
         return truncate(slide.headline || slide.body || '', 120);
     }
 
-    function buildPills(meta) {
+    function buildPills(meta, slide) {
         var pills = [];
+        if (slide && slide.ongoing_phase === 'upcoming') {
+            var cd = slideCountdownLabel(slide);
+            if (cd) pills.push({ icon: '⏳', text: shortenMeta(cd, 28), cls: 'on-pill--countdown' });
+        }
         if (meta.date) pills.push({ icon: '🗓', text: shortenMeta(meta.date, 22) });
         if (meta.location) pills.push({ icon: '📍', text: shortenMeta(meta.location, 26) });
-        if (meta.status) pills.push({ icon: '⏱', text: shortenMeta(meta.status, 16) });
+        if (meta.status && (!slide || slide.ongoing_phase !== 'upcoming')) {
+            pills.push({ icon: '⏱', text: shortenMeta(meta.status, 16) });
+        } else if (meta.status && slide && slide.ongoing_phase === 'upcoming' && !slideCountdownLabel(slide)) {
+            pills.push({ icon: '⏱', text: shortenMeta(meta.status, 16) });
+        }
         else if (meta.speakers && pills.length < 3) {
             pills.push({ icon: '🎤', text: shortenMeta(meta.speakers, 22) });
         }
-        return pills.slice(0, 3);
+        return pills.slice(0, slide && slide.ongoing_phase === 'upcoming' ? 4 : 3);
     }
 
     function isVideoUrl(url) {
@@ -555,13 +635,16 @@
     function renderContentSlide(slide, slideIndex) {
         var media = normalizeSlideMedia(slide);
         var meta = slide.meta || {};
-        var pillList = buildPills(meta);
+        var pillList = buildPills(meta, slide);
         var pills = pillList.map(function (p) {
-            return '<span class="on-pill">' + p.icon + ' ' + esc(p.text) + '</span>';
+            return '<span class="on-pill' + (p.cls ? ' ' + p.cls : '') + '">' + p.icon + ' ' + esc(p.text) + '</span>';
         }).join('');
 
-        var icon = slide.is_live ? '🔴' : '📢';
-        var badge = shortBadge(slide);
+        var icon = slide.is_live ? '🔴'
+            : (slide.ongoing_phase === 'upcoming' ? '⏳'
+                : (slide.ongoing_phase === 'just_ended' ? '✨'
+                    : (slide.ongoing_phase === 'past' || slide.ongoing_phase === 'yesterday' ? '📅' : '📢')));
+        var badge = slideBadge(slide);
         var desc = pickDescription(slide);
         var defaultCta = buildCtas(slide);
 
@@ -574,7 +657,12 @@
                 '</div>';
         }
 
-        var badgeCls = slide.is_live ? 'on-badge on-badge--live' : 'on-badge';
+        var badgeCls = slide.is_live ? 'on-badge on-badge--live'
+            : (slide.ongoing_phase === 'upcoming' ? 'on-badge on-badge--upcoming'
+                : (slide.ongoing_phase === 'just_ended' ? 'on-badge on-badge--just-ended'
+                    : (slide.ongoing_phase === 'yesterday' ? 'on-badge on-badge--yesterday'
+                        : (slide.ongoing_phase === 'past' ? 'on-badge on-badge--past' : 'on-badge'))));
+        var countdownHtml = renderCountdownBlock(slide);
 
         return (
             '<div class="on-slide hero-slide' + (slideIndex === 0 ? ' active' : '') + '" data-lu-slide="' + slideIndex + '"' +
@@ -588,6 +676,7 @@
             '<span class="on-badge__icon">' + icon + '</span>' + esc(badge) +
             '</span>' +
             '<h3 class="on-title lu-dynamic-title">' + esc(truncate(slide.title, 60)) + '</h3>' +
+            countdownHtml +
             (desc ? '<p class="on-desc lu-dynamic-desc">' + esc(desc) + '</p>' : '<p class="on-desc lu-dynamic-desc" style="display:none"></p>') +
             (pills ? '<div class="on-pills lu-dynamic-pills">' + pills + '</div>' : '') +
             '<div class="on-cta lu-dynamic-cta">' + defaultCta + '</div>' +
@@ -719,9 +808,19 @@
         }, getCarouselInterval());
     }
 
-    function renderLiveUpdatesSection(slides) {
+    function renderLiveUpdatesSection(slides, settings, hasLive, ongoingMode) {
         var section = document.getElementById('home-ongoing');
         if (!section) return;
+        settings = settings || defaultOngoingSettings();
+        hasLive = hasLive === true || (slides && slides.some(function (s) { return s.is_live; }));
+        if (!ongoingMode) {
+            if (hasLive) ongoingMode = 'live';
+            else if (slides && slides.length && slides.every(function (s) { return s.ongoing_phase === 'upcoming'; })) {
+                ongoingMode = 'upcoming';
+            } else {
+                ongoingMode = 'mixed';
+            }
+        }
 
         if (_carouselTimer) {
             clearInterval(_carouselTimer);
@@ -731,15 +830,20 @@
         _mediaIndexBySlide = {};
 
         if (!slides || !slides.length) {
-            section.classList.remove('ongoing-now--active', 'ongoing-now--live');
+            section.classList.remove('ongoing-now--active', 'ongoing-now--live', 'ongoing-now--upcoming', 'ongoing-now--mixed');
+            section.removeAttribute('data-ongoing-mode');
             section.setAttribute('hidden', '');
             section.innerHTML = '';
             _lastSlideCount = 0;
             return;
         }
 
-        section.classList.add('ongoing-now--active', 'ongoing-now--live');
+        section.classList.add('ongoing-now--active');
+        section.classList.toggle('ongoing-now--live', hasLive);
+        section.classList.toggle('ongoing-now--upcoming', !hasLive && ongoingMode === 'upcoming');
+        section.classList.toggle('ongoing-now--mixed', !hasLive && ongoingMode === 'mixed');
         section.removeAttribute('hidden');
+        section.setAttribute('data-ongoing-mode', ongoingMode);
         section.style.setProperty('--carousel-interval', getCarouselInterval() + 'ms');
         _slideIndex = 0;
 
@@ -774,15 +878,18 @@
                 '</div>';
         }
 
+        var header = resolveOngoingHeader(settings, ongoingMode, hasLive);
+        var heading = settings.section_title || 'Ongoing Now';
+
         section.innerHTML =
             '<div class="on-wrap">' +
                 '<header class="on-head">' +
                     '<span class="on-eyebrow">' +
-                        '<span class="on-eyebrow__pulse" aria-hidden="true"></span>' +
-                        esc('Live · Right Now') +
+                        (header.pulse ? '<span class="on-eyebrow__pulse" aria-hidden="true"></span>' : '') +
+                        esc(header.eyebrow) +
                     '</span>' +
-                    '<h2 class="on-heading">Ongoing Now</h2>' +
-                    '<p class="on-subheading">Photos from live HOSU events — use arrows to browse or let images rotate automatically.</p>' +
+                    '<h2 class="on-heading">' + esc(heading) + '</h2>' +
+                    '<p class="on-subheading">' + esc(header.subtitle) + '</p>' +
                 '</header>' +
                 '<div class="on-card">' +
                     '<div class="on-media">' +
@@ -894,10 +1001,15 @@
 
     function applySpotlightData(data) {
         if (!data || !data.success) return;
-        var slides = (data.spotlight_slides || []).filter(function (s) { return s.is_live; });
+        var slides = data.spotlight_slides || [];
+        var settings = data.ongoing_settings || defaultOngoingSettings();
+        var boot = window.__HOSU_PAGE_BOOTSTRAP;
+        if ((!settings || !settings.section_title) && boot && boot.ongoing_settings) {
+            settings = boot.ongoing_settings;
+        }
         _lastSpotlightFingerprint = spotlightFingerprint(slides);
         _lastSlideCount = slides.length;
-        renderLiveUpdatesSection(slides);
+        renderLiveUpdatesSection(slides, settings, data.has_live, data.ongoing_mode);
     }
 
     function refreshQuietly() {
@@ -956,4 +1068,16 @@
         });
     }
     setInterval(refreshQuietly, REFRESH_MS);
+
+    try {
+        window.__HOSU_ONGOING_REV = localStorage.getItem(_ongoingRevKey) || '';
+    } catch (e) { window.__HOSU_ONGOING_REV = ''; }
+
+    window.addEventListener('storage', function (e) {
+        if (e.key === _ongoingRevKey) checkOngoingRevision(true);
+    });
+    document.addEventListener('visibilitychange', function () {
+        if (!document.hidden) checkOngoingRevision(false);
+    });
+    checkOngoingRevision(false);
 })();
