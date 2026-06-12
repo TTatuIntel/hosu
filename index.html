@@ -3568,6 +3568,16 @@ var HeroSlideshow = (function() {
             return si !== null && parseInt(si, 10) === slideIndex;
         });
         if (dedicated.length) return dedicated;
+
+        // Featured slides (events, publications, grants, spotlights) bring their
+        // own images and should NEVER borrow from the shared hero pool. Their
+        // CSS fallback class (event-bg / publication-bg / grant-bg) shows a
+        // gradient when they have no photo of their own.
+        var slideEl = heroSlides[slideIndex];
+        if (slideEl && slideEl.getAttribute('data-has-own-media') === '1') {
+            return dedicated;
+        }
+
         if (isGlobalHeroPool()) {
             return heroBgs.filter(function (b) {
                 return b.getAttribute('data-hero-pool') === '1';
@@ -4699,7 +4709,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var cta = slide.cta_primary_url
             ? '<a href="' + escHtml(slide.cta_primary_url) + '" class="btn btn-primary">' + escHtml(slide.cta_primary || 'Learn More') + '</a>'
             : '<a href="#home-ongoing" class="btn btn-primary">View Update</a>';
-        return '<div class="hero-slide featured-hero-slide" data-type="spotlight">' +
+        return '<div class="hero-slide featured-hero-slide" data-type="spotlight" data-has-own-media="1">' +
             '<span class="featured-label featured-label--event"><span class="featured-label-icon">📢</span> ' + escHtml(slide.badge || 'Update') + '</span>' +
             '<h1>' + escHtml(slide.title) + '</h1>' +
             (slide.headline ? '<p>' + escHtml(slide.headline) + '</p>' : '') +
@@ -4879,7 +4889,7 @@ document.addEventListener('DOMContentLoaded', function() {
             '<a href="' + escHtml(pub.link) + '" target="_blank" rel="noopener" class="btn btn-primary">' + escHtml(pub.link_label || 'Read Publication') + '</a>' : 
             '<a href="research.html#publications" class="btn btn-primary">View All Publications</a>';
 
-        return '<div class="hero-slide featured-hero-slide" data-type="publication">' +
+        return '<div class="hero-slide featured-hero-slide" data-type="publication" data-has-own-media="1">' +
             '<span class="featured-label"><span class="featured-label-icon">' + typeIcon + '</span> ' + escHtml(typeLabel) + '</span>' +
             '<h1>' + escHtml(pub.title) + '</h1>' +
             '<div class="featured-meta">' +
@@ -4898,7 +4908,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var statusLabel = grant.status === 'open' ? 'Applications Open' : grant.status === 'closing' ? 'Closing Soon' : '';
         var amountDisplay = grant.amount && parseFloat(grant.amount) > 0 ? (grant.currency || 'UGX') + ' ' + Number(grant.amount).toLocaleString() : '';
 
-        return '<div class="hero-slide featured-hero-slide" data-type="grant">' +
+        return '<div class="hero-slide featured-hero-slide" data-type="grant" data-has-own-media="1">' +
             '<span class="featured-label"><span class="featured-label-icon">💰</span> Grant Opportunity</span>' +
             '<h1>' + escHtml(grant.title) + '</h1>' +
             '<div class="featured-meta">' +
