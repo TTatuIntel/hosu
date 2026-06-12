@@ -281,14 +281,9 @@
             window.HOSU_HERO_IMAGE_MODE = 'global_pool';
         }
 
-        bgMount.querySelectorAll('.hero-background[data-bg]').forEach(function (el) {
-            var src = el.getAttribute('data-bg');
-            if (src) {
-                var pre = new Image();
-                pre.decoding = 'async';
-                pre.src = src;
-            }
-        });
+        if (typeof window.hosuLoadAllHeroBackgrounds === 'function') {
+            window.hosuLoadAllHeroBackgrounds();
+        }
 
         slides.forEach(function (slide, i) {
             var slideEl = mount.querySelector('.hero-slide[data-hero-slide="' + i + '"]');

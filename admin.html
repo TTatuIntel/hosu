@@ -1266,15 +1266,26 @@ body.density-compact .main{padding-top:.85rem;}
             </div>
 
             <div class="card hp-section" id="hp-section-hero">
-                <div class="card-hd"><h2>🖼 Hero Carousel (<span id="sc-hero-count">0</span> slides)</h2>
+                <div class="card-hd"><h2>🖼 Hero Text Slides (<span id="sc-hero-count">0</span>)</h2>
                     <div class="filter-toolbar">
-                        <button class="btn-primary" onclick="openHeroSlideModal()">+ Add Hero Slide</button>
-                        <button class="btn-sm" onclick="restoreDefaultHeroSlides()" title="Load standard HOSU slides if the carousel is empty">↺ Restore Defaults</button>
+                        <button class="btn-primary" onclick="editMainHeroSlide()" title="Edit the main homepage headline">✏️ Edit Main Headline</button>
+                        <button class="btn-sm" onclick="openHeroSlideModal()">+ Add Slide</button>
+                        <button class="btn-sm" onclick="restoreDefaultHeroSlides()" title="Reset to standard HOSU slides">↺ Restore Defaults</button>
                         <a href="index.html#home" target="_blank" class="btn-sm btn-nodecor">Preview Hero →</a>
                     </div>
                 </div>
-                <div class="card-body card-body-flush table-scroll-sm">
-                    <p class="hp-section-help">The large rotating banner at the top of the homepage. Add unlimited slides with custom titles, body text, images, pills, popup content, and buttons. HTML is allowed.</p>
+                <div class="card-body" style="padding-bottom:0;">
+                    <div id="hero-text-edit-guide" class="ev-past-date-hint" style="display:none;margin-bottom:.75rem;">
+                        <strong>Edit what visitors read in the hero (left side).</strong> Each row below is one rotating message.
+                        <ul style="margin:.35rem 0 0 1.1rem;font-size:.8rem;">
+                            <li><strong>Title</strong> → large blue headline (e.g. “A Uganda Free from Cancer…”)</li>
+                            <li><strong>Body</strong> → paragraph underneath</li>
+                            <li><strong>Primary button</strong> → red “Join Our Community” link (edit slide → Buttons &amp; Links)</li>
+                        </ul>
+                    </div>
+                </div>
+                <div class="card-body card-body-flush table-scroll-sm" style="padding-top:.5rem;">
+                    <p class="hp-section-help">Click <strong>✏️ Edit</strong> on any slide to change wording. Photos on the right are managed in <em>Hero Background Images</em> below.</p>
                     <table class="tbl"><thead><tr><th>Preview</th><th>Title</th><th>Order</th><th>Display</th><th>CTA</th><th>Status</th><th>Actions</th></tr></thead>
                     <tbody id="sc-hero-body"><tr><td colspan="7" class="empty">Loading...</td></tr></tbody></table>
                 </div>
@@ -1776,8 +1787,8 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="collapse-sec open" data-collapse="hero-content">
                 <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>📝 Slide Content</span><span class="collapse-chevron">▼</span></button>
                 <div class="collapse-bd">
-                    <div class="ff"><label>Title <span>*</span></label><textarea id="sc-hero-title" rows="2" placeholder="Headline — HTML allowed"></textarea></div>
-                    <div class="ff"><label>Body</label><textarea id="sc-hero-body-field" rows="3" placeholder="Supporting text — HTML allowed"></textarea></div>
+                    <div class="ff"><label>Main headline <span>*</span> <small style="font-weight:400;color:var(--text-light);">— large blue title on homepage</small></label><textarea id="sc-hero-title" rows="2" placeholder="e.g. A Uganda Free from Cancer &amp; Blood Diseases"></textarea></div>
+                    <div class="ff"><label>Paragraph <small style="font-weight:400;color:var(--text-light);">— text below the headline</small></label><textarea id="sc-hero-body-field" rows="4" placeholder="e.g. The Hematology &amp; Oncology Society of Uganda (HOSU) is a nonprofit organization…"></textarea></div>
                     <div class="aef-grid grid-2cols">
                         <div class="ff"><label>Badge Label</label><input type="text" id="sc-hero-badge" placeholder="Optional label above title"></div>
                         <div class="ff"><label>Sort Order</label><input type="number" id="sc-hero-sort" value="0" min="0"></div>
@@ -1806,12 +1817,13 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                 </div>
             </div>
 
-            <div class="collapse-sec" data-collapse="hero-buttons">
-                <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>🔗 Buttons &amp; Links</span><span class="collapse-chevron">▼</span></button>
+            <div class="collapse-sec open" data-collapse="hero-buttons">
+                <button type="button" class="collapse-hd" onclick="toggleCollapse(this)"><span>🔗 Red button &amp; links</span><span class="collapse-chevron">▼</span></button>
                 <div class="collapse-bd">
+                    <p class="hp-section-help" style="margin-top:0;">The red call-to-action under the paragraph (e.g. <em>Join Our Community →</em>).</p>
                     <div class="aef-grid grid-2cols">
-                        <div class="ff"><label>Primary Button Label</label><input type="text" id="sc-hero-cta-label" placeholder="Join Our Community"></div>
-                        <div class="ff"><label>Primary Button URL</label><input type="text" id="sc-hero-cta-url" placeholder="membership.html"></div>
+                        <div class="ff"><label>Button text</label><input type="text" id="sc-hero-cta-label" placeholder="Join Our Community →"></div>
+                        <div class="ff"><label>Button link</label><input type="text" id="sc-hero-cta-url" placeholder="membership.html"></div>
                     </div>
                     <div class="aef-grid grid-2cols">
                         <div class="ff"><label>Secondary Button Label</label><input type="text" id="sc-hero-cta2-label"></div>
@@ -6007,9 +6019,25 @@ function loadHeroSlides(){
             window._heroSlides=_heroSlides;
             renderHeroSlideTable();
             applyHeroImageSettingsForm(d.image_settings||null);
+            if(d.seeded){
+                toast('Homepage hero text loaded — you can now edit each slide below.','success');
+                bumpHomeRevision();
+            }
         }
         else toast(d.error||'Could not load hero slides.','error');
     }).catch(function(err){if(err&&err.message!=='auth')toast('Failed to load hero slides.','error');});
+}
+function editMainHeroSlide(){
+    if(!_heroSlides.length){
+        restoreDefaultHeroSlides();
+        return;
+    }
+    var sl=_heroSlides.find(function(s){return s.slide_key==='intro';});
+    if(!sl){
+        sl=_heroSlides.slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);})[0];
+    }
+    if(sl)openHeroSlideModal(sl);
+    else toast('No hero slides found.','error');
 }
 function restoreDefaultHeroSlides(){
     if(!confirm('Restore the standard HOSU hero slides? Existing slides stay unless the carousel is empty or all hidden.'))return;
@@ -6151,23 +6179,36 @@ function adminThumbSrc(img){
 function renderHeroSlideTable(){
     document.getElementById('sc-hero-count').textContent=_heroSlides.length;
     try{updateHpTabCounts();}catch(e){}
+    var guide=document.getElementById('hero-text-edit-guide');
+    if(guide)guide.style.display=_heroSlides.length?'block':'none';
     var tb=document.getElementById('sc-hero-body');
-    if(!_heroSlides.length){tb.innerHTML='<tr><td colspan="7" class="empty"><div class="big">🖼</div>No hero slides yet. Add slides to build the homepage carousel.</td></tr>';return;}
-    tb.innerHTML=_heroSlides.map(function(s){
+    if(!_heroSlides.length){
+        tb.innerHTML='<tr><td colspan="7" class="empty"><div class="big">🖼</div>'
+            +'<p class="empty-title">No editable hero slides yet</p>'
+            +'<p class="empty-desc">The site may still show built-in default text. Click <strong>Restore Defaults</strong> or <strong>Edit Main Headline</strong> to load slides you can change.</p>'
+            +'<button type="button" class="btn-primary" style="margin-top:.5rem;" onclick="restoreDefaultHeroSlides()">↺ Load editable slides</button>'
+            +'</td></tr>';
+        return;
+    }
+    var sorted=_heroSlides.slice().sort(function(a,b){return (a.sort_order||0)-(b.sort_order||0);});
+    tb.innerHTML=sorted.map(function(s,idx){
         var imgs=s.images&&s.images.length?s.images:(s.image_path?[{url:s.image_path,display_url:adminDisplayImageUrl(s.image_path)}]:[]);
         var imgCount=imgs.length;
         var thumbSrc=imgCount?adminThumbSrc(imgs[0]):'';
-        var thumb=thumbSrc?'<img src="'+esc(thumbSrc)+'" alt="" referrerpolicy="no-referrer" style="width:56px;height:40px;object-fit:cover;border-radius:4px;background:#eef2f7;" onerror="this.style.opacity=.35">':'<span style="font-size:.7rem;color:var(--text-light);">No image</span>';
+        var thumb=thumbSrc?'<img src="'+esc(thumbSrc)+'" alt="" referrerpolicy="no-referrer" style="width:56px;height:40px;object-fit:cover;border-radius:4px;background:#eef2f7;" onerror="this.style.opacity=.35">':'<span style="font-size:.7rem;color:var(--text-light);">Text only</span>';
         if(imgCount>1)thumb+='<span style="display:block;font-size:.62rem;color:var(--text-light);margin-top:2px;">+'+(imgCount-1)+' more</span>';
         var disp=(s.display_start||'—')+' → '+(s.display_end||'open');
-        var cta=s.cta_label?esc(truncateStr(s.cta_label,24)):('—');
-        var titlePlain=(s.title||'').replace(/<[^>]+>/g,' ');
+        var cta=s.cta_label?esc(truncateStr(s.cta_label,28)):('<span style="color:var(--text-light);">—</span>');
+        var titlePlain=(s.title||'').replace(/<[^>]+>/g,' ').trim();
+        var bodyPlain=(s.body||'').replace(/<[^>]+>/g,' ').trim();
         var active=s.is_active===true||s.is_active===1||s.is_active==='1';
-        return '<tr><td>'+thumb+'</td><td><strong>'+esc(truncateStr(titlePlain,60))+'</strong></td>'
-            +'<td>'+(s.sort_order||0)+'</td><td style="font-size:.72rem;">'+esc(disp)+'</td>'
+        var opener=(idx===0||s.slide_key==='intro')?'<span style="display:inline-block;font-size:.62rem;background:#e3f2fd;color:#1565c0;padding:2px 6px;border-radius:8px;margin-bottom:2px;">Homepage opener</span><br>':'';
+        return '<tr><td>'+thumb+'</td><td>'+opener+'<strong>'+esc(truncateStr(titlePlain,72))+'</strong>'
+            +(bodyPlain?'<div class="reg-sub" style="margin-top:.2rem;">'+esc(truncateStr(bodyPlain,90))+'</div>':'')
+            +'</td><td>'+(s.sort_order||0)+'</td><td style="font-size:.72rem;">'+esc(disp)+'</td>'
             +'<td style="font-size:.72rem;">'+cta+'</td>'
             +'<td><button class="btn-sm" onclick="toggleHeroSlideActive('+s.id+','+(active?0:1)+')">'+(active?'✅ On':'⏸ Hidden')+'</button></td>'
-            +'<td><button class="btn-sm" onclick="editHeroSlide('+s.id+')" title="Edit">✏️</button> <button class="btn-sm btn-icon-del" onclick="deleteHeroSlide('+s.id+')" title="Delete slide">🗑️</button></td></tr>';
+            +'<td><button class="btn-sm btn-primary" onclick="editHeroSlide('+s.id+')" title="Edit text &amp; button">✏️ Edit</button> <button class="btn-sm btn-icon-del" onclick="deleteHeroSlide('+s.id+')" title="Delete slide">🗑️</button></td></tr>';
     }).join('');
 }
 function pillsToText(pills){
@@ -6435,6 +6476,10 @@ function openHeroSlideModal(sl){
     document.getElementById('sc-hero-active').checked=sl?!((sl.is_active===0||sl.is_active===false||sl.is_active==='0')):true;
     document.getElementById('sc-hero-form-title').textContent=sl?'✏️ Edit Hero Slide':'🖼 Add Hero Slide';
     document.getElementById('sc-hero-save-text').textContent=sl?'💾 Update Hero Slide':'💾 Save Hero Slide';
+    ['hero-content','hero-buttons'].forEach(function(key){
+        var sec=document.querySelector('#hero-slide-modal .collapse-sec[data-collapse="'+key+'"]');
+        if(sec)sec.classList.add('open');
+    });
     openModal('hero-slide-modal');
 }
 function editHeroSlide(id){var sl=_heroSlides.find(s=>s.id==id);if(sl)openHeroSlideModal(sl);}

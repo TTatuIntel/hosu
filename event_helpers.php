@@ -2970,7 +2970,8 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
     $evStmt = $pdo->query("
         SELECT id, title, description, date, date_start, date_end, location, image, type, countdown,
                is_free, event_fee, status, featured, pinned, home_priority,
-               display_start, display_end, display_for_event, speakers, highlights, announcements
+               display_start, display_end, display_for_event, speakers, highlights, announcements,
+               drive_folder_url, live_cta_url
         FROM events
         WHERE featured = 1 OR pinned = 1
         ORDER BY pinned DESC, home_priority DESC, date_start ASC
@@ -2996,6 +2997,25 @@ function fetchHomeFeaturedPayload(PDO $pdo): array
     $ids = array_column($events, 'id');
     attachGalleryToEvents($events, loadEventGalleries($pdo, $ids));
     attachMediaToEvents($events, loadEventMedia($pdo, $ids));
+
+    foreach ($events as &$ev) {
+        $spotMedia = collectEventSpotlightMedia($ev, [], false);
+        $heroUrls = [];
+        foreach ($spotMedia as $m) {
+            if (($m['type'] ?? 'image') !== 'image') {
+                continue;
+            }
+            $disp = trim((string) ($m['display_url'] ?? spotlightDisplayUrl((string) ($m['url'] ?? ''))));
+            if ($disp !== '') {
+                $heroUrls[] = $disp;
+            }
+        }
+        if (!empty($heroUrls)) {
+            $ev['image_display_urls'] = array_values(array_unique($heroUrls));
+        }
+        $ev['hero_media'] = $spotMedia;
+    }
+    unset($ev);
 
     $publications = [];
     try {

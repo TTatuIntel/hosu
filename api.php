@@ -3085,6 +3085,10 @@ HTML;
         }
         try {
             migrateEventSchema($pdo);
+            $seeded = seedDefaultHeroSlidesIfEmpty($pdo);
+            if ($seeded) {
+                auditLog($pdo, 'seed_hero_slides', 'hero_slides', 'defaults', 'Auto-seeded editable homepage hero slides');
+            }
             $rows = $pdo->query('SELECT * FROM homepage_hero_slides ORDER BY sort_order ASC, id ASC')->fetchAll(PDO::FETCH_ASSOC);
             $slides = array_map(function ($row) use ($pdo) {
                 return normalizeHeroSlideRowWithPersist($pdo, $row);
@@ -3094,6 +3098,7 @@ HTML;
                 'success' => true,
                 'slides' => $slides,
                 'image_settings' => $heroImages,
+                'seeded' => $seeded,
             ]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);

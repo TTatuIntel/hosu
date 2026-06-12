@@ -573,21 +573,30 @@ section {
     background: linear-gradient(135deg, rgba(40, 167, 69, 0.9) 0%, rgba(29, 78, 137, 0.85) 100%);
 }
 
-/* Event image backgrounds get a dark overlay for text readability */
-.hero-background[style*="background-image"]::after {
-    content: '';
+/* Hero photos sit in the right panel — keep them sharp (no dark wash) */
+.hero-image-container .hero-background::after {
+    display: none !important;
+}
+
+.hero-background .hero-bg-img {
     position: absolute;
-    top: 0;
-    left: 0;
-    right: 0;
-    bottom: 0;
-    background: linear-gradient(
-        135deg,
-        rgba(29, 78, 137, 0.7) 0%,
-        rgba(0, 0, 0, 0.5) 50%,
-        rgba(230, 57, 70, 0.4) 100%
-    );
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    object-position: center;
+    z-index: 0;
+    display: block;
     pointer-events: none;
+}
+
+.hero-background.is-loading .hero-bg-img {
+    opacity: 0;
+}
+
+.hero-background.is-loaded .hero-bg-img {
+    opacity: 1;
+    transition: opacity 0.6s ease;
 }
 
 /* Typography */
@@ -3349,11 +3358,34 @@ var HeroSlideshow = (function() {
 
     function ensureHeroBackgroundLoaded(bgEl) {
         if (!bgEl) return;
-        var src = bgEl.getAttribute('data-bg');
-        if (src && !bgEl.style.backgroundImage) {
-            bgEl.style.backgroundImage = "url('" + src.replace(/\\/g, '\\\\').replace(/'/g, '%27') + "')";
-        }
+        var src = (bgEl.getAttribute('data-bg') || '').trim();
+        if (!src) return;
+        if (bgEl.querySelector('.hero-bg-img')) return;
+        bgEl.classList.add('is-loading');
+        bgEl.classList.remove('event-bg', 'dynamic-bg', 'publication-bg', 'grant-bg');
+        var img = document.createElement('img');
+        img.className = 'hero-bg-img';
+        img.alt = bgEl.getAttribute('aria-label') || '';
+        img.decoding = 'async';
+        img.loading = 'eager';
+        img.referrerPolicy = 'no-referrer';
+        img.onload = function () {
+            bgEl.classList.remove('is-loading');
+            bgEl.classList.add('is-loaded');
+        };
+        img.onerror = function () {
+            bgEl.classList.remove('is-loading', 'is-loaded');
+            if (!bgEl.classList.contains('event-bg')) {
+                bgEl.classList.add('event-bg');
+            }
+        };
+        img.src = src;
+        bgEl.appendChild(img);
     }
+
+    window.hosuLoadAllHeroBackgrounds = function () {
+        document.querySelectorAll('#home .hero-background[data-bg]').forEach(ensureHeroBackgroundLoaded);
+    };
 
     function applyHeroMediaContent(slideIndex, mediaIndex) {
         if (isGlobalHeroPool()) return;
@@ -3420,15 +3452,18 @@ var HeroSlideshow = (function() {
     }
 
     function getBgsForSlide(slideIndex) {
+        var dedicated = heroBgs.filter(function (b) {
+            if (b.getAttribute('data-hero-pool') === '1') return false;
+            var si = b.getAttribute('data-hero-slide');
+            return si !== null && parseInt(si, 10) === slideIndex;
+        });
+        if (dedicated.length) return dedicated;
         if (isGlobalHeroPool()) {
             return heroBgs.filter(function (b) {
                 return b.getAttribute('data-hero-pool') === '1';
             });
         }
-        return heroBgs.filter(function (b) {
-            var si = b.getAttribute('data-hero-slide');
-            return si !== null && parseInt(si, 10) === slideIndex;
-        });
+        return dedicated;
     }
 
     function getHeroMediaInterval() {
@@ -3674,7 +3709,7 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061228"></script>
+<script src="home-hero.js?v=2026061229"></script>
 <script src="home-refresh.js?v=2026061227"></script>
 <script>
 
@@ -4623,8 +4658,11 @@ document.addEventListener('DOMContentLoaded', function() {
         }
 
         function finishHero() {
+            if (typeof window.hosuLoadAllHeroBackgrounds === 'function') {
+                window.hosuLoadAllHeroBackgrounds();
+            }
             if (slidesAdded > 0 && typeof HeroSlideshow !== 'undefined') {
-                HeroSlideshow.init();
+                HeroSlideshow.reinit({ preserveIndex: true });
             }
         }
 
@@ -4679,6 +4717,7 @@ document.addEventListener('DOMContentLoaded', function() {
                     newBg.classList.add('dynamic-bg');
                 }
                 bgContainer.appendChild(newBg);
+                ensureHeroBackgroundLoaded(newBg);
             });
         }
     }
@@ -4699,11 +4738,7 @@ document.addEventListener('DOMContentLoaded', function() {
         var liveBadge = ev.is_live ? '<span class="featured-status featured-status--open">● Happening Now</span>' : '';
         var countdownBadge = (!ev.is_live && ev.countdown) ? '<span class="featured-status featured-status--soon">' + escHtml(ev.countdown) + '</span>' : '';
         var speakersLine = ev.speakers ? '<span class="featured-meta-item">🎤 ' + escHtml(ev.speakers.split(',')[0]) + '</span>' : '';
-        var galleryPos = (typeof imgTotal === 'number' && imgTotal > 1)
-            ? '<span class="featured-meta-item">🖼 ' + imgTotal + ' photos</span>'
-            : '';
-
-        return '<div class="hero-slide featured-hero-slide" data-type="event" data-event-id="' + escHtml(ev.id) + '">' +
+        return '<div class="hero-slide featured-hero-slide" data-type="event" data-event-id="' + escHtml(ev.id) + '" data-has-own-media="1">' +
             '<span class="featured-label featured-label--event"><span class="featured-label-icon">📅</span> Featured Event</span>' +
             '<h1>' + escHtml(ev.title) + '</h1>' +
             '<div class="featured-meta">' +
@@ -4711,7 +4746,6 @@ document.addEventListener('DOMContentLoaded', function() {
                 (locationDisplay ? '<span class="featured-meta-item">📍 ' + escHtml(locationDisplay) + '</span>' : '') +
                 '<span class="featured-meta-item">🎪 ' + escHtml(typeLabel) + '</span>' +
                 speakersLine +
-                galleryPos +
             '</div>' +
             '<p>' + escHtml(ev.description || 'Join us for this exciting event.') + '</p>' +
             '<div class="featured-cta">' +

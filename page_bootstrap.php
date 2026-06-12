@@ -55,6 +55,9 @@ try {
     } else {
         $spotlight = fetchHomeSpotlightPayload($pdo);
         $heroImages = loadHeroImageSettings($pdo);
+        if (count($heroImages['pool']) > 0) {
+            $heroImages['mode'] = 'global_pool';
+        }
         $payload = [
             'success' => true,
             'page' => 'home',
