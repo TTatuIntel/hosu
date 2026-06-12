@@ -17,7 +17,7 @@ if (($_GET['key'] ?? '') !== 'HOSU_DIAG_2026') {
 require_once __DIR__ . '/env.php';
 
 $host   = getenv('DB_HOST') ?: 'localhost';
-$dbname = getenv('DB_NAME') ?: 'hosuweb_db';
+$dbname = getenv('DB_NAME') ?: 'hosu_blog';
 $user   = getenv('DB_USER') ?: 'root';
 $pass   = getenv('DB_PASS') ?: '';
 

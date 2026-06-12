@@ -2849,16 +2849,21 @@ function defaultHomepagePartners(): array
 function defaultHomepageCta(): array
 {
     return [
-        'title' => 'Make a Difference',
-        'body' => 'Join us in our mission to eliminate suffering from cancer and blood diseases through care, research, education, and advocacy.',
-        'primary_label' => 'Learn More About HOSU',
-        'primary_url' => 'about.html',
-        'secondary_label' => 'Support Us',
-        'secondary_action' => 'donate',
+        'title' => '',
+        'body' => '',
+        'primary_label' => '',
+        'primary_url' => '',
+        'secondary_label' => '',
+        'secondary_action' => '',
         'secondary_url' => '',
+        'visible' => false,
     ];
 }
 
+/**
+ * Read admin-managed homepage settings from the database only.
+ * Code defaults are empty shells for new installs — they never overwrite saved rows.
+ */
 function loadHomepageSetting(PDO $pdo, string $key, ?array $default = null): array
 {
     try {
@@ -3135,12 +3140,28 @@ function fetchHomepageAdminOverview(PDO $pdo): array
     ];
 }
 
+function isProductionEnvironment(): bool
+{
+    $env = strtolower(trim((string) (getenv('APP_ENV') ?: '')));
+    if ($env === 'production') {
+        return true;
+    }
+    $domain = strtolower(trim((string) (getenv('APP_DOMAIN') ?: '')));
+    return $domain === 'hosu.or.ug' || $domain === 'www.hosu.or.ug';
+}
+
 /**
- * Remove all public-facing content so admins can reload links, images, and copy fresh.
- * Preserves user accounts, members, payments, and membership category reference data.
+ * Remove all public-facing content (local dev only).
+ * Blocked on production — live site content at hosu.or.ug must only change via Admin.
  */
 function clearPublicContent(PDO $pdo): array
 {
+    if (isProductionEnvironment() && getenv('ALLOW_CONTENT_CLEAR') !== '1') {
+        throw new RuntimeException(
+            'Refusing to clear content on production. Set ALLOW_CONTENT_CLEAR=1 only on a dev copy of the database.'
+        );
+    }
+
     migrateEventSchema($pdo);
     $cleared = [];
 
@@ -3191,9 +3212,6 @@ function clearPublicContent(PDO $pdo): array
     } catch (Exception $e) {
         $cleared['site_stats'] = 'skip: ' . $e->getMessage();
     }
-
-    saveHomepageSetting($pdo, 'partners', defaultHomepagePartners());
-    saveHomepageSetting($pdo, 'cta', defaultHomepageCta());
 
     return $cleared;
 }
