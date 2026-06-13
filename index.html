@@ -23,7 +23,7 @@
     <link rel="stylesheet" href="shared-login.css?v=2026040404">
     <link rel="stylesheet" href="home-sections.css?v=2026061226">
     <script src="site_bootstrap.php"></script>
-    <script src="page_bootstrap.php?page=home&amp;v=2026061232"></script>
+    <script src="page_bootstrap.php?page=home&amp;v=2026061234"></script>
 <style>
 /* CSS for home page - ensuring uniform colors with blog page */
 :root {
@@ -234,7 +234,7 @@ section {
 
 /* Hero Section */
 #home.hero {
-    overflow: hidden;
+    overflow: visible;
     z-index: 2;
 }
 
@@ -242,7 +242,7 @@ section {
     position: relative;
     color: var(--text-color);
     padding-top: var(--navbar-height);
-    overflow: hidden;
+    overflow: visible;
     background-color: var(--gray-100);
     display: flex;
     justify-content: center;
@@ -260,14 +260,12 @@ section {
     width: var(--section-width);
     margin: 0 auto;
     position: relative;
-    overflow: hidden;
-    padding: 1.25rem 0 1.5rem;
-    gap: 3%;
+    overflow: visible;
+    padding: 0.75rem 0 1rem;
+    gap: 2rem;
     justify-content: space-between;
     align-items: center;
-    /* Taller minimum so portrait hero photos display in full — head, shoulders
-       and torso all visible without bleeding into navbar or partners strip. */
-    min-height: 520px;
+    min-height: auto;
 }
 
 .hero-content {
@@ -279,7 +277,7 @@ section {
     z-index: 10;
     text-align: left;
     position: relative;
-    min-height: 280px;
+    min-height: 200px;
     margin-right: auto;
 }
 
@@ -478,23 +476,23 @@ section {
 }
 
 .hero-image-container {
-    position: absolute;
-    right: -5%;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 58%;
-    /* Image box hugs the hero's content height — no bleed into navbar or
-       partners strip below.  object-fit: contain on the inner <img>
-       guarantees nothing is cropped regardless of aspect ratio. */
-    height: 100%;
-    max-height: 100%;
+    position: relative;
+    flex: 0 0 38%;
+    width: 38%;
+    max-width: 300px;
+    min-width: 200px;
+    height: auto;
+    aspect-ratio: 4 / 3;
+    max-height: 200px;
     overflow: hidden;
-    border-radius: 0;
+    border-radius: 10px;
     box-shadow: none;
     animation: fadeIn 1s ease-out 0.3s forwards;
     opacity: 0;
     z-index: 0;
     background: var(--gray-100);
+    align-self: center;
+    margin-left: auto;
 }
 
 /* Soft left-edge blend only — full overlays hid hero photos */
@@ -543,11 +541,12 @@ section {
     left: 0;
     width: 100%;
     height: 100%;
-    background-size: cover;
+    background-size: contain;
+    background-repeat: no-repeat;
     background-position: center;
-    transition: opacity 1s ease, transform 8s ease;
+    transition: opacity 1s ease;
     opacity: 0;
-    transform: scale(1.05);
+    transform: none;
     z-index: 1;
 }
 
@@ -562,7 +561,7 @@ section {
 /* Load the remaining hero backgrounds lazily after first paint to reduce initial bandwidth */
 .hero-background.active {
     opacity: 1;
-    transform: scale(1);
+    transform: none;
 }
 
 /* Dynamic backgrounds for featured content */
@@ -589,8 +588,8 @@ section {
     inset: 0;
     width: 100%;
     height: 100%;
-    /* contain (not cover) guarantees no photo is cropped — full subject
-       always visible. Centred so portraits and landscapes both look balanced. */
+    max-width: 100%;
+    max-height: 100%;
     object-fit: contain;
     object-position: center;
     z-index: 1;
@@ -2064,8 +2063,8 @@ footer {
     }
     
     .hero-image-container {
-        height: 100%;
-        max-height: 100%;
+        max-width: 280px;
+        max-height: 190px;
     }
 
     :root {
@@ -2077,17 +2076,19 @@ footer {
     .hero-container {
         gap: 2rem;
         min-height: auto;
+        flex-direction: column-reverse;
     }
 
     .hero-image-container {
         position: relative;
-        right: auto;
-        top: auto;
-        transform: none;
+        flex: none;
         width: 100%;
+        max-width: 320px;
+        min-width: 0;
         height: auto;
-        aspect-ratio: 16 / 10;
-        max-height: 480px;
+        aspect-ratio: 4 / 3;
+        max-height: 210px;
+        margin: 0 auto;
     }
 
     #home-ongoing.hero--spotlight .hero-image-container {
@@ -2174,10 +2175,10 @@ footer {
     .hero-container {
         flex-direction: column;
         height: auto;
-        min-height: 400px;
+        min-height: auto;
         width: 95%;
         padding: var(--spacing-md) 0;
-        gap: 2rem;
+        gap: 1.25rem;
     }
 
     .hero-content {
@@ -2206,16 +2207,15 @@ footer {
 
     .hero-image-container {
         position: relative;
-        right: auto;
-        top: auto;
-        transform: none;
+        flex: none;
         width: 100%;
-        max-width: 550px;
+        max-width: 300px;
+        min-width: 0;
         height: auto;
         aspect-ratio: 4 / 3;
-        margin: 1rem auto 0;
-        border-radius: 0;
-        max-height: 60vh;
+        margin: 0.75rem auto 0;
+        border-radius: 8px;
+        max-height: 200px;
     }
 
     .section-title {
@@ -3851,7 +3851,7 @@ var HeroSlideshow = (function() {
 function showHeroSlide(index) { HeroSlideshow.show(index); }
 function resetHeroTimer() { HeroSlideshow.reset(); }
 </script>
-<script src="home-hero.js?v=2026061232"></script>
+<script src="home-hero.js?v=2026061234"></script>
 <script src="home-refresh.js?v=2026061227"></script>
 <script>
 
