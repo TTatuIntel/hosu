@@ -19,18 +19,32 @@
 # Prevent directory listing
 Options -Indexes
 
-# Allow larger image uploads (hero photos, member documents)
+# Allow large image and video uploads (hero photos, member documents, gallery).
+# The client compresses oversized photos before upload, but raw originals from
+# modern phones (HEIC bursts, 4K stills) routinely exceed 20 MB — so we set a
+# generous ceiling here. post_max_size is intentionally larger than
+# upload_max_filesize to leave headroom for the rest of the multipart form
+# (CSRF token, JSON metadata, multi-file submissions).
 <IfModule mod_php.c>
-    php_value upload_max_filesize 16M
-    php_value post_max_size 20M
+    php_value upload_max_filesize 128M
+    php_value post_max_size 144M
+    php_value max_file_uploads 100
+    php_value max_execution_time 300
+    php_value memory_limit 384M
 </IfModule>
 <IfModule mod_php7.c>
-    php_value upload_max_filesize 16M
-    php_value post_max_size 20M
+    php_value upload_max_filesize 128M
+    php_value post_max_size 144M
+    php_value max_file_uploads 100
+    php_value max_execution_time 300
+    php_value memory_limit 384M
 </IfModule>
 <IfModule mod_php8.c>
-    php_value upload_max_filesize 16M
-    php_value post_max_size 20M
+    php_value upload_max_filesize 128M
+    php_value post_max_size 144M
+    php_value max_file_uploads 100
+    php_value max_execution_time 300
+    php_value memory_limit 384M
 </IfModule>
 
 # Disable .htaccess file serving

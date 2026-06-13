@@ -3542,7 +3542,7 @@ HTML;
                 $names = $GLOBALS['__upload_rejected_names'] ?? [];
                 $resp['warning'] = $rejectedCount . ' of ' . $attempted . ' image upload(s) were rejected'
                     . (count($names) ? ': ' . implode(', ', array_slice($names, 0, 3)) : '')
-                    . '. Check that files are under 12 MB and JPG/PNG/WebP/GIF/SVG.';
+                    . '. Check that files are under 128 MB and JPG/PNG/WebP/GIF/SVG.';
             }
             echo json_encode($resp);
         } catch (PDOException $e) {
@@ -4308,10 +4308,10 @@ HTML;
 
             // secureUpload handles JPG/PNG/WebP/GIF/SVG plus HEIC/AVIF/TIFF/BMP from phones
             // (Imagick converts those to JPG), strips metadata, and downscales large photos.
-            $savedPath = secureUpload($_FILES['file'], $uploadDir, true, 12 * 1024 * 1024);
+            $savedPath = secureUpload($_FILES['file'], $uploadDir, true, UPLOAD_MAX_SIZE);
             if ($savedPath === false) {
                 http_response_code(400);
-                echo json_encode(['error' => 'Could not save file. Check the file type (JPG, PNG, WebP, GIF, SVG, HEIC, PDF) and that it is under 12 MB.']);
+                echo json_encode(['error' => 'Could not save file. Check the file type (JPG, PNG, WebP, GIF, SVG, HEIC, PDF) and that it is under 128 MB.']);
                 break;
             }
 

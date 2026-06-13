@@ -4,7 +4,7 @@
  * Validates type, size, and re-encodes images to strip metadata/payloads.
  */
 
-define('UPLOAD_MAX_SIZE', 32 * 1024 * 1024); // 32 MB hard cap; client auto-compresses before upload
+define('UPLOAD_MAX_SIZE', 128 * 1024 * 1024); // 128 MB hard cap; client auto-compresses photos before upload
 define('UPLOAD_IMAGE_MAX_WIDTH', 1280);
 define('UPLOAD_IMAGE_MAX_HEIGHT', 960);
 define('UPLOAD_IMAGE_JPEG_QUALITY', 85);

@@ -1733,7 +1733,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
                         <div class="ld-upload-drop" id="ld-upload-drop" onclick="document.getElementById('ld-photo-file').click()">
                             <div class="ld-upload-icon">📷</div>
                             <div class="ld-upload-text"><strong>Click to upload</strong> or drag &amp; drop</div>
-                            <div class="ld-upload-hint">Any image format (max 12 MB)</div>
+                            <div class="ld-upload-hint">Any image format · auto-optimized (originals up to 128 MB)</div>
                         </div>
                         <input type="file" id="ld-photo-file" accept="image/*" class="hidden" onchange="handleLeaderPhoto(this)">
                         <div class="ld-or-divider">— or paste URL —</div>
@@ -5730,7 +5730,7 @@ function handleLeaderPhoto(input){
     var file=input.files[0];
     var allowed=['image/jpeg','image/png','image/webp'];
     if(allowed.indexOf(file.type)===-1){toast('Only JPG, PNG or WebP images are allowed.','error');input.value='';return;}
-    if(file.size>5*1024*1024){toast('Photo must be under 5 MB.','error');input.value='';return;}
+    if(file.size>128*1024*1024){toast('Photo must be under 128 MB.','error');input.value='';return;}
     _leaderPhotoFile=file;
     document.getElementById('ld-photo').value='';
     var reader=new FileReader();
