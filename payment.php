@@ -21,6 +21,7 @@ header("Cache-Control: no-store, no-cache, must-revalidate, max-age=0");
 
 require_once 'db.php';
 require_once 'mailer.php';
+require_once __DIR__ . '/event_emails.php';
 
 $action = $_POST['action'] ?? $_GET['action'] ?? '';
 

@@ -114,6 +114,30 @@ input[readonly].flatpickr-input{background:var(--white);cursor:pointer;}
 .sc-gallery-empty{font-size:.75rem;color:var(--text-light);margin:0;padding:.65rem .75rem;background:var(--gray-100);border-radius:8px;border:1px dashed var(--border);text-align:center;}
 .sc-gallery-add{display:grid;grid-template-columns:1fr 1fr;gap:.75rem;margin-top:.65rem;}
 @media(max-width:720px){.sc-gallery-add{grid-template-columns:1fr;}}
+/* ── Upload drop-zone (enhanced file input) ───────────────────────── */
+.hosu-drop{position:relative;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:.45rem;padding:1.1rem 1rem;border:2px dashed rgba(13,69,147,.35);background:linear-gradient(180deg,#f8fbff 0%,#f1f5fb 100%);border-radius:10px;cursor:pointer;transition:all .18s ease;text-align:center;min-height:120px;}
+.hosu-drop:hover{border-color:var(--secondary,#0d4593);background:linear-gradient(180deg,#eef4fc 0%,#e6edf8 100%);transform:translateY(-1px);}
+.hosu-drop.is-drag{border-color:#e63946;background:linear-gradient(180deg,#fff3f4 0%,#ffe5e8 100%);border-style:solid;}
+.hosu-drop.is-busy{opacity:.7;cursor:wait;border-style:solid;border-color:#90caf9;background:#e8f3ff;}
+.hosu-drop input[type=file]{position:absolute;inset:0;width:100%;height:100%;opacity:0;cursor:pointer;border:0;padding:0;font:0/0 a;color:transparent;}
+.hosu-drop.is-busy input[type=file]{pointer-events:none;}
+.hosu-drop__icon{font-size:1.65rem;line-height:1;}
+.hosu-drop__title{font-size:.92rem;font-weight:700;color:var(--secondary,#0d4593);letter-spacing:-.01em;}
+.hosu-drop__hint{font-size:.72rem;color:var(--text-light,#64748b);line-height:1.45;max-width:42ch;}
+.hosu-drop__cta{display:inline-flex;align-items:center;gap:.35rem;padding:.4rem .85rem;font-size:.74rem;font-weight:600;border-radius:999px;background:var(--secondary,#0d4593);color:#fff;box-shadow:0 2px 8px rgba(13,69,147,.25);}
+.hosu-drop.is-drag .hosu-drop__cta{background:#e63946;box-shadow:0 2px 8px rgba(230,57,70,.3);}
+.hosu-upload-progress{margin-top:.5rem;display:none;}
+.hosu-upload-progress.is-active{display:block;}
+.hosu-upload-progress__bar{height:6px;background:rgba(13,69,147,.12);border-radius:999px;overflow:hidden;}
+.hosu-upload-progress__fill{height:100%;width:0%;background:linear-gradient(90deg,var(--secondary,#0d4593) 0%,#3b82f6 100%);border-radius:999px;transition:width .25s ease;}
+.hosu-upload-progress__label{font-size:.7rem;color:var(--text-light,#64748b);margin-top:.3rem;display:flex;justify-content:space-between;gap:.5rem;}
+.hosu-upload-errors{display:none;margin-top:.5rem;padding:.55rem .7rem;border-radius:8px;background:#fff5f5;border:1px solid #fecaca;color:#991b1b;font-size:.74rem;}
+.hosu-upload-errors.is-active{display:block;}
+.hosu-upload-errors__head{display:flex;justify-content:space-between;align-items:center;gap:.5rem;margin-bottom:.25rem;}
+.hosu-upload-errors__title{font-weight:700;}
+.hosu-upload-errors__dismiss{background:transparent;border:0;color:#991b1b;cursor:pointer;font-size:.85rem;line-height:1;padding:.2rem;}
+.hosu-upload-errors ul{margin:.2rem 0 0;padding-left:1.1rem;}
+.hosu-upload-errors li{line-height:1.5;}
 .sc-gallery-order{position:absolute;top:2px;left:2px;background:rgba(13,69,147,.88);color:#fff;font-size:.55rem;font-weight:700;padding:2px 6px;border-radius:10px;z-index:2;}
 #sc-hero-pool-images-wrap{max-height:min(52vh,520px);overflow-y:auto;padding-right:.25rem;margin-bottom:.75rem;border:1px solid var(--border);border-radius:8px;padding:.5rem;background:#fafafa;}
 #sc-hero-pool-images-grid{max-height:none;}
@@ -2346,6 +2370,7 @@ textarea.ld-input{resize:vertical;min-height:100px;}
             <div class="reg-search-wrap" style="display:flex;gap:.5rem;flex-wrap:wrap;align-items:center;">
                 <input type="text" id="reg-search" class="reg-search-input" placeholder="Search registrants…" oninput="filterRegModal()" style="flex:1;min-width:180px;">
                 <button type="button" class="btn-sm" onclick="exportRegistrantsCsv()">📥 Export CSV</button>
+                <button type="button" class="btn-sm btn-green" onclick="issueAllEventCerts()" title="Issue certificates to every attended registrant">🎓 Issue certs to all attended</button>
                 <button type="button" class="btn-sm" onclick="refreshRegModalQuietly(true)" title="Refresh list">🔄 Refresh</button>
             </div>
             <div class="overflow-auto">
@@ -3435,6 +3460,13 @@ function renderRegModal(){
         var attendBtn=attended
             ?'<button class="btn-sm" onclick="toggleRegistrantAttendance('+r.id+',0)" title="Undo attendance">↩️</button>'
             :'<button class="btn-green btn-sm" onclick="toggleRegistrantAttendance('+r.id+',1)" title="Mark as attended">✓ Check in</button>';
+        var certBtn='';
+        if(attended){
+            var hasCert=!!(r.cert_token||r.cert_issued_date);
+            certBtn=hasCert
+                ?'<button class="btn-sm" onclick="issueEventCert('+r.id+',true)" title="Re-send certificate email — issued '+esc(r.cert_issued_date||'')+'">🎓 Re-send</button>'
+                :'<button class="btn-green btn-sm" onclick="issueEventCert('+r.id+',false)" title="Issue and email certificate">🎓 Issue cert</button>';
+        }
         var deleteBtn='<button class="btn-sm btn-icon-del" onclick="deleteRegistrant('+r.id+')" title="Remove registrant">🗑️</button>';
         html+='<tr>'
             +'<td class="reg-sub col-num">'+(i+1)+'</td>'
@@ -3444,7 +3476,7 @@ function renderRegModal(){
             +'<td>'+payBadge+amtStr+'</td>'
             +'<td>'+attendBadge+'</td>'
             +'<td class="reg-sub col-date">'+esc(r.registered_date||'—')+'</td>'
-            +'<td class="col-actions">'+attendBtn+' '+receiptLink+verifyBtn+' '+deleteBtn+'</td></tr>';
+            +'<td class="col-actions">'+attendBtn+' '+certBtn+' '+receiptLink+verifyBtn+' '+deleteBtn+'</td></tr>';
     });
     document.getElementById('reg-modal-body').innerHTML=html;
 }
@@ -3466,6 +3498,46 @@ function toggleRegistrantAttendance(regId,attended){
 function exportRegistrantsCsv(){
     if(!_regModalEventId){toast('No event selected.','error');return;}
     window.open('api.php?action=export_event_registrants&event_id='+encodeURIComponent(_regModalEventId),'_blank');
+}
+function issueEventCert(regId,resend){
+    var verb=resend?'Re-send':'Issue';
+    if(!confirm(verb+' certificate for this attendee? They will receive an email with a link to print/save their certificate.'))return;
+    var fd=new FormData();
+    fd.append('action','issue_event_certificate');
+    fd.append('registrant_id',regId);
+    adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+        if(d&&d.success){
+            if(d.emailed) toast('🎓 Certificate issued and emailed.','success');
+            else toast('🎓 Certificate issued (no valid email — share the link directly).','info');
+            if(d.cert_url){
+                window.open(d.cert_url,'_blank','noopener');
+            }
+            refreshRegModalQuietly(false);
+        }else{
+            toast((d&&d.error)||'Could not issue certificate.','error');
+        }
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Could not issue certificate.','error');
+    });
+}
+function issueAllEventCerts(){
+    if(!_regModalEventId){toast('No event selected.','error');return;}
+    var attendedCount=_regModalData.filter(function(r){return r.qr_scanned==1||r.qr_scanned===true||r.qr_scanned==='1';}).length;
+    if(!attendedCount){toast('No attended registrants — check people in first.','error');return;}
+    if(!confirm('Issue certificates to '+attendedCount+' attended registrant(s) and email them now?'))return;
+    var fd=new FormData();
+    fd.append('action','issue_event_certificates_bulk');
+    fd.append('event_id',_regModalEventId);
+    adminJsonFetch('api.php',{method:'POST',body:fd}).then(function(d){
+        if(d&&d.success){
+            toast('🎓 '+d.issued+' issued · '+d.emailed+' emailed'+(d.errors&&d.errors.length?(' · '+d.errors.length+' failed'):''),'success');
+            refreshRegModalQuietly(false);
+        }else{
+            toast((d&&d.error)||'Bulk issuance failed.','error');
+        }
+    }).catch(function(err){
+        if(err&&err.message!=='auth'&&err.message!=='csrf')toast('Bulk issuance failed.','error');
+    });
 }
 function verifyRegistrant(regId,status){
     var fd=new FormData();fd.append('action','verify_registrant');fd.append('registrant_id',regId);fd.append('status',status);
@@ -6358,6 +6430,10 @@ function setHeroPoolUploadUi(loading,total,done,phase){
             statusEl.textContent='';
         }
     }
+    // Mirror progress into the enhanced drop-zone for clearer feedback.
+    if(typeof hosuSetDropProgress==='function'){
+        hosuSetDropProgress('hero-pool',loading?{active:true,total:total,done:done,phase:phase}:{active:false});
+    }
 }
 
 function updateHeroPoolPendingBanner(){
@@ -6482,10 +6558,14 @@ function uploadHeroPoolFilesInBatches(files,onProgress){
         if(idx>=files.length){
             return refreshHeroPoolSettingsFromServer().then(function(settings){
                 if(!settings&&accepted===0){
+                    if(typeof hosuShowDropErrors==='function')hosuShowDropErrors('hero-pool',errors);
                     throw new Error(errors.length?errors.join('; '):'Photo upload failed — nothing was saved.');
                 }
                 if(errors.length&&accepted>0){
-                    toast(accepted+' saved, '+errors.length+' failed: '+errors.slice(0,3).join('; '),'error');
+                    toast(accepted+' saved, '+errors.length+' failed — see details below.','error');
+                    if(typeof hosuShowDropErrors==='function')hosuShowDropErrors('hero-pool',errors);
+                }else if(typeof hosuShowDropErrors==='function'){
+                    hosuShowDropErrors('hero-pool',[]);
                 }
                 return settings;
             });
@@ -6769,12 +6849,16 @@ function addScGalleryFiles(section,fileList){
     }
     var items=scGalleryItems(section);
     var raw=Array.from(fileList);
-    hosuPrepareGalleryFiles(raw).then(function(prepared){
+    if(typeof hosuSetDropProgress==='function')hosuSetDropProgress(section,{active:true,total:raw.length,done:0,phase:'optimize'});
+    hosuPrepareGalleryFiles(raw,function(done,total){
+        if(typeof hosuSetDropProgress==='function')hosuSetDropProgress(section,{active:true,total:total,done:done,phase:'optimize'});
+    }).then(function(prepared){
         prepared.forEach(function(f){
             var blob=URL.createObjectURL(f);
             items.push({url:blob,alt:'',_pending:true,_file:f,_blob:blob});
         });
         renderScGallery(section);
+        if(typeof hosuSetDropProgress==='function')hosuSetDropProgress(section,{active:false});
         toast(prepared.length+' image(s) ready — save to upload.','success');
     }).catch(function(){
         raw.forEach(function(f){
@@ -6782,6 +6866,7 @@ function addScGalleryFiles(section,fileList){
             items.push({url:blob,alt:'',_pending:true,_file:f,_blob:blob});
         });
         renderScGallery(section);
+        if(typeof hosuSetDropProgress==='function')hosuSetDropProgress(section,{active:false});
         toast(raw.length+' image(s) added — save to upload.','success');
     });
 }
@@ -6937,10 +7022,134 @@ function bindScGalleryFileInputs(){
             if(input.files&&input.files.length)addScGalleryFiles(section,input.files);
             input.value='';
         });
+        enhanceScGalleryDropzone(section,input);
     });
 }
 document.addEventListener('DOMContentLoaded',bindScGalleryFileInputs);
 if(document.readyState!=='loading')bindScGalleryFileInputs();
+
+/* ── Drop-zone + drag-drop + persistent error panel ─────────────────
+   Wraps each <input type="file"> in a visible, clickable drop area
+   without altering the input itself, so all existing JS that reads
+   the input (`addScGalleryFiles`, change listener, etc.) keeps working. */
+function enhanceScGalleryDropzone(section,input){
+    if(!input||input.dataset.dropzoned)return;
+    input.dataset.dropzoned='1';
+    var labelWrap=input.closest('.ff')||input.parentElement;
+    if(!labelWrap)return;
+    var hintEl=labelWrap.querySelector('small');
+    var hintText=hintEl?hintEl.textContent.trim():'JPG, PNG, WebP, GIF, HEIC, AVIF — multiple files OK';
+    var titleEl=labelWrap.querySelector('label');
+    var title=titleEl?titleEl.textContent.replace(/^\s*[📤🔗➕]+\s*/,'').trim():'Upload images';
+
+    var drop=document.createElement('div');
+    drop.className='hosu-drop';
+    drop.setAttribute('role','button');
+    drop.setAttribute('tabindex','0');
+    drop.setAttribute('aria-label',title+' — click or drag photos here');
+    drop.innerHTML='<span class="hosu-drop__icon" aria-hidden="true">📷</span>'+
+        '<span class="hosu-drop__title">'+esc(title)+'</span>'+
+        '<span class="hosu-drop__hint">'+esc(hintText)+'</span>'+
+        '<span class="hosu-drop__cta">Browse photos · or drag &amp; drop</span>';
+
+    // Move the native input inside the drop zone so clicks anywhere open the picker.
+    input.parentNode.insertBefore(drop,input);
+    drop.appendChild(input);
+    if(hintEl)hintEl.style.display='none';
+
+    // Per-input progress + errors panels
+    var progress=document.createElement('div');
+    progress.className='hosu-upload-progress';
+    progress.id='hosu-up-progress-'+section;
+    progress.innerHTML='<div class="hosu-upload-progress__bar"><div class="hosu-upload-progress__fill"></div></div>'+
+        '<div class="hosu-upload-progress__label"><span class="hosu-upload-progress__phase">Preparing…</span><span class="hosu-upload-progress__count">0 / 0</span></div>';
+    drop.parentNode.insertBefore(progress,drop.nextSibling);
+
+    var errors=document.createElement('div');
+    errors.className='hosu-upload-errors';
+    errors.id='hosu-up-errors-'+section;
+    errors.innerHTML='<div class="hosu-upload-errors__head"><span class="hosu-upload-errors__title">⚠ Some photos could not be uploaded</span><button type="button" class="hosu-upload-errors__dismiss" aria-label="Dismiss">✕</button></div><ul></ul>';
+    errors.querySelector('.hosu-upload-errors__dismiss').addEventListener('click',function(){
+        errors.classList.remove('is-active');
+        errors.querySelector('ul').innerHTML='';
+    });
+    progress.parentNode.insertBefore(errors,progress.nextSibling);
+
+    // Keyboard activation
+    drop.addEventListener('keydown',function(e){
+        if(e.key==='Enter'||e.key===' '){e.preventDefault();input.click();}
+    });
+
+    // Drag & drop
+    ['dragenter','dragover'].forEach(function(ev){
+        drop.addEventListener(ev,function(e){
+            e.preventDefault();e.stopPropagation();
+            drop.classList.add('is-drag');
+            if(e.dataTransfer)e.dataTransfer.dropEffect='copy';
+        });
+    });
+    ['dragleave','dragend'].forEach(function(ev){
+        drop.addEventListener(ev,function(e){
+            e.preventDefault();e.stopPropagation();
+            if(ev==='dragleave'&&drop.contains(e.relatedTarget))return;
+            drop.classList.remove('is-drag');
+        });
+    });
+    drop.addEventListener('drop',function(e){
+        e.preventDefault();e.stopPropagation();
+        drop.classList.remove('is-drag');
+        var dt=e.dataTransfer;
+        if(!dt||!dt.files||!dt.files.length)return;
+        var imgs=Array.prototype.filter.call(dt.files,function(f){
+            return !f.type||/^image\//i.test(f.type)||/\.(heic|heif|avif|tif|tiff|bmp|jxl)$/i.test(f.name||'');
+        });
+        if(!imgs.length){
+            toast('Only image files are accepted here.','error');
+            return;
+        }
+        addScGalleryFiles(section,imgs);
+    });
+
+    // Prevent the native input from re-opening when clicking the styled wrapper twice
+    drop.addEventListener('click',function(e){
+        if(e.target===drop||e.target.classList.contains('hosu-drop__cta')||e.target.classList.contains('hosu-drop__title')||e.target.classList.contains('hosu-drop__hint')||e.target.classList.contains('hosu-drop__icon')){
+            input.click();
+        }
+    });
+}
+
+/* Update the per-section drop-zone progress UI. Called by upload pipelines. */
+function hosuSetDropProgress(section,opts){
+    var p=document.getElementById('hosu-up-progress-'+section);
+    if(!p)return;
+    var drop=p.previousElementSibling;
+    if(opts&&opts.active){
+        p.classList.add('is-active');
+        if(drop&&drop.classList)drop.classList.add('is-busy');
+        var pct=opts.total?Math.round(100*(opts.done||0)/opts.total):0;
+        p.querySelector('.hosu-upload-progress__fill').style.width=Math.max(2,Math.min(100,pct))+'%';
+        p.querySelector('.hosu-upload-progress__phase').textContent=
+            opts.phase==='optimize'?'🔧 Optimizing photos…':
+            opts.phase==='upload'?'⬆ Uploading to server…':
+            (opts.phase||'Working…');
+        p.querySelector('.hosu-upload-progress__count').textContent=(opts.done||0)+' / '+(opts.total||'?');
+    }else{
+        p.classList.remove('is-active');
+        if(drop&&drop.classList)drop.classList.remove('is-busy');
+        p.querySelector('.hosu-upload-progress__fill').style.width='0%';
+    }
+}
+
+/* Show persistent upload errors per section. Stays visible until user dismisses. */
+function hosuShowDropErrors(section,errs){
+    var box=document.getElementById('hosu-up-errors-'+section);
+    if(!box)return;
+    var ul=box.querySelector('ul');
+    if(!errs||!errs.length){box.classList.remove('is-active');ul.innerHTML='';return;}
+    ul.innerHTML=errs.slice(0,12).map(function(m){return '<li>'+esc(String(m))+'</li>';}).join('')+
+        (errs.length>12?'<li>… and '+(errs.length-12)+' more</li>':'');
+    box.classList.add('is-active');
+}
 
 function openHeroSlideModal(sl){
     document.getElementById('sc-hero-edit-id').value=sl?sl.id:'';

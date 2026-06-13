@@ -355,6 +355,91 @@ HTML;
     hosuMail($toEmail, $subject, $html, 'HOSU Membership');
 }
 
+// ── Membership certificate (sent automatically the first time a member
+//    becomes "active" — approved + paid + not expired). Idempotent: a
+//    members.cert_emailed_at timestamp prevents duplicate sends.
+function sendMembershipCertificateEmail(PDO $pdo, int $memberId): bool {
+    try {
+        // Idempotent migration — add the stamp column on first call.
+        try { $pdo->exec("ALTER TABLE members ADD COLUMN cert_emailed_at TIMESTAMP NULL DEFAULT NULL"); } catch (Exception $_e) {}
+
+        $stmt = $pdo->prepare("
+            SELECT m.*, mc.name AS category_name
+              FROM members m
+              LEFT JOIN membership_categories mc ON mc.id = m.category_id
+             WHERE m.id = ?
+             LIMIT 1
+        ");
+        $stmt->execute([$memberId]);
+        $member = $stmt->fetch(PDO::FETCH_ASSOC);
+        if (!$member || empty($member['email']) || !filter_var($member['email'], FILTER_VALIDATE_EMAIL)) {
+            return false;
+        }
+        if (!empty($member['cert_emailed_at'])) {
+            return false; // already sent once — do not spam
+        }
+
+        ensureMailer();
+        $name      = htmlspecialchars($member['full_name'] ?: 'Member', ENT_QUOTES, 'UTF-8');
+        $memNum    = $member['membership_number']
+            ?: ('HOSU-' . date('Y') . '-' . str_pad((string)$member['id'], 4, '0', STR_PAD_LEFT));
+        $memNumEsc = htmlspecialchars($memNum, ENT_QUOTES, 'UTF-8');
+        $category  = htmlspecialchars($member['category_name'] ?: 'Member', ENT_QUOTES, 'UTF-8');
+        $expiry    = !empty($member['expiry_date'])
+            ? date('d F Y', strtotime($member['expiry_date']))
+            : 'Lifetime';
+        $expiryEsc = htmlspecialchars($expiry, ENT_QUOTES, 'UTF-8');
+
+        $verifyToken = substr(hash_hmac('sha256', $memNum . '|' . ($member['email'] ?? ''), getenv('CERT_HMAC_KEY') ?: 'hosu-cert-key'), 0, 16);
+
+        $protocol = (!empty($_SERVER['HTTPS']) && $_SERVER['HTTPS'] !== 'off') ? 'https' : 'http';
+        $host     = preg_replace('/[^a-zA-Z0-9.\-]/', '', $_SERVER['HTTP_HOST'] ?? 'hosu.or.ug');
+        $host     = filter_var($host, FILTER_SANITIZE_URL) ?: 'hosu.or.ug';
+        $basePath = dirname($_SERVER['SCRIPT_NAME'] ?? '/');
+        $certUrl   = $protocol . '://' . $host . $basePath . '/certificate.php?member=' . urlencode((string)$member['id']);
+        $verifyUrl = $protocol . '://' . $host . $basePath . '/verify.php?m=' . urlencode($memNum) . '&t=' . urlencode($verifyToken);
+
+        $subject = 'Welcome to HOSU — Your Membership Certificate';
+        $html = <<<HTML
+<!DOCTYPE html><html><head><meta charset="UTF-8"></head>
+<body style="margin:0;padding:0;font-family:Arial,Helvetica,sans-serif;background:#f4f6f9;">
+<table width="100%" cellpadding="0" cellspacing="0" style="max-width:560px;margin:24px auto;background:#fff;border-radius:12px;overflow:hidden;box-shadow:0 2px 12px rgba(0,0,0,0.08);">
+  <tr><td style="background:#16a34a;padding:24px 28px;">
+    <h1 style="margin:0;color:#fff;font-size:20px;">🎉 Welcome to HOSU — Membership Active</h1>
+  </td></tr>
+  <tr><td style="padding:28px;">
+    <p style="margin:0 0 12px;color:#333;">Dear <strong>{$name}</strong>,</p>
+    <p style="margin:0 0 18px;color:#555;line-height:1.55;">Your HOSU membership is now <strong style="color:#16a34a;">Active</strong>. Your official membership certificate has been issued — click below to view, print, or save it as a PDF.</p>
+    <table width="100%" cellpadding="8" cellspacing="0" style="border:1px solid #e2e8f0;border-radius:8px;font-size:14px;color:#333;margin-bottom:18px;">
+      <tr style="background:#f8fafc;"><td><strong>Membership number</strong></td><td>{$memNumEsc}</td></tr>
+      <tr><td><strong>Category</strong></td><td>{$category}</td></tr>
+      <tr style="background:#f8fafc;"><td><strong>Valid through</strong></td><td>{$expiryEsc}</td></tr>
+      <tr><td><strong>Status</strong></td><td style="color:#16a34a;font-weight:700;">Active ✓</td></tr>
+    </table>
+    <p style="margin:18px 0 0;text-align:center;">
+      <a href="{$certUrl}" style="display:inline-block;background:#0d4593;color:#fff;padding:12px 28px;border-radius:8px;text-decoration:none;font-weight:700;">📜 Open Certificate</a>
+    </p>
+    <p style="margin:18px 0 0;text-align:center;font-size:12px;color:#888;">
+      Anyone can confirm your status using the QR code on the certificate, or this link: <a href="{$verifyUrl}" style="color:#0d4593;text-decoration:none;">verify membership</a>
+    </p>
+  </td></tr>
+  <tr><td style="background:#f8fafc;padding:16px 28px;font-size:12px;color:#888;text-align:center;">
+    Haematology &amp; Oncology Society of Uganda (HOSU)<br>
+    <a href="mailto:info@hosu.or.ug" style="color:#0d4593;text-decoration:none;">info@hosu.or.ug</a> &middot; <a href="https://hosu.or.ug" style="color:#0d4593;text-decoration:none;">www.hosu.or.ug</a>
+  </td></tr>
+</table></body></html>
+HTML;
+        $ok = hosuMail($member['email'], $subject, $html, 'HOSU Membership');
+        if ($ok) {
+            $pdo->prepare("UPDATE members SET cert_emailed_at = NOW() WHERE id = ?")->execute([$memberId]);
+        }
+        return $ok;
+    } catch (\Throwable $e) {
+        error_log('sendMembershipCertificateEmail: ' . $e->getMessage());
+        return false;
+    }
+}
+
 // ── Grant application acknowledgment ─────────────────────────────────
 function sendGrantAckEmail(string $toEmail, string $name, string $grantTitle): void {
     ensureMailer();
@@ -775,7 +860,12 @@ case 'create_post':
         try {
             $eventId = trim($_GET['event_id'] ?? $_POST['event_id'] ?? '');
             if (!$eventId) { http_response_code(400); echo json_encode(['error' => 'event_id required']); break; }
-            foreach (['qr_scanned TINYINT(1) NOT NULL DEFAULT 0', 'scanned_at TIMESTAMP NULL DEFAULT NULL'] as $colDef) {
+            foreach ([
+                'qr_scanned TINYINT(1) NOT NULL DEFAULT 0',
+                'scanned_at TIMESTAMP NULL DEFAULT NULL',
+                'cert_issued_at TIMESTAMP NULL DEFAULT NULL',
+                'cert_token VARCHAR(64) DEFAULT NULL',
+            ] as $colDef) {
                 $colName = explode(' ', $colDef)[0];
                 try { $pdo->exec("ALTER TABLE event_registrants ADD COLUMN $colName " . substr($colDef, strlen($colName) + 1)); } catch (Exception $_e) {}
             }
@@ -785,6 +875,8 @@ case 'create_post':
                        status, payment_status,
                        receipt_number, receipt_token,
                        qr_scanned,
+                       cert_token,
+                       DATE_FORMAT(cert_issued_at,'%d %b %Y %H:%i') as cert_issued_date,
                        DATE_FORMAT(registered_at,'%d %b %Y %H:%i') as registered_date,
                        DATE_FORMAT(registered_at,'%Y-%m-%d %H:%i:%s') as registered_at_iso,
                        DATE_FORMAT(scanned_at,'%d %b %Y %H:%i') as attended_date,
@@ -838,6 +930,133 @@ case 'create_post':
             )->execute([$attended, $id]);
             auditLog($pdo, 'mark_registrant_attendance', 'event_registrant', (string)$id, $attended ? 'attended' : 'not_attended');
             echo json_encode(['success' => true, 'attended' => (bool)$attended]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'issue_event_certificate':
+        // Admin issues (and emails) a certificate to a single attended registrant.
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            require_once __DIR__ . '/event_emails.php';
+            $id = (int)($_POST['registrant_id'] ?? 0);
+            if ($id <= 0) { http_response_code(400); echo json_encode(['error' => 'Invalid registrant']); break; }
+            $check = $pdo->prepare('SELECT id, full_name, email, qr_scanned FROM event_registrants WHERE id = ?');
+            $check->execute([$id]);
+            $row = $check->fetch(PDO::FETCH_ASSOC);
+            if (!$row) { http_response_code(404); echo json_encode(['error' => 'Registrant not found']); break; }
+            if ((int)($row['qr_scanned'] ?? 0) !== 1) {
+                http_response_code(400);
+                echo json_encode(['error' => 'Check the attendee in first — certificates are only issued to attended registrants.']);
+                break;
+            }
+            $token = hosuEnsureEventCertToken($pdo, $id);
+            if ($token === '') {
+                http_response_code(500); echo json_encode(['error' => 'Could not issue certificate']); break;
+            }
+            $emailed = false;
+            if (!empty($row['email']) && filter_var($row['email'], FILTER_VALIDATE_EMAIL)) {
+                $emailed = sendEventCertificateEmail($pdo, $id);
+            }
+            auditLog($pdo, 'issue_event_certificate', 'event_registrant', (string)$id, $emailed ? 'emailed' : 'token_only');
+            echo json_encode([
+                'success'      => true,
+                'cert_token'   => $token,
+                'emailed'      => $emailed,
+                'cert_url'     => 'event_certificate.php?reg=' . $id . '&t=' . $token,
+            ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'issue_event_certificates_bulk':
+        // Admin issues certs to every attended registrant for an event.
+        if (empty($_SESSION['user_id']) || ($_SESSION['user_role'] ?? '') !== 'admin') {
+            http_response_code(401); echo json_encode(['error' => 'Admin access required']); break;
+        }
+        try {
+            require_once __DIR__ . '/event_emails.php';
+            $eventId = trim($_POST['event_id'] ?? '');
+            if ($eventId === '') { http_response_code(400); echo json_encode(['error' => 'event_id required']); break; }
+            $stmt = $pdo->prepare("SELECT id, email FROM event_registrants WHERE event_id = ? AND qr_scanned = 1");
+            $stmt->execute([$eventId]);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+            $issued = 0; $emailed = 0; $errors = [];
+            foreach ($rows as $r) {
+                $rid = (int)$r['id'];
+                if (hosuEnsureEventCertToken($pdo, $rid) !== '') {
+                    $issued++;
+                    if (!empty($r['email']) && filter_var($r['email'], FILTER_VALIDATE_EMAIL)) {
+                        if (sendEventCertificateEmail($pdo, $rid)) $emailed++;
+                        else $errors[] = 'reg #' . $rid . ' email failed';
+                    }
+                }
+            }
+            auditLog($pdo, 'issue_event_certificates_bulk', 'event', $eventId, $issued . ' issued / ' . $emailed . ' emailed');
+            echo json_encode([
+                'success'        => true,
+                'total_attended' => count($rows),
+                'issued'         => $issued,
+                'emailed'        => $emailed,
+                'errors'         => $errors,
+            ]);
+        } catch (PDOException $e) {
+            error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
+        }
+        break;
+
+    case 'lookup_member_status':
+        // Public name/email lookup for the directory "verified member" widget.
+        // Never exposes private fields. Requires ≥3 chars to prevent enumeration.
+        try {
+            hosuPublicJsonCache(30);
+            $q = trim($_GET['q'] ?? $_POST['q'] ?? '');
+            if (mb_strlen($q) < 3) {
+                echo json_encode(['success' => true, 'state' => 'too_short', 'matches' => []]);
+                break;
+            }
+            $like = '%' . $q . '%';
+            $stmt = $pdo->prepare("
+                SELECT m.id, m.full_name, m.institution, m.country, m.specialty,
+                       m.expiry_date, m.dues_paid_at, m.approval_status, m.status,
+                       mc.name AS category_name
+                  FROM members m
+                  LEFT JOIN membership_categories mc ON mc.id = m.category_id
+                 WHERE (m.full_name LIKE ? OR m.email LIKE ?)
+                   AND m.status NOT IN ('suspended','rejected')
+                 ORDER BY
+                   CASE
+                     WHEN m.full_name = ? THEN 0
+                     WHEN m.full_name LIKE ? THEN 1
+                     ELSE 2
+                   END,
+                   m.full_name ASC
+                 LIMIT 5
+            ");
+            $stmt->execute([$like, $like, $q, $q . '%']);
+            $rows = $stmt->fetchAll(PDO::FETCH_ASSOC);
+
+            $matches = [];
+            foreach ($rows as $r) {
+                require_once __DIR__ . '/membership_helpers.php';
+                $derived = hosuMembershipStatus($r);
+                // Only "Active" / "Honorary" earn the green badge — other states
+                // are returned so the widget can show "lapsed" / "pending" honestly.
+                $matches[] = [
+                    'name'        => $r['full_name'],
+                    'category'    => $r['category_name'] ?: 'Member',
+                    'institution' => $r['institution'] ?: '',
+                    'country'     => $r['country'] ?: '',
+                    'specialty'   => $r['specialty'] ?: '',
+                    'expiry'      => $r['expiry_date'] ? date('d M Y', strtotime($r['expiry_date'])) : null,
+                    'state'       => $derived,
+                ];
+            }
+            echo json_encode(['success' => true, 'state' => $matches ? 'ok' : 'none', 'matches' => $matches]);
         } catch (PDOException $e) {
             error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']);
         }
@@ -1651,6 +1870,10 @@ HTML;
             if ($memRow && !empty($memRow['email'])) {
                 $notifyStatus = $approval === 'approved' ? ($memRow['status'] === 'active' ? 'active' : 'pending') : $approval;
                 sendMemberStatusEmail($memRow['email'], $memRow['full_name'], $notifyStatus);
+                if ($notifyStatus === 'active') {
+                    // Approval just flipped this member to Active — email their certificate.
+                    sendMembershipCertificateEmail($pdo, $id);
+                }
             }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) {
@@ -1682,6 +1905,9 @@ HTML;
             $memRow = $memStmt->fetch(PDO::FETCH_ASSOC);
             if ($memRow && !empty($memRow['email'])) {
                 sendMemberStatusEmail($memRow['email'], $memRow['full_name'], $status);
+                if ($status === 'active') {
+                    sendMembershipCertificateEmail($pdo, $id);
+                }
             }
             echo json_encode(['success' => true]);
         } catch (PDOException $e) { error_log('API: ' . $e->getMessage()); http_response_code(500); echo json_encode(['error' => 'Server error']); }
@@ -1728,7 +1954,15 @@ HTML;
                     $memRow->execute([$id]);
                     $mr = $memRow->fetch(PDO::FETCH_ASSOC);
                     if ($mr && !empty($mr['email'])) {
-                        sendMemberStatusEmail($mr['email'], $mr['full_name'], $mr['status'] === 'active' ? 'active' : 'pending');
+                        $newStatus = $mr['status'] === 'active' ? 'active' : 'pending';
+                        sendMemberStatusEmail($mr['email'], $mr['full_name'], $newStatus);
+                        if ($newStatus === 'active') {
+                            // Look up the member id for the cert email.
+                            $midStmt = $pdo->prepare('SELECT member_id FROM payments WHERE id = ?');
+                            $midStmt->execute([$id]);
+                            $mid = (int)$midStmt->fetchColumn();
+                            if ($mid > 0) sendMembershipCertificateEmail($pdo, $mid);
+                        }
                     }
                 }
             }

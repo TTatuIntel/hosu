@@ -48,6 +48,28 @@
         .dir-empty .big { font-size: 2.5rem; margin-bottom: 0.5rem; }
         .cta-join { display: inline-flex; margin-top: 1rem; padding: 0.65rem 1.25rem; background: var(--secondary-color); color: #fff; border-radius: 8px; font-weight: 600; font-size: 0.88rem; text-decoration: none; }
         .cta-join:hover { background: var(--secondary-dark); }
+
+        /* Verify-member widget */
+        .verify-card { background: linear-gradient(135deg, #0d4593 0%, #072a5e 100%); color: #fff; border-radius: 14px; padding: 1.4rem 1.5rem; margin-bottom: 1.5rem; box-shadow: 0 8px 24px rgba(13,69,147,0.18); }
+        .verify-card h2 { font-size: 1.05rem; margin: 0 0 0.35rem; display: flex; align-items: center; gap: 0.5rem; }
+        .verify-card p { font-size: 0.82rem; opacity: 0.85; margin: 0 0 0.9rem; line-height: 1.55; }
+        .verify-form { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+        .verify-input { flex: 1; min-width: 220px; padding: 0.7rem 1rem; border: none; border-radius: 8px; font-family: inherit; font-size: 0.92rem; background: #fff; color: #001848; }
+        .verify-btn { padding: 0.7rem 1.2rem; background: #e63946; color: #fff; border: none; border-radius: 8px; font-weight: 600; font-size: 0.88rem; cursor: pointer; font-family: inherit; }
+        .verify-btn:hover { background: #c81d2a; }
+        .verify-btn:disabled { opacity: 0.55; cursor: wait; }
+        .verify-results { margin-top: 0.9rem; }
+        .verify-result { background: #fff; color: #001848; border-radius: 10px; padding: 0.95rem 1.1rem; margin-bottom: 0.55rem; display: flex; align-items: flex-start; gap: 0.85rem; box-shadow: 0 2px 8px rgba(0,0,0,0.06); }
+        .verify-badge { flex: 0 0 auto; font-size: 0.7rem; font-weight: 800; text-transform: uppercase; letter-spacing: 0.06em; padding: 0.3rem 0.7rem; border-radius: 999px; margin-top: 0.1rem; white-space: nowrap; }
+        .vb-active { background: #dcfce7; color: #15803d; }
+        .vb-honorary { background: #dbeafe; color: #1e40af; }
+        .vb-expired { background: #fef3c7; color: #b45309; }
+        .vb-pending { background: #fef3c7; color: #b45309; }
+        .vb-none { background: #fee2e2; color: #b91c1c; }
+        .verify-meta { flex: 1; min-width: 0; }
+        .verify-meta strong { display: block; font-size: 1rem; color: #0d4593; margin-bottom: 0.15rem; }
+        .verify-meta small { display: block; font-size: 0.78rem; color: #475569; line-height: 1.5; }
+        .verify-empty { background: rgba(255,255,255,0.12); color: #fff; border-radius: 10px; padding: 0.9rem 1.1rem; font-size: 0.85rem; text-align: center; border: 1px dashed rgba(255,255,255,0.3); }
     </style>
 </head>
 <body>
@@ -59,6 +81,17 @@
                 <h1>Member Directory</h1>
                 <p>Approved HOSU members who have chosen to appear publicly. Private contact details, documents, and payment information are never shown here.</p>
             </header>
+
+            <section class="verify-card" aria-labelledby="verify-card-title">
+                <h2 id="verify-card-title">✅ Verify a HOSU member</h2>
+                <p>Type a name (or part of it) to confirm whether someone is a current, paid HOSU member. We never reveal email, phone, or payment details — only the status and category.</p>
+                <form class="verify-form" id="verify-form" onsubmit="event.preventDefault();lookupMember();">
+                    <input type="search" id="verify-input" class="verify-input" placeholder="e.g. Naghib Bogere"
+                           aria-label="Name to verify" autocomplete="off" minlength="3" required>
+                    <button type="submit" id="verify-btn" class="verify-btn">Check status</button>
+                </form>
+                <div id="verify-results" class="verify-results" aria-live="polite"></div>
+            </section>
 
             <div class="dir-note">
                 <i class="fas fa-shield-alt"></i>
@@ -120,6 +153,87 @@
         }).join('');
     }
     document.getElementById('dir-search').addEventListener('input', renderDirectory);
+
+    /* ── Public "verify a member" widget ─────────────────────────────
+       Calls api.php?action=lookup_member_status — returns at most 5
+       partial matches with state (active/honorary/expired/etc.) but
+       never exposes email, phone, or payment data. */
+    var _verifyBusy = false;
+    function verifyBadge(state){
+        switch(state){
+            case 'active':    return { cls:'vb-active',  label:'✅ Active member',   note:'Paid and in good standing' };
+            case 'honorary':  return { cls:'vb-honorary',label:'⭐ Honorary member', note:'Lifetime honorary status' };
+            case 'expired':   return { cls:'vb-expired', label:'⏳ Membership lapsed', note:'Was a member — renewal needed' };
+            case 'pending':
+            case 'approved_unpaid':
+            case 'needs_correction':
+                return { cls:'vb-pending', label:'🕓 Not yet active', note:'Application in progress' };
+            default:          return { cls:'vb-none',   label:'❌ Not a current member', note:'No active record found' };
+        }
+    }
+    function lookupMember(){
+        var input = document.getElementById('verify-input');
+        var btn = document.getElementById('verify-btn');
+        var out = document.getElementById('verify-results');
+        var q = (input.value || '').trim();
+        if (q.length < 3){
+            out.innerHTML = '<div class="verify-empty">Please type at least 3 characters of the name.</div>';
+            return;
+        }
+        if (_verifyBusy) return;
+        _verifyBusy = true;
+        btn.disabled = true;
+        btn.textContent = 'Checking…';
+        out.innerHTML = '<div class="verify-empty">Looking up…</div>';
+        fetch('api.php?action=lookup_member_status&q=' + encodeURIComponent(q))
+            .then(function(r){ return r.json(); })
+            .then(function(d){
+                if (!d || !d.success){
+                    out.innerHTML = '<div class="verify-empty">Lookup failed. Please try again.</div>';
+                    return;
+                }
+                if (d.state === 'too_short'){
+                    out.innerHTML = '<div class="verify-empty">Please type at least 3 characters.</div>';
+                    return;
+                }
+                if (!d.matches || !d.matches.length){
+                    out.innerHTML = '<div class="verify-result">'
+                        + '<span class="verify-badge vb-none">❌ Not found</span>'
+                        + '<div class="verify-meta"><strong>' + esc(q) + '</strong>'
+                        + '<small>No HOSU member matches that name. If you expected a match, the person may not be a member yet or may have chosen not to be publicly verifiable.</small>'
+                        + '</div></div>';
+                    return;
+                }
+                out.innerHTML = d.matches.map(function(m){
+                    var b = verifyBadge(m.state);
+                    var bits = [];
+                    if (m.institution) bits.push(esc(m.institution));
+                    if (m.country) bits.push(esc(m.country));
+                    if (m.specialty) bits.push(esc(m.specialty));
+                    var line2 = bits.length ? '<small>' + bits.join(' · ') + '</small>' : '';
+                    var validity = (m.state === 'active' && m.expiry)
+                        ? '<small style="color:#15803d;font-weight:600;margin-top:.3rem;">Valid through ' + esc(m.expiry) + '</small>'
+                        : (m.state === 'honorary' ? '<small style="color:#1e40af;font-weight:600;margin-top:.3rem;">Lifetime status</small>' : '');
+                    return '<div class="verify-result">'
+                        + '<span class="verify-badge ' + b.cls + '">' + b.label + '</span>'
+                        + '<div class="verify-meta">'
+                        +   '<strong>' + esc(m.name) + '</strong>'
+                        +   '<small>' + esc(m.category) + '</small>'
+                        +   line2
+                        +   validity
+                        + '</div></div>';
+                }).join('');
+            })
+            .catch(function(){
+                out.innerHTML = '<div class="verify-empty">Network error. Please try again.</div>';
+            })
+            .then(function(){
+                _verifyBusy = false;
+                btn.disabled = false;
+                btn.textContent = 'Check status';
+            });
+    }
+
     fetch('api.php?action=list_public_members')
         .then(function (r) { return r.json(); })
         .then(function (d) {
