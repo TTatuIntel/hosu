@@ -6364,9 +6364,9 @@ function hosuPrepareOneImageFile(file){
         if(converted.size<=HOSU_PREP_SKIP_BYTES&&converted.type!=='image/gif'){
             return hosuReadImageDimensions(converted).then(function(dim){
                 if(dim.w<=HOSU_PREP_MAX_W&&dim.h<=HOSU_PREP_MAX_H)return converted;
-                return hosuShrinkToTarget(converted);
+                return hosuShrinkToTarget(converted).catch(function(){return converted;});
             }).catch(function(){
-                return hosuShrinkToTarget(converted);
+                return hosuShrinkToTarget(converted).catch(function(){return converted;});
             });
         }
         if(converted.type==='image/gif'&&converted.size<=HOSU_PREP_TARGET_BYTES*2)return converted;
@@ -6375,8 +6375,8 @@ function hosuPrepareOneImageFile(file){
                 prepared._hosuOptimizedFrom=origSize;
             }
             return prepared;
-        });
-    });
+        }).catch(function(){return converted;});
+    }).catch(function(){return file;});
 }
 
 function hosuPrepareGalleryFiles(fileList,onProgress){
@@ -6387,8 +6387,13 @@ function hosuPrepareGalleryFiles(fileList,onProgress){
     function next(){
         if(i>=files.length)return Promise.resolve(out);
         if(onProgress)onProgress(i,files.length,'optimize');
-        return hosuPrepareOneImageFile(files[i]).then(function(prepared){
-            out.push(prepared);
+        var original=files[i];
+        return Promise.resolve().then(function(){
+            return hosuPrepareOneImageFile(original);
+        }).catch(function(){
+            return original;
+        }).then(function(prepared){
+            out.push(prepared||original);
             i++;
             if(onProgress)onProgress(i,files.length,'optimize');
             return next();
