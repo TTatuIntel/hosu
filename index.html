@@ -60,8 +60,8 @@
     --section-max-width: 1280px;
     --hero-height: auto;
     --section-padding: 2rem;
-    --hero-content-width: 48%;
-    --hero-image-width: 48%;
+    --hero-content-width: 46%;
+    --hero-image-width: 50%;
 }
 
 * {
@@ -243,7 +243,10 @@ section {
     color: var(--text-color);
     padding-top: var(--navbar-height);
     overflow: visible;
-    background-color: var(--gray-100);
+    background:
+        radial-gradient(1200px 500px at 85% 10%, rgba(29,78,137,0.07), transparent 60%),
+        radial-gradient(900px 400px at 10% 90%, rgba(230,57,70,0.05), transparent 60%),
+        var(--gray-100);
     display: flex;
     justify-content: center;
     align-items: center;
@@ -261,8 +264,8 @@ section {
     margin: 0 auto;
     position: relative;
     overflow: visible;
-    padding: 0.75rem 0 1rem;
-    gap: 2rem;
+    padding: 1.5rem 0 2rem;
+    gap: 2.5rem;
     justify-content: space-between;
     align-items: center;
     min-height: auto;
@@ -277,7 +280,7 @@ section {
     z-index: 10;
     text-align: left;
     position: relative;
-    min-height: 200px;
+    min-height: 280px;
     margin-right: auto;
 }
 
@@ -477,16 +480,18 @@ section {
 
 .hero-image-container {
     position: relative;
-    flex: 0 0 38%;
-    width: 38%;
-    max-width: 300px;
-    min-width: 200px;
+    flex: 0 0 var(--hero-image-width);
+    width: var(--hero-image-width);
+    max-width: 560px;
+    min-width: 280px;
     height: auto;
-    aspect-ratio: 4 / 3;
-    max-height: 200px;
+    aspect-ratio: 16 / 10;
+    max-height: 380px;
     overflow: hidden;
-    border-radius: 10px;
-    box-shadow: none;
+    border-radius: 18px;
+    box-shadow:
+        0 24px 60px -20px rgba(13, 69, 147, 0.28),
+        0 8px 24px -10px rgba(0, 0, 0, 0.12);
     animation: fadeIn 1s ease-out 0.3s forwards;
     opacity: 0;
     z-index: 0;
@@ -495,19 +500,29 @@ section {
     margin-left: auto;
 }
 
-/* Soft left-edge blend only — full overlays hid hero photos */
+/* Subtle inner ring for polish */
+.hero-image-container::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border-radius: inherit;
+    box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.35);
+    z-index: 3;
+    pointer-events: none;
+}
+
+/* Soft bottom gradient for legibility if captions appear */
 .hero-image-container::after {
     content: '';
     position: absolute;
-    top: 0;
     left: 0;
+    right: 0;
     bottom: 0;
-    width: 22%;
+    height: 35%;
     z-index: 2;
     pointer-events: none;
-    background: linear-gradient(to right,
-        var(--gray-100) 0%,
-        rgba(247, 250, 252, 0.75) 35%,
+    background: linear-gradient(to top,
+        rgba(13, 69, 147, 0.18) 0%,
         transparent 100%
     );
 }
@@ -541,13 +556,17 @@ section {
     left: 0;
     width: 100%;
     height: 100%;
-    background-size: contain;
+    background-size: cover;
     background-repeat: no-repeat;
     background-position: center;
-    transition: opacity 1s ease;
+    transition: opacity 1s ease, transform 8s ease-out;
     opacity: 0;
-    transform: none;
+    transform: scale(1.03);
     z-index: 1;
+}
+
+.hero-background.active {
+    transform: scale(1);
 }
 
 #hero-bg-0{background:linear-gradient(145deg,#1d4e89,#0d4593)}
@@ -590,7 +609,7 @@ section {
     height: 100%;
     max-width: 100%;
     max-height: 100%;
-    object-fit: contain;
+    object-fit: cover;
     object-position: center;
     z-index: 1;
     display: block;
@@ -608,11 +627,12 @@ section {
 
 /* Typography */
 .hero h1 {
-    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
-    line-height: 1.2;
-    margin-bottom: 0.6rem;
+    font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+    line-height: 1.15;
+    margin-bottom: 1rem;
     color: var(--secondary-color);
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     position: relative;
     display: inline-block;
 }
@@ -620,18 +640,21 @@ section {
 .hero h1::after {
     content: '';
     position: absolute;
-    bottom: -8px;
+    bottom: -10px;
     left: 0;
-    width: 80px;
-    height: 3px;
+    width: 64px;
+    height: 4px;
+    border-radius: 2px;
     background: var(--primary-color);
 }
 
 .hero p {
-    font-size: clamp(0.8rem, 1.3vw, 0.88rem);
-    margin-bottom: 1rem;
+    font-size: clamp(0.95rem, 1.4vw, 1.05rem);
+    margin-bottom: 1.25rem;
+    margin-top: 1rem;
     color: var(--text-light);
-    line-height: 1.6;
+    line-height: 1.65;
+    max-width: 95%;
 }
 
 /* CTA buttons */
@@ -726,11 +749,12 @@ section {
    ══════════════════════════════════════════════════════════════════ */
 .hero-slide.featured-hero-slide h1 {
     /* Match regular hero h1 styling */
-    font-size: clamp(1.25rem, 2.4vw, 1.65rem);
-    line-height: 1.2;
-    margin-bottom: 0.6rem;
+    font-size: clamp(1.75rem, 3.2vw, 2.4rem);
+    line-height: 1.15;
+    margin-bottom: 1rem;
     color: var(--secondary-color);
-    font-weight: 700;
+    font-weight: 800;
+    letter-spacing: -0.02em;
     position: relative;
     display: inline-block;
 }
@@ -738,10 +762,11 @@ section {
 .hero-slide.featured-hero-slide h1::after {
     content: '';
     position: absolute;
-    bottom: -8px;
+    bottom: -10px;
     left: 0;
-    width: 80px;
-    height: 3px;
+    width: 64px;
+    height: 4px;
+    border-radius: 2px;
     background: var(--primary-color);
 }
 
@@ -2063,8 +2088,8 @@ footer {
     }
     
     .hero-image-container {
-        max-width: 280px;
-        max-height: 190px;
+        max-width: 480px;
+        max-height: 340px;
     }
 
     :root {
@@ -2074,7 +2099,7 @@ footer {
 
 @media (max-width: 992px) {
     .hero-container {
-        gap: 2rem;
+        gap: 1.75rem;
         min-height: auto;
         flex-direction: column-reverse;
     }
@@ -2083,11 +2108,11 @@ footer {
         position: relative;
         flex: none;
         width: 100%;
-        max-width: 320px;
+        max-width: 560px;
         min-width: 0;
         height: auto;
-        aspect-ratio: 4 / 3;
-        max-height: 210px;
+        aspect-ratio: 16 / 10;
+        max-height: 360px;
         margin: 0 auto;
     }
 
@@ -2209,13 +2234,13 @@ footer {
         position: relative;
         flex: none;
         width: 100%;
-        max-width: 300px;
+        max-width: 520px;
         min-width: 0;
         height: auto;
-        aspect-ratio: 4 / 3;
+        aspect-ratio: 16 / 10;
         margin: 0.75rem auto 0;
-        border-radius: 8px;
-        max-height: 200px;
+        border-radius: 14px;
+        max-height: 300px;
     }
 
     .section-title {
